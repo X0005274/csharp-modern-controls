@@ -8,6 +8,7 @@ using Modern.Lab.Controls.Wpf.Input;
 using Modern.Lab.WinForms.Controls.Data;
 using Modern.Lab.WinForms.Controls.Display;
 using Modern.Lab.WinForms.Controls.Input;
+using Modern.Lab.WinForms.Controls.Layout;
 using Modern.Lab.WinForms.Controls.Selection;
 
 namespace Modern.Lab.Samples
@@ -61,6 +62,40 @@ namespace Modern.Lab.Samples
 
             this.AddTitle("ModernKpiCard / ModernSummaryList");
             this.AddStatisticsSamples();
+
+            this.AddTitle("ModernCardPanel (Flat 통계 조합)");
+            this.AddCardPanelSamples();
+        }
+
+        // Exercises the WinForms-native card container hosting flat statistics
+        // controls — the footer pattern used by EmployeeManagementForm.
+        private void AddCardPanelSamples()
+        {
+            ModernCardPanel card = new ModernCardPanel();
+            card.Size = new Size(660, 64);
+            card.Padding = new Padding(12, 8, 12, 8);
+
+            ModernKpiCard flatKpi = new ModernKpiCard();
+            flatKpi.Title = "조회 건수";
+            flatKpi.Value = "8";
+            flatKpi.Flat = true;
+            flatKpi.Dock = DockStyle.Left;
+            flatKpi.Width = 110;
+            card.Controls.Add(flatKpi);
+
+            ModernSummaryList flatSummary = new ModernSummaryList();
+            flatSummary.Title = "부서별";
+            flatSummary.DisplayMember = "CATEGORY";
+            flatSummary.ValueMember = "CNT";
+            flatSummary.Flat = true;
+            flatSummary.DataSource = CreateDepartmentCountTable();
+            flatSummary.Dock = DockStyle.Fill;
+            card.Controls.Add(flatSummary);
+
+            // Dock order: Fill first, then Left, so the summary takes the rest.
+            flatSummary.BringToFront();
+
+            this.flowPanel.Controls.Add(card);
         }
 
         // Exercises the statistics controls: KPI card manual set, summary list
@@ -296,6 +331,12 @@ namespace Modern.Lab.Samples
             dangerButton.Kind = ButtonKind.Danger;
             dangerButton.Click += this.OnAnyButtonClick;
             row.Controls.Add(dangerButton);
+
+            ModernButton subtleButton = new ModernButton();
+            subtleButton.Text = "엑셀";
+            subtleButton.Kind = ButtonKind.Subtle;
+            subtleButton.Click += this.OnAnyButtonClick;
+            row.Controls.Add(subtleButton);
 
             ModernButton disabledButton = new ModernButton();
             disabledButton.Text = "비활성";

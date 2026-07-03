@@ -18,18 +18,35 @@
         </ResourceDictionary>
     </UserControl.Resources>
 
-    <!-- Card surface holding a wrapping chip list -->
-    <Border CornerRadius="{StaticResource Radius.Lg}"
-            Background="{StaticResource Brush.Surface}"
-            BorderBrush="{StaticResource Brush.BorderSubtle}"
-            BorderThickness="1"
-            Padding="16,10">
-        <StackPanel>
-            <TextBlock Text="{Binding Title, ElementName=RootControl}">
+    <!-- Card surface holding a title and a wrapping chip list laid out in one
+         row (title left, chips right). Flat=True drops the chrome for use on a
+         shared card panel. -->
+    <Border>
+        <Border.Style>
+            <Style TargetType="Border">
+                <Setter Property="CornerRadius" Value="{StaticResource Radius.Lg}" />
+                <Setter Property="Background" Value="{StaticResource Brush.Surface}" />
+                <Setter Property="BorderBrush" Value="{StaticResource Brush.BorderSubtle}" />
+                <Setter Property="BorderThickness" Value="1" />
+                <Setter Property="Padding" Value="16,8" />
+                <Style.Triggers>
+                    <DataTrigger Binding="{Binding Flat, ElementName=RootControl}" Value="True">
+                        <Setter Property="Background" Value="Transparent" />
+                        <Setter Property="BorderThickness" Value="0" />
+                        <Setter Property="Padding" Value="0" />
+                    </DataTrigger>
+                </Style.Triggers>
+            </Style>
+        </Border.Style>
+        <DockPanel VerticalAlignment="Center">
+            <TextBlock DockPanel.Dock="Left"
+                       Text="{Binding Title, ElementName=RootControl}"
+                       VerticalAlignment="Center"
+                       Margin="0,0,10,0">
                 <TextBlock.Style>
                     <Style TargetType="TextBlock" BasedOn="{StaticResource Text.Label}">
                         <Style.Triggers>
-                            <!-- Hide the caption row entirely when no title is set -->
+                            <!-- Hide the caption entirely when no title is set -->
                             <DataTrigger Binding="{Binding Title, ElementName=RootControl}" Value="">
                                 <Setter Property="Visibility" Value="Collapsed" />
                             </DataTrigger>
@@ -38,7 +55,7 @@
                 </TextBlock.Style>
             </TextBlock>
 
-            <ItemsControl x:Name="ChipItems" Margin="0,6,0,0">
+            <ItemsControl x:Name="ChipItems" VerticalAlignment="Center">
                 <ItemsControl.ItemsPanel>
                     <ItemsPanelTemplate>
                         <WrapPanel />
@@ -48,8 +65,8 @@
                     <DataTemplate>
                         <Border CornerRadius="{StaticResource Radius.Pill}"
                                 Background="{StaticResource Brush.NeutralBackground}"
-                                Padding="10,3"
-                                Margin="0,0,6,6">
+                                Padding="10,2"
+                                Margin="0,1,6,1">
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock Text="{Binding Label}"
                                            FontSize="{StaticResource Font.Size.Helper}"
@@ -66,6 +83,6 @@
                     </DataTemplate>
                 </ItemsControl.ItemTemplate>
             </ItemsControl>
-        </StackPanel>
+        </DockPanel>
     </Border>
 </UserControl>

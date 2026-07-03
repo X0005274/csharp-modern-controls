@@ -18,12 +18,25 @@
         </ResourceDictionary>
     </UserControl.Resources>
 
-    <!-- Card surface: large radius per token rule (controls 4 / cards 8) -->
-    <Border CornerRadius="{StaticResource Radius.Lg}"
-            Background="{StaticResource Brush.Surface}"
-            BorderBrush="{StaticResource Brush.BorderSubtle}"
-            BorderThickness="1"
-            Padding="16,10">
+    <!-- Card surface: large radius per token rule (controls 4 / cards 8).
+         Flat=True drops the chrome for use on a shared card panel. -->
+    <Border>
+        <Border.Style>
+            <Style TargetType="Border">
+                <Setter Property="CornerRadius" Value="{StaticResource Radius.Lg}" />
+                <Setter Property="Background" Value="{StaticResource Brush.Surface}" />
+                <Setter Property="BorderBrush" Value="{StaticResource Brush.BorderSubtle}" />
+                <Setter Property="BorderThickness" Value="1" />
+                <Setter Property="Padding" Value="16,10" />
+                <Style.Triggers>
+                    <DataTrigger Binding="{Binding Flat, ElementName=RootControl}" Value="True">
+                        <Setter Property="Background" Value="Transparent" />
+                        <Setter Property="BorderThickness" Value="0" />
+                        <Setter Property="Padding" Value="0" />
+                    </DataTrigger>
+                </Style.Triggers>
+            </Style>
+        </Border.Style>
         <StackPanel VerticalAlignment="Center">
             <TextBlock Text="{Binding Title, ElementName=RootControl}"
                        Style="{StaticResource Text.Label}" />

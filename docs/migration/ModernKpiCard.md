@@ -9,6 +9,7 @@
 |---|---|
 | `Title` | 값 위에 표시할 제목 (예: "조회 건수"). `[Localizable(true)]` |
 | `Value` | 강조 표시할 값 텍스트. 조회 후 갱신 (예: `grid.RowCount.ToString()`) |
+| `Flat` | 카드 테두리/배경 제거 — `ModernCardPanel` 위에 평면 배치할 때 사용 |
 | `Enabled` | 전파됨 |
 
 ## 사용 예시

@@ -26,6 +26,14 @@ namespace Modern.Lab.Controls.Wpf.Display
                 typeof(ModernKpiCardControl),
                 new PropertyMetadata("0"));
 
+        /// <summary>Drops the card chrome (border/background/padding) for use on a shared card panel.</summary>
+        public static readonly DependencyProperty FlatProperty =
+            DependencyProperty.Register(
+                "Flat",
+                typeof(bool),
+                typeof(ModernKpiCardControl),
+                new PropertyMetadata(false));
+
         public ModernKpiCardControl()
         {
             this.InitializeComponent();
@@ -43,6 +51,13 @@ namespace Modern.Lab.Controls.Wpf.Display
         {
             get { return (string)this.GetValue(ValueProperty); }
             set { this.SetValue(ValueProperty, value); }
+        }
+
+        /// <summary>Drops the card chrome for use on a shared card panel.</summary>
+        public bool Flat
+        {
+            get { return (bool)this.GetValue(FlatProperty); }
+            set { this.SetValue(FlatProperty, value); }
         }
     }
 }

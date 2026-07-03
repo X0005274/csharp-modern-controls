@@ -58,11 +58,18 @@
                         <Setter Property="Foreground" Value="{StaticResource Brush.TextPrimary}" />
                         <Setter Property="BorderBrush" Value="{StaticResource Brush.Border}" />
                     </DataTrigger>
-                    <!-- Danger: red background, white text -->
+                    <!-- Danger: outlined red — red text on white with a soft red border.
+                         Kept quiet at rest; the red only intensifies on interaction. -->
                     <DataTrigger Binding="{Binding Kind, ElementName=RootControl}" Value="Danger">
-                        <Setter Property="Background" Value="{StaticResource Brush.ErrorBorder}" />
-                        <Setter Property="Foreground" Value="{StaticResource Brush.OnAccent}" />
-                        <Setter Property="BorderBrush" Value="{StaticResource Brush.ErrorBorder}" />
+                        <Setter Property="Background" Value="{StaticResource Brush.Surface}" />
+                        <Setter Property="Foreground" Value="{StaticResource Brush.ErrorText}" />
+                        <Setter Property="BorderBrush" Value="{StaticResource Brush.ErrorBorderSoft}" />
+                    </DataTrigger>
+                    <!-- Subtle: borderless text button for low-emphasis actions -->
+                    <DataTrigger Binding="{Binding Kind, ElementName=RootControl}" Value="Subtle">
+                        <Setter Property="Background" Value="Transparent" />
+                        <Setter Property="Foreground" Value="{StaticResource Brush.TextSecondary}" />
+                        <Setter Property="BorderBrush" Value="Transparent" />
                     </DataTrigger>
 
                     <!-- Primary: hover = darker blue, pressed = darkest blue -->
@@ -104,22 +111,41 @@
                         <Setter Property="Foreground" Value="{StaticResource Brush.AccentHover}" />
                     </MultiDataTrigger>
 
-                    <!-- Danger: hover/pressed = deeper reds -->
+                    <!-- Danger: hover = pale red fill with strong border, pressed = deeper -->
                     <MultiDataTrigger>
                         <MultiDataTrigger.Conditions>
                             <Condition Binding="{Binding Kind, ElementName=RootControl}" Value="Danger" />
                             <Condition Binding="{Binding IsMouseOver, RelativeSource={RelativeSource Self}}" Value="True" />
                         </MultiDataTrigger.Conditions>
-                        <Setter Property="Background" Value="{StaticResource Brush.ErrorText}" />
-                        <Setter Property="BorderBrush" Value="{StaticResource Brush.ErrorText}" />
+                        <Setter Property="Background" Value="{StaticResource Brush.ErrorBackground}" />
+                        <Setter Property="BorderBrush" Value="{StaticResource Brush.ErrorBorder}" />
                     </MultiDataTrigger>
                     <MultiDataTrigger>
                         <MultiDataTrigger.Conditions>
                             <Condition Binding="{Binding Kind, ElementName=RootControl}" Value="Danger" />
                             <Condition Binding="{Binding IsPressed, RelativeSource={RelativeSource Self}}" Value="True" />
                         </MultiDataTrigger.Conditions>
-                        <Setter Property="Background" Value="{StaticResource Brush.DangerPressed}" />
+                        <Setter Property="Background" Value="{StaticResource Brush.ErrorBorderSoft}" />
                         <Setter Property="BorderBrush" Value="{StaticResource Brush.DangerPressed}" />
+                        <Setter Property="Foreground" Value="{StaticResource Brush.DangerPressed}" />
+                    </MultiDataTrigger>
+
+                    <!-- Subtle: hover = neutral fill, pressed = slightly deeper -->
+                    <MultiDataTrigger>
+                        <MultiDataTrigger.Conditions>
+                            <Condition Binding="{Binding Kind, ElementName=RootControl}" Value="Subtle" />
+                            <Condition Binding="{Binding IsMouseOver, RelativeSource={RelativeSource Self}}" Value="True" />
+                        </MultiDataTrigger.Conditions>
+                        <Setter Property="Background" Value="{StaticResource Brush.HoverBackground}" />
+                        <Setter Property="Foreground" Value="{StaticResource Brush.TextPrimary}" />
+                    </MultiDataTrigger>
+                    <MultiDataTrigger>
+                        <MultiDataTrigger.Conditions>
+                            <Condition Binding="{Binding Kind, ElementName=RootControl}" Value="Subtle" />
+                            <Condition Binding="{Binding IsPressed, RelativeSource={RelativeSource Self}}" Value="True" />
+                        </MultiDataTrigger.Conditions>
+                        <Setter Property="Background" Value="{StaticResource Brush.BorderSubtle}" />
+                        <Setter Property="Foreground" Value="{StaticResource Brush.TextPrimary}" />
                     </MultiDataTrigger>
 
                     <!-- Disabled: uniform gray regardless of kind. Placed last so it

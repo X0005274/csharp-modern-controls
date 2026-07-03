@@ -9,6 +9,7 @@ using Modern.Lab.Controls.Wpf.Input;
 using Modern.Lab.WinForms.Controls.Data;
 using Modern.Lab.WinForms.Controls.Display;
 using Modern.Lab.WinForms.Controls.Input;
+using Modern.Lab.WinForms.Controls.Layout;
 using Modern.Lab.WinForms.Controls.Selection;
 
 namespace Modern.Lab.Samples
@@ -68,9 +69,9 @@ namespace Modern.Lab.Samples
             root.ColumnCount = 1;
             root.RowCount = 3;
             root.Padding = new Padding(16, 12, 16, 12);
-            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 48f));
+            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 58f));
             root.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
-            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 136f));
+            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 100f));
             this.Controls.Add(root);
 
             root.Controls.Add(this.BuildSearchArea(), 0, 0);
@@ -78,9 +79,14 @@ namespace Modern.Lab.Samples
             root.Controls.Add(this.BuildBottomArea(), 0, 2);
         }
 
-        // Top area: search conditions in a single left-to-right flow row.
+        // Top area: search conditions in a single flow row on a shared card panel.
         private Control BuildSearchArea()
         {
+            ModernCardPanel searchCard = new ModernCardPanel();
+            searchCard.Dock = DockStyle.Fill;
+            searchCard.Margin = new Padding(0);
+            searchCard.Padding = new Padding(12, 9, 12, 9);
+
             FlowLayoutPanel searchRow = new FlowLayoutPanel();
             searchRow.Dock = DockStyle.Fill;
             searchRow.FlowDirection = FlowDirection.LeftToRight;
@@ -120,13 +126,15 @@ namespace Modern.Lab.Samples
 
             this.resetButton = new ModernButton();
             this.resetButton.Text = "초기화";
-            this.resetButton.Kind = ButtonKind.Secondary;
+            this.resetButton.Kind = ButtonKind.Subtle;
             this.resetButton.Size = new Size(80, 32);
             this.resetButton.Margin = new Padding(0, 4, 0, 4);
             this.resetButton.Click += this.OnResetClick;
             searchRow.Controls.Add(this.resetButton);
 
-            return searchRow;
+            searchCard.Controls.Add(searchRow);
+
+            return searchCard;
         }
 
         private static ModernLabel CreateFieldLabel(string text)
@@ -156,67 +164,87 @@ namespace Modern.Lab.Samples
             return this.employeeGrid;
         }
 
-        // Bottom area: statistics on the left, action buttons on the right.
-        // Percent-sized summary cells let the cards shrink with the window
-        // (chips wrap inside the WPF control) instead of clipping.
+        // Bottom area: one shared card panel — flat statistics on the left
+        // (KPI + stacked per-department / per-rank chip rows), action buttons
+        // on the right. Button tiers: execute = Secondary, delete = Danger
+        // (outlined red), export = Subtle.
         private Control BuildBottomArea()
         {
+            ModernCardPanel bottomCard = new ModernCardPanel();
+            bottomCard.Dock = DockStyle.Fill;
+            bottomCard.Margin = new Padding(0);
+            bottomCard.Padding = new Padding(12, 6, 12, 6);
+
             TableLayoutPanel bottom = new TableLayoutPanel();
             bottom.Dock = DockStyle.Fill;
             bottom.Margin = new Padding(0);
-            bottom.ColumnCount = 4;
+            bottom.ColumnCount = 3;
             bottom.RowCount = 1;
-            bottom.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 148f));
-            bottom.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50f));
-            bottom.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50f));
+            bottom.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 110f));
+            bottom.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
             bottom.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
 
             this.countCard = new ModernKpiCard();
             this.countCard.Title = "조회 건수";
             this.countCard.Value = "0";
+            this.countCard.Flat = true;
             this.countCard.Dock = DockStyle.Fill;
-            this.countCard.Margin = new Padding(0, 8, 8, 0);
+            this.countCard.Margin = new Padding(0, 0, 8, 0);
+
+            TableLayoutPanel statsRows = new TableLayoutPanel();
+            statsRows.Dock = DockStyle.Fill;
+            statsRows.Margin = new Padding(0);
+            statsRows.ColumnCount = 1;
+            statsRows.RowCount = 2;
+            statsRows.RowStyles.Add(new RowStyle(SizeType.Percent, 50f));
+            statsRows.RowStyles.Add(new RowStyle(SizeType.Percent, 50f));
 
             this.deptSummary = new ModernSummaryList();
-            this.deptSummary.Title = "부서별 인원";
+            this.deptSummary.Title = "부서별";
             this.deptSummary.DisplayMember = "CATEGORY";
             this.deptSummary.ValueMember = "CNT";
+            this.deptSummary.Flat = true;
             this.deptSummary.Dock = DockStyle.Fill;
-            this.deptSummary.Margin = new Padding(0, 8, 8, 0);
+            this.deptSummary.Margin = new Padding(0);
 
             this.rankSummary = new ModernSummaryList();
-            this.rankSummary.Title = "직급별 인원";
+            this.rankSummary.Title = "직급별";
             this.rankSummary.DisplayMember = "CATEGORY";
             this.rankSummary.ValueMember = "CNT";
+            this.rankSummary.Flat = true;
             this.rankSummary.Dock = DockStyle.Fill;
-            this.rankSummary.Margin = new Padding(0, 8, 8, 0);
+            this.rankSummary.Margin = new Padding(0);
+
+            statsRows.Controls.Add(this.deptSummary, 0, 0);
+            statsRows.Controls.Add(this.rankSummary, 0, 1);
 
             FlowLayoutPanel buttonRow = new FlowLayoutPanel();
             buttonRow.FlowDirection = FlowDirection.LeftToRight;
             buttonRow.WrapContents = false;
             buttonRow.AutoSize = true;
-            buttonRow.Anchor = AnchorStyles.Bottom | AnchorStyles.Right;
+            buttonRow.Anchor = AnchorStyles.Right;
             buttonRow.Margin = new Padding(0);
 
             this.newButton = CreateActionButton("신규", ButtonKind.Secondary, this.OnNewClick);
             buttonRow.Controls.Add(this.newButton);
 
-            this.saveButton = CreateActionButton("저장", ButtonKind.Primary, this.OnSaveClick);
+            this.saveButton = CreateActionButton("저장", ButtonKind.Secondary, this.OnSaveClick);
             buttonRow.Controls.Add(this.saveButton);
 
             this.deleteButton = CreateActionButton("삭제", ButtonKind.Danger, this.OnDeleteClick);
             buttonRow.Controls.Add(this.deleteButton);
 
-            this.excelButton = CreateActionButton("엑셀", ButtonKind.Secondary, this.OnExcelClick);
-            this.excelButton.Margin = new Padding(0, 8, 0, 0);
+            this.excelButton = CreateActionButton("엑셀", ButtonKind.Subtle, this.OnExcelClick);
+            this.excelButton.Margin = new Padding(0, 0, 0, 0);
             buttonRow.Controls.Add(this.excelButton);
 
             bottom.Controls.Add(this.countCard, 0, 0);
-            bottom.Controls.Add(this.deptSummary, 1, 0);
-            bottom.Controls.Add(this.rankSummary, 2, 0);
-            bottom.Controls.Add(buttonRow, 3, 0);
+            bottom.Controls.Add(statsRows, 1, 0);
+            bottom.Controls.Add(buttonRow, 2, 0);
 
-            return bottom;
+            bottomCard.Controls.Add(bottom);
+
+            return bottomCard;
         }
 
         private static ModernButton CreateActionButton(string text, ButtonKind kind, EventHandler onClick)
@@ -225,7 +253,7 @@ namespace Modern.Lab.Samples
             button.Text = text;
             button.Kind = kind;
             button.Size = new Size(80, 32);
-            button.Margin = new Padding(0, 8, 8, 0);
+            button.Margin = new Padding(0, 0, 8, 0);
             button.Click += onClick;
             return button;
         }

@@ -10,7 +10,8 @@
 | `DataSource` | `DataTable`/`DataView`/`IList`/`IEnumerable`. 구분 컬럼 + 건수 컬럼을 가진 행 목록 (서버 GROUP BY 결과 등). null이면 칩 목록이 비워짐 |
 | `DisplayMember` | 칩 라벨로 사용할 컬럼/속성 이름 |
 | `ValueMember` | 칩 건수로 사용할 컬럼/속성 이름 |
-| `Title` | 칩 목록 위 제목 (비우면 숨김). `[Localizable(true)]` |
+| `Title` | 칩 목록 왼쪽 제목 (비우면 숨김). `[Localizable(true)]` |
+| `Flat` | 카드 테두리/배경 제거 — `ModernCardPanel` 위에 평면 배치할 때 사용 |
 | `Enabled` | 전파됨 |
 
 ## 계약 보장 동작 (docs/design-notes.md §6-1)

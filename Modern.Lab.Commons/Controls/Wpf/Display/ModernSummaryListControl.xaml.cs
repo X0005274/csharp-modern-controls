@@ -43,13 +43,21 @@ namespace Modern.Lab.Controls.Wpf.Display
                 typeof(ModernSummaryListControl),
                 new PropertyMetadata(string.Empty, OnDataShapeChanged));
 
-        /// <summary>Optional caption above the chips. Empty hides the caption.</summary>
+        /// <summary>Optional caption left of the chips. Empty hides the caption.</summary>
         public static readonly DependencyProperty TitleProperty =
             DependencyProperty.Register(
                 "Title",
                 typeof(string),
                 typeof(ModernSummaryListControl),
                 new PropertyMetadata(string.Empty));
+
+        /// <summary>Drops the card chrome (border/background/padding) for use on a shared card panel.</summary>
+        public static readonly DependencyProperty FlatProperty =
+            DependencyProperty.Register(
+                "Flat",
+                typeof(bool),
+                typeof(ModernSummaryListControl),
+                new PropertyMetadata(false));
 
         private readonly ObservableCollection<SummaryItem> chipItemModels;
 
@@ -81,11 +89,18 @@ namespace Modern.Lab.Controls.Wpf.Display
             set { this.SetValue(CountMemberPathProperty, value); }
         }
 
-        /// <summary>Optional caption above the chips.</summary>
+        /// <summary>Optional caption left of the chips.</summary>
         public string Title
         {
             get { return (string)this.GetValue(TitleProperty); }
             set { this.SetValue(TitleProperty, value); }
+        }
+
+        /// <summary>Drops the card chrome for use on a shared card panel.</summary>
+        public bool Flat
+        {
+            get { return (bool)this.GetValue(FlatProperty); }
+            set { this.SetValue(FlatProperty, value); }
         }
 
         private static void OnDataShapeChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)

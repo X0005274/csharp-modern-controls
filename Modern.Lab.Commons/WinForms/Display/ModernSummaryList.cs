@@ -22,6 +22,7 @@ namespace Modern.Lab.WinForms.Controls.Display
         private string fallbackTitle;
         private string fallbackDisplayMember;
         private string fallbackValueMember;
+        private bool fallbackFlat;
 
         /// <summary>Creates the control with a sensible default size.</summary>
         public ModernSummaryList()
@@ -30,6 +31,35 @@ namespace Modern.Lab.WinForms.Controls.Display
             this.fallbackTitle = string.Empty;
             this.fallbackDisplayMember = string.Empty;
             this.fallbackValueMember = string.Empty;
+            this.fallbackFlat = false;
+        }
+
+        /// <summary>Drops the card chrome for use on a shared card panel (e.g. ModernCardPanel).</summary>
+        [Category("모던 컨트롤")]
+        [Description("카드 테두리/배경 제거 — 카드 판넬 위에 평면 배치할 때 사용")]
+        [DefaultValue(false)]
+        public bool Flat
+        {
+            get
+            {
+                if (this.Wpf != null)
+                {
+                    return this.Wpf.Flat;
+                }
+
+                return this.fallbackFlat;
+            }
+            set
+            {
+                this.fallbackFlat = value;
+
+                if (this.Wpf != null)
+                {
+                    this.Wpf.Flat = value;
+                }
+
+                this.InvalidateDesignTimePreview();
+            }
         }
 
         /// <summary>

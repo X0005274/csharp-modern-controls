@@ -127,6 +127,7 @@
     <Compile Include="WinForms\Display\ModernKpiCard.cs" />
     <Compile Include="WinForms\Display\ModernSummaryList.cs" />
     <Compile Include="WinForms\Data\ModernDataGrid.cs" />
+    <Compile Include="WinForms\Layout\ModernCardPanel.cs" />
     <!-- Properties -->
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
