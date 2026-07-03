@@ -138,7 +138,54 @@ protected override void OnPaint(PaintEventArgs e)
 }                                                  // 예외 시 자리표시자 폴백
 ```
 
-## 6. WinForms 단독으로 "WPF 감성"이 어려운 이유 (하이브리드를 택한 근거)
+## 6-1. 컨트롤 설계 계약 (2026-07-04 합의)
+
+모든 모던 컨트롤은 아래 계약을 지킨다. 목표: **기존 WinForms 폼에서 컨트롤 교체가
+".Designer.cs의 타입 선언 한 줄 바꾸기"로 수렴**하고, 서버 request/reply 코드는
+한 글자도 바뀌지 않는 것.
+
+### 룰 1 — Drop-in 호환
+래퍼는 교체 대상 WinForms 컨트롤의 API를 같은 이름·같은 의미로 제공한다.
+- 버튼: `Text`, `Click`, `Enabled`
+- 콤보박스: `DataSource`, `DisplayMember`, `ValueMember`, `SelectedValue`,
+  `SelectedIndexChanged`, `Items`
+- 숨김(`new`) 금지 — 베이스에 있는 멤버는 `override`(3장 참고).
+
+### 룰 2 — 컨트롤은 데이터 출처를 모른다
+`Modern.Lab.Commons`에는 통신/DB 코드를 절대 넣지 않는다. 컨트롤은 `DataSource`로
+받은 것을 표시할 뿐이다. 대신 `DataSource`는 관대하게 받는다: `DataTable`,
+`DataView`, `IList`, `IEnumerable` 모두 허용하고 내부에서 표준 아이템 모델로 변환.
+(집=더미 데이터, 회사=실제 서버 응답을 그대로 꽂는 구조의 전제.)
+
+### 룰 3 — 순서·상태에 관대하게
+- `SelectedValue`를 `DataSource`보다 먼저 설정해도 동작한다(값을 보류했다가
+  데이터 도착 시 적용). 표준 ComboBox의 조용한 무시 동작을 재현하지 않는다.
+- `DataSource` 재할당(재조회) 시 선택 상태를 깨끗하게 초기화하고 이벤트가
+  중복 발생하지 않는다.
+- null/빈 데이터는 예외 없이 빈 목록으로 표시한다.
+- 백그라운드 조회 후 UI 스레드 할당(`Invoke`) 패턴이 그대로 동작한다.
+
+### 룰 4 — 데이터 연결은 수동형
+폼이 조회해서 `DataSource`에 할당한다. 컨트롤이 데이터를 요청하는 능동형
+(`DataRequested` 이벤트, `IDataProvider`)은 만들지 않는다 — 조회 시점이 컨트롤
+내부로 숨어 디버깅이 어려워지고, 기존 코드를 컨트롤 규격에 맞춰야 하기 때문.
+
+### 룰 5 — 레이아웃은 WinForms 컨테이너로
+영역 배치(상/중/하단, 분할)는 표준 WinForms 컨테이너(`Panel`,
+`TableLayoutPanel`, `SplitContainer`)로 한다. 모던 컨트롤은 **말단 위젯만**
+담당한다. ElementHost는 WinForms 자식 컨트롤을 담을 수 없으므로 "모던 레이아웃
+컨테이너"는 만들지 않는다. 이것이 폼 디자이너에서 가장 안정적인 구성이다.
+
+### 룰 6 — 컨트롤마다 교체 체크리스트 문서
+컨트롤 하나가 완성되면 `docs/migration/<컨트롤>.md`에 기록한다: 대응 WinForms
+컨트롤, 호환 제공 멤버, 미지원 멤버와 대체 방법, `.Designer.cs` 교체 예시.
+
+### 배포 룰
+- 안정 시점마다 `v0.x` 태그. 회사에서는 태그를 받아 `Modern.Lab.Commons`
+  프로젝트만 기존 솔루션에 추가한다(Samples는 개발 참고용).
+- 외부 의존성 0 유지 (순수 .NET Framework 4.8 참조만).
+
+## 6-2. WinForms 단독으로 "WPF 감성"이 어려운 이유 (하이브리드를 택한 근거)
 
 - WinForms에는 스타일/토큰 시스템이 없다 — 토큰 하나 고치면 전 컨트롤이 따라오는
   구조를 만들려면 미니 UI 프레임워크를 자작해야 한다.

@@ -41,6 +41,15 @@ Wrappers derive from a common `WpfElementHostBase<TWpf>` marked `[Designer(Contr
 - Never hide `Control.Text` with `new`. **`override` it** and add `[Localizable(true)]` — `new` breaks `ComponentResourceManager.ApplyResources` on `Localizable = true` forms (text silently stays at the WPF default) and breaks any host code that sets `Text` through a `Control` reference.
 - Guard design-time WPF construction with try/catch + placeholder fallback so one broken control cannot kill the host form's designer.
 
+## Control design contract (agreed 2026-07-04 — full text in docs/design-notes.md §6-1)
+
+- **Drop-in compatibility**: a wrapper mirrors the API (names + semantics) of the WinForms control it replaces — e.g. ComboBox: `DataSource`/`DisplayMember`/`ValueMember`/`SelectedValue`/`SelectedIndexChanged`/`Items`. Replacing a control in an existing form must require only changing the declared type in `.Designer.cs`; the form's server request/reply code must not change at all.
+- **Controls are data-agnostic**: no server/DB/communication code in `Modern.Lab.Commons`. `DataSource` accepts `DataTable`, `DataView`, `IList`, `IEnumerable` and converts internally.
+- **Order/state tolerant**: setting `SelectedValue` before `DataSource` must work (pend the value, apply when data arrives); `DataSource` re-assignment resets selection cleanly without duplicate events; null/empty data renders as an empty list, never throws; background-fetch + UI-thread-assign (`Invoke`) works.
+- **Passive data model**: forms fetch and assign data. Never add `DataRequested`-style events or `IDataProvider` interfaces to controls.
+- **Layout stays WinForms**: area layout uses `Panel`/`TableLayoutPanel`/`SplitContainer`; modern controls are leaf widgets only. Do not build modern layout containers (ElementHost cannot host WinForms children).
+- **Migration doc per control**: when a control is done, write `docs/migration/<control>.md` (matching WinForms control, compatible members, unsupported members + alternatives, `.Designer.cs` swap example).
+
 ## Absolute rules
 
 - Never use `var`. Use explicit types everywhere.
