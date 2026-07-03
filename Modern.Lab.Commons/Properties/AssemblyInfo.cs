@@ -9,5 +9,6 @@ using System.Windows;
 [assembly: AssemblyFileVersion("1.0.0.0")]
 [assembly: ComVisible(false)]
 
-// WPF 테마 리소스 위치: 컨트롤별 테마 없음, 제네릭 리소스는 이 어셈블리 안.
+// WPF theme resource locations: no per-theme dictionaries; generic resources
+// live in this assembly.
 [assembly: ThemeInfo(ResourceDictionaryLocation.None, ResourceDictionaryLocation.SourceAssembly)]

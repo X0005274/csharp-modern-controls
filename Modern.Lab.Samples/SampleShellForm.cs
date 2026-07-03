@@ -4,7 +4,8 @@ using System.Windows.Forms;
 namespace Modern.Lab.Samples
 {
     /// <summary>
-    /// 샘플 갤러리의 셸 폼입니다. 컨트롤이 추가되면 여기에 샘플 화면을 등록합니다.
+    /// Shell form of the sample gallery. Sample screens are registered here as
+    /// controls get added to the library.
     /// </summary>
     public class SampleShellForm : Form
     {
