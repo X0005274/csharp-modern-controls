@@ -52,6 +52,7 @@ namespace Modern.Lab.Samples
         {
             this.AddSample("Controls Gallery", () => new ControlsGalleryForm());
             this.AddSample("직원관리", () => new EmployeeManagementForm());
+            this.AddSample("디자이너 폼", () => new DesignerMigrationForm());
         }
 
         private void AddSample(string title, Func<Form> factory)

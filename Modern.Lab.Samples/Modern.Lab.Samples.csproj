@@ -48,9 +48,21 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Program.cs" />
-    <Compile Include="SampleShellForm.cs" />
-    <Compile Include="ControlsGalleryForm.cs" />
-    <Compile Include="EmployeeManagementForm.cs" />
+    <Compile Include="SampleShellForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="ControlsGalleryForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="EmployeeManagementForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="DesignerMigrationForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="DesignerMigrationForm.Designer.cs">
+      <DependentUpon>DesignerMigrationForm.cs</DependentUpon>
+    </Compile>
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
