@@ -1,10 +1,12 @@
 using System;
+using System.Data;
 using System.Drawing;
 using System.Windows.Forms;
 using Modern.Lab.Controls.Wpf.Display;
 using Modern.Lab.Controls.Wpf.Input;
 using Modern.Lab.WinForms.Controls.Display;
 using Modern.Lab.WinForms.Controls.Input;
+using Modern.Lab.WinForms.Controls.Selection;
 
 namespace Modern.Lab.Samples
 {
@@ -17,6 +19,8 @@ namespace Modern.Lab.Samples
         private FlowLayoutPanel flowPanel;
         private ModernTextBox echoTextBox;
         private ModernLabel echoLabel;
+        private ModernComboBox deptComboBox;
+        private ModernLabel comboEchoLabel;
 
         public ControlsGalleryForm()
         {
@@ -44,6 +48,67 @@ namespace Modern.Lab.Samples
 
             this.AddTitle("ModernTextBox");
             this.AddTextBoxSamples();
+
+            this.AddTitle("ModernComboBox");
+            this.AddComboBoxSamples();
+        }
+
+        // Exercises the data contract: DisplayMember/ValueMember, SelectedValue
+        // assigned BEFORE DataSource (pending apply, rule 3), DataTable binding,
+        // and manual Items.Add without a DataSource.
+        private void AddComboBoxSamples()
+        {
+            FlowLayoutPanel row = this.CreateRow();
+
+            this.deptComboBox = new ModernComboBox();
+            this.deptComboBox.Size = new Size(180, 32);
+            this.deptComboBox.DisplayMember = "DEPT_NAME";
+            this.deptComboBox.ValueMember = "DEPT_CODE";
+            this.deptComboBox.SelectedIndexChanged += this.OnDeptSelectionChanged;
+            // Intentionally set the value BEFORE the data arrives (contract rule 3).
+            this.deptComboBox.SelectedValue = "D3";
+            this.deptComboBox.DataSource = CreateDepartmentTable();
+            row.Controls.Add(this.deptComboBox);
+
+            ModernComboBox manualComboBox = new ModernComboBox();
+            manualComboBox.Size = new Size(140, 32);
+            manualComboBox.Items.Add("사원");
+            manualComboBox.Items.Add("대리");
+            manualComboBox.Items.Add("과장");
+            manualComboBox.Items.Add("부장");
+            manualComboBox.SelectedIndex = 0;
+            row.Controls.Add(manualComboBox);
+
+            this.comboEchoLabel = new ModernLabel();
+            this.comboEchoLabel.Kind = LabelKind.Helper;
+            this.comboEchoLabel.Size = new Size(360, 32);
+            this.comboEchoLabel.Text = "(SelectedIndexChanged echo)";
+            row.Controls.Add(this.comboEchoLabel);
+
+            this.flowPanel.Controls.Add(row);
+        }
+
+        // Stand-in for a server request/reply result (rule 2: the control never
+        // knows where the data came from).
+        private static DataTable CreateDepartmentTable()
+        {
+            DataTable table = new DataTable();
+            table.Columns.Add("DEPT_CODE", typeof(string));
+            table.Columns.Add("DEPT_NAME", typeof(string));
+            table.Rows.Add("D1", "경영지원팀");
+            table.Rows.Add("D2", "개발1팀");
+            table.Rows.Add("D3", "개발2팀");
+            table.Rows.Add("D4", "품질보증팀");
+            return table;
+        }
+
+        private void OnDeptSelectionChanged(object sender, EventArgs e)
+        {
+            if (this.comboEchoLabel != null)
+            {
+                object value = this.deptComboBox.SelectedValue;
+                this.comboEchoLabel.Text = "SelectedValue = " + (value == null ? "(null)" : value.ToString());
+            }
         }
 
         private void AddTitle(string title)
