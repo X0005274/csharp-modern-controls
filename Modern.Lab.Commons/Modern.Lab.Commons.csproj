@@ -72,6 +72,14 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </Page>
+    <Page Include="Controls\Wpf\Display\ModernKpiCardControl.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="Controls\Wpf\Display\ModernSummaryListControl.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
     <!-- Data -->
     <Page Include="Controls\Wpf\Data\ModernDataGridControl.xaml">
       <Generator>MSBuild:Compile</Generator>
@@ -96,6 +104,13 @@
     <Compile Include="Controls\Wpf\Display\ModernLabelControl.xaml.cs">
       <DependentUpon>ModernLabelControl.xaml</DependentUpon>
     </Compile>
+    <Compile Include="Controls\Wpf\Display\ModernKpiCardControl.xaml.cs">
+      <DependentUpon>ModernKpiCardControl.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Controls\Wpf\Display\SummaryItem.cs" />
+    <Compile Include="Controls\Wpf\Display\ModernSummaryListControl.xaml.cs">
+      <DependentUpon>ModernSummaryListControl.xaml</DependentUpon>
+    </Compile>
     <!-- Data code-behind -->
     <Compile Include="Controls\Wpf\Data\GridTextAlignment.cs" />
     <Compile Include="Controls\Wpf\Data\ModernDataGridColumn.cs" />
@@ -109,6 +124,8 @@
     <Compile Include="WinForms\Input\ModernTextBox.cs" />
     <Compile Include="WinForms\Selection\ModernComboBox.cs" />
     <Compile Include="WinForms\Display\ModernLabel.cs" />
+    <Compile Include="WinForms\Display\ModernKpiCard.cs" />
+    <Compile Include="WinForms\Display\ModernSummaryList.cs" />
     <Compile Include="WinForms\Data\ModernDataGrid.cs" />
     <!-- Properties -->
     <Compile Include="Properties\AssemblyInfo.cs" />

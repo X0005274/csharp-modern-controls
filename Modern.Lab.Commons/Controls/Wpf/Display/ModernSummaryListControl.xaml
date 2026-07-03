@@ -1,0 +1,71 @@
+<UserControl x:Class="Modern.Lab.Controls.Wpf.Display.ModernSummaryListControl"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             mc:Ignorable="d"
+             TextOptions.TextFormattingMode="Display"
+             TextOptions.TextRenderingMode="ClearType"
+             UseLayoutRounding="True"
+             x:Name="RootControl"
+             FontFamily="{DynamicResource Font.Family}"
+             d:DesignWidth="320" d:DesignHeight="88">
+    <UserControl.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="/Modern.Lab.Commons;component/Themes/Tokens.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </UserControl.Resources>
+
+    <!-- Card surface holding a wrapping chip list -->
+    <Border CornerRadius="{StaticResource Radius.Lg}"
+            Background="{StaticResource Brush.Surface}"
+            BorderBrush="{StaticResource Brush.BorderSubtle}"
+            BorderThickness="1"
+            Padding="16,10">
+        <StackPanel>
+            <TextBlock Text="{Binding Title, ElementName=RootControl}">
+                <TextBlock.Style>
+                    <Style TargetType="TextBlock" BasedOn="{StaticResource Text.Label}">
+                        <Style.Triggers>
+                            <!-- Hide the caption row entirely when no title is set -->
+                            <DataTrigger Binding="{Binding Title, ElementName=RootControl}" Value="">
+                                <Setter Property="Visibility" Value="Collapsed" />
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </TextBlock.Style>
+            </TextBlock>
+
+            <ItemsControl x:Name="ChipItems" Margin="0,6,0,0">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <WrapPanel />
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Border CornerRadius="{StaticResource Radius.Pill}"
+                                Background="{StaticResource Brush.NeutralBackground}"
+                                Padding="10,3"
+                                Margin="0,0,6,6">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="{Binding Label}"
+                                           FontSize="{StaticResource Font.Size.Helper}"
+                                           Foreground="{StaticResource Brush.NeutralText}"
+                                           VerticalAlignment="Center" />
+                                <TextBlock Text="{Binding Count}"
+                                           FontSize="{StaticResource Font.Size.Helper}"
+                                           FontWeight="SemiBold"
+                                           Foreground="{StaticResource Brush.SelectedText}"
+                                           Margin="6,0,0,0"
+                                           VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </StackPanel>
+    </Border>
+</UserControl>

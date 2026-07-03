@@ -58,6 +58,65 @@ namespace Modern.Lab.Samples
 
             this.AddTitle("ModernDataGrid");
             this.AddDataGridSamples();
+
+            this.AddTitle("ModernKpiCard / ModernSummaryList");
+            this.AddStatisticsSamples();
+        }
+
+        // Exercises the statistics controls: KPI card manual set, summary list
+        // bound to a category/count DataTable through the shared data contract.
+        private void AddStatisticsSamples()
+        {
+            FlowLayoutPanel row = this.CreateRow();
+
+            ModernKpiCard countCard = new ModernKpiCard();
+            countCard.Title = "조회 건수";
+            countCard.Value = "8";
+            countCard.Size = new Size(150, 76);
+            row.Controls.Add(countCard);
+
+            ModernSummaryList deptSummary = new ModernSummaryList();
+            deptSummary.Title = "부서별 인원";
+            deptSummary.DisplayMember = "CATEGORY";
+            deptSummary.ValueMember = "CNT";
+            deptSummary.DataSource = CreateDepartmentCountTable();
+            deptSummary.Size = new Size(330, 76);
+            row.Controls.Add(deptSummary);
+
+            ModernSummaryList rankSummary = new ModernSummaryList();
+            rankSummary.Title = "직급별 인원";
+            rankSummary.DisplayMember = "CATEGORY";
+            rankSummary.ValueMember = "CNT";
+            rankSummary.DataSource = CreateRankCountTable();
+            rankSummary.Size = new Size(300, 76);
+            row.Controls.Add(rankSummary);
+
+            this.flowPanel.Controls.Add(row);
+        }
+
+        // Stand-ins for server-side GROUP BY results (rule 2).
+        private static DataTable CreateDepartmentCountTable()
+        {
+            DataTable table = new DataTable();
+            table.Columns.Add("CATEGORY", typeof(string));
+            table.Columns.Add("CNT", typeof(int));
+            table.Rows.Add("경영지원팀", 1);
+            table.Rows.Add("개발1팀", 2);
+            table.Rows.Add("개발2팀", 3);
+            table.Rows.Add("품질보증팀", 2);
+            return table;
+        }
+
+        private static DataTable CreateRankCountTable()
+        {
+            DataTable table = new DataTable();
+            table.Columns.Add("CATEGORY", typeof(string));
+            table.Columns.Add("CNT", typeof(int));
+            table.Rows.Add("부장", 1);
+            table.Rows.Add("과장", 2);
+            table.Rows.Add("대리", 3);
+            table.Rows.Add("사원", 2);
+            return table;
         }
 
         // Exercises the grid contract: explicit column definitions, DataTable
