@@ -50,6 +50,7 @@
     <Compile Include="Program.cs" />
     <Compile Include="SampleShellForm.cs" />
     <Compile Include="ControlsGalleryForm.cs" />
+    <Compile Include="EmployeeManagementForm.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
