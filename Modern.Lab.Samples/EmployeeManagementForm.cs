@@ -58,6 +58,11 @@ namespace Modern.Lab.Samples
             deptTable.Rows.Add("D3", "개발2팀");
             deptTable.Rows.Add("D4", "품질보증팀");
 
+            // 부서 콤보는 멀티컬럼 드롭다운: 코드+부서명이 헤더와 함께 표시되고,
+            // 검색 시 코드("D3")로도 명칭("개발")으로도 필터링된다.
+            this.cboDept.ConfigureDropDownColumns(
+                new ModernDataGridColumn("DEPT_CODE", "코드", 60),
+                new ModernDataGridColumn("DEPT_NAME", "부서명", 110));
             this.cboDept.DisplayMember = "DEPT_NAME";
             this.cboDept.ValueMember = "DEPT_CODE";
             this.cboDept.DataSource = deptTable;

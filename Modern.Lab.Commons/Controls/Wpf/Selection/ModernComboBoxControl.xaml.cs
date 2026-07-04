@@ -1,11 +1,14 @@
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Data;
 using Modern.Lab.Controls.Wpf.Common;
+using Modern.Lab.Controls.Wpf.Data;
 using Modern.Lab.Controls.Wpf.Input;
 
 namespace Modern.Lab.Controls.Wpf.Selection
@@ -55,7 +58,7 @@ namespace Modern.Lab.Controls.Wpf.Selection
                 "DisplayMemberPath",
                 typeof(string),
                 typeof(ModernComboBoxControl),
-                new PropertyMetadata(string.Empty));
+                new PropertyMetadata(string.Empty, OnDisplayMemberPathChanged));
 
         /// <summary>SelectedValue에 사용되는 멤버 경로.</summary>
         public static readonly DependencyProperty SelectedValuePathProperty =
@@ -85,6 +88,9 @@ namespace Modern.Lab.Controls.Wpf.Selection
         private TextBox editableTextBox;
         private bool isRebuildingItems;
         private bool suppressFilter;
+
+        // 멀티컬럼 드롭다운 구성. null이면 기존 단일 컬럼(DisplayMemberPath) 모드.
+        private List<ModernDataGridColumn> dropDownColumns;
 
         /// <summary>선택이 바뀔 때 발생한다.</summary>
         public event EventHandler SelectionChanged;
@@ -180,7 +186,22 @@ namespace Modern.Lab.Controls.Wpf.Selection
 
         private static void OnIsEditableChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
         {
-            ((ModernComboBoxControl)d).UpdatePlaceholderVisibility();
+            ModernComboBoxControl control = (ModernComboBoxControl)d;
+
+            control.UpdatePlaceholderVisibility();
+            control.ApplyMultiColumnVisuals();
+        }
+
+        private static void OnDisplayMemberPathChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+        {
+            ModernComboBoxControl control = (ModernComboBoxControl)d;
+
+            // 멀티컬럼 모드에서는 내부 DisplayMemberPath 바인딩이 해제되어 있으므로
+            // 편집/필드 텍스트가 따라가도록 TextSearch 경로를 갱신한다 (순서 내성).
+            if (control.dropDownColumns != null)
+            {
+                TextSearch.SetTextPath(control.InnerComboBox, (string)e.NewValue ?? string.Empty);
+            }
         }
 
         // 소스 컬렉션 변경을 감시하여(수동 Items 컬렉션은 ObservableCollection,
@@ -253,9 +274,7 @@ namespace Modern.Lab.Controls.Wpf.Selection
                 {
                     foreach (object item in source)
                     {
-                        if (string.IsNullOrEmpty(filterText) ||
-                            HangulTextMatcher.Contains(
-                                MemberPathReader.ReadDisplayText(item, this.DisplayMemberPath), filterText))
+                        if (string.IsNullOrEmpty(filterText) || this.MatchesFilter(item, filterText))
                         {
                             this.filteredItems.Add(item);
                         }
@@ -285,11 +304,161 @@ namespace Modern.Lab.Controls.Wpf.Selection
             this.UpdatePlaceholderVisibility();
         }
 
+        // 항목이 멀티컬럼 구성일 때는 모든 컬럼의 텍스트를 대상으로,
+        // 아니면 DisplayMemberPath 텍스트만 대상으로 매칭한다(초성 검색 포함).
+        private bool MatchesFilter(object item, string filterText)
+        {
+            if (this.dropDownColumns == null)
+            {
+                return HangulTextMatcher.Contains(
+                    MemberPathReader.ReadDisplayText(item, this.DisplayMemberPath), filterText);
+            }
+
+            foreach (ModernDataGridColumn column in this.dropDownColumns)
+            {
+                if (HangulTextMatcher.Contains(
+                    MemberPathReader.ReadDisplayText(item, column.DataPropertyName), filterText))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// 드롭다운을 멀티컬럼 행(코드+명칭 등)으로 구성한다. 헤더 행이 표시되고
+        /// 검색 필터는 모든 컬럼을 대상으로 동작한다. 필드에 표시되는 선택
+        /// 텍스트는 계속 DisplayMemberPath(명칭)를 따른다. null/빈 목록이면
+        /// 아무것도 하지 않는다(구성 후 단일 컬럼으로 되돌리는 것은 미지원).
+        /// </summary>
+        public void ApplyDropDownColumns(IList<ModernDataGridColumn> columns)
+        {
+            if (columns == null || columns.Count == 0)
+            {
+                return;
+            }
+
+            this.dropDownColumns = new List<ModernDataGridColumn>(columns);
+
+            // DisplayMemberPath와 ItemTemplate은 동시에 쓸 수 없으므로 내부
+            // 바인딩을 해제하고, 선택 텍스트는 TextSearch 경로로 대신 공급한다.
+            this.InnerComboBox.ClearValue(ItemsControl.DisplayMemberPathProperty);
+            TextSearch.SetTextPath(this.InnerComboBox, this.DisplayMemberPath ?? string.Empty);
+            this.InnerComboBox.ItemTemplate = this.BuildMultiColumnRowTemplate();
+
+            this.ApplyMultiColumnVisuals();
+        }
+
+        private static double EffectiveColumnWidth(ModernDataGridColumn column)
+        {
+            return column.Width > 0d ? column.Width : 120d;
+        }
+
+        // 멀티컬럼 행 템플릿: 컬럼 폭이 고정된 TextBlock들의 가로 나열.
+        private DataTemplate BuildMultiColumnRowTemplate()
+        {
+            FrameworkElementFactory panel = new FrameworkElementFactory(typeof(StackPanel));
+            panel.SetValue(StackPanel.OrientationProperty, Orientation.Horizontal);
+
+            foreach (ModernDataGridColumn column in this.dropDownColumns)
+            {
+                FrameworkElementFactory cell = new FrameworkElementFactory(typeof(TextBlock));
+                cell.SetBinding(TextBlock.TextProperty, new Binding(column.DataPropertyName));
+                cell.SetValue(FrameworkElement.WidthProperty, EffectiveColumnWidth(column));
+                cell.SetValue(FrameworkElement.MarginProperty, new Thickness(0, 0, 12, 0));
+                cell.SetValue(FrameworkElement.VerticalAlignmentProperty, VerticalAlignment.Center);
+                cell.SetValue(TextBlock.TextTrimmingProperty, TextTrimming.CharacterEllipsis);
+
+                if (column.TextAlignment == GridTextAlignment.Center)
+                {
+                    cell.SetValue(TextBlock.TextAlignmentProperty, TextAlignment.Center);
+                }
+                else if (column.TextAlignment == GridTextAlignment.Right)
+                {
+                    cell.SetValue(TextBlock.TextAlignmentProperty, TextAlignment.Right);
+                }
+
+                panel.AppendChild(cell);
+            }
+
+            DataTemplate template = new DataTemplate();
+            template.VisualTree = panel;
+            return template;
+        }
+
+        // 헤더 행: 항목 행과 같은 폭 배치, SemiBold 캡션.
+        private StackPanel BuildHeaderRow()
+        {
+            StackPanel header = new StackPanel();
+            header.Orientation = Orientation.Horizontal;
+            header.Margin = new Thickness(12, 6, 12, 6);
+
+            foreach (ModernDataGridColumn column in this.dropDownColumns)
+            {
+                TextBlock caption = new TextBlock();
+                caption.Text = column.HeaderText;
+                caption.Width = EffectiveColumnWidth(column);
+                caption.Margin = new Thickness(0, 0, 12, 0);
+                caption.FontWeight = FontWeights.SemiBold;
+                caption.VerticalAlignment = VerticalAlignment.Center;
+
+                if (column.TextAlignment == GridTextAlignment.Center)
+                {
+                    caption.TextAlignment = TextAlignment.Center;
+                }
+                else if (column.TextAlignment == GridTextAlignment.Right)
+                {
+                    caption.TextAlignment = TextAlignment.Right;
+                }
+
+                header.Children.Add(caption);
+            }
+
+            return header;
+        }
+
+        // 템플릿 내부 요소(헤더 호스트, 필드 표시)를 멀티컬럼 모드에 맞게 갱신한다.
+        // 템플릿이 아직 적용되지 않았으면 Loaded에서 다시 호출된다.
+        private void ApplyMultiColumnVisuals()
+        {
+            if (this.dropDownColumns == null || this.InnerComboBox.Template == null)
+            {
+                return;
+            }
+
+            Border headerHost = this.InnerComboBox.Template.FindName("DropDownHeaderHost", this.InnerComboBox) as Border;
+
+            if (headerHost == null)
+            {
+                return;
+            }
+
+            headerHost.Child = this.BuildHeaderRow();
+            headerHost.Visibility = Visibility.Visible;
+
+            // 필드에는 멀티컬럼 행 대신 선택 텍스트(명칭)만 보여준다.
+            ContentPresenter contentSite = this.InnerComboBox.Template.FindName("ContentSite", this.InnerComboBox) as ContentPresenter;
+            TextBlock selectionText = this.InnerComboBox.Template.FindName("MultiColumnSelectionText", this.InnerComboBox) as TextBlock;
+
+            if (contentSite != null)
+            {
+                contentSite.Visibility = Visibility.Collapsed;
+            }
+
+            if (selectionText != null)
+            {
+                selectionText.Visibility = this.IsEditable ? Visibility.Collapsed : Visibility.Visible;
+            }
+        }
+
         // 템플릿에서 편집 가능 텍스트 영역을 얻어 입력을 후킹한다.
         // Loaded는 호스트 폼이 데이터를 이미 바인딩한 뒤 발생하므로,
-        // 여기서 실제 에디터 상태를 기준으로 placeholder를 다시 평가한다.
+        // 여기서 실제 에디터 상태를 기준으로 placeholder를 다시 평가하고
+        // 멀티컬럼 시각 요소도 마저 적용한다.
         private void InnerComboBox_Loaded(object sender, RoutedEventArgs e)
         {
+            this.ApplyMultiColumnVisuals();
             TextBox editor = this.InnerComboBox.Template.FindName("PART_EditableTextBox", this.InnerComboBox) as TextBox;
 
             if (!object.ReferenceEquals(editor, this.editableTextBox))

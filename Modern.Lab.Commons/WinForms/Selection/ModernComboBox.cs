@@ -351,6 +351,21 @@ namespace Modern.Lab.WinForms.Controls.Selection
             }
         }
 
+        /// <summary>
+        /// 드롭다운을 멀티컬럼(코드+명칭 등)으로 구성한다. 그리드와 동일한
+        /// ModernDataGridColumn 정의를 재사용하며, 헤더 행이 표시되고 검색형
+        /// 콤보의 타이핑 필터는 모든 컬럼(코드 포함)을 대상으로 동작한다.
+        /// 필드의 선택 텍스트는 계속 DisplayMember(명칭)를 따른다.
+        /// DataSource 할당 전에 호출한다.
+        /// </summary>
+        public void ConfigureDropDownColumns(params Modern.Lab.Controls.Wpf.Data.ModernDataGridColumn[] columns)
+        {
+            if (this.Wpf != null)
+            {
+                this.Wpf.ApplyDropDownColumns(columns);
+            }
+        }
+
         private bool HasBoundItems()
         {
             return this.Wpf != null &&

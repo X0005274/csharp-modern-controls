@@ -19,6 +19,28 @@
 | `Text` | 현재 선택/입력 텍스트 (읽기). 쓰기는 DropDown/Simple에서만 동작, DropDownList에서는 무동작 |
 | `Enabled` | 전파됨 |
 
+## 멀티컬럼 드롭다운
+
+`ConfigureDropDownColumns(...)`로 드롭다운을 코드+명칭 같은 다중 컬럼으로 구성할 수 있다
+(그리드와 동일한 `ModernDataGridColumn` 정의 재사용):
+
+```csharp
+using Modern.Lab.Controls.Wpf.Data;
+
+this.cboDept.ConfigureDropDownColumns(
+    new ModernDataGridColumn("DEPT_CODE", "코드", 60),
+    new ModernDataGridColumn("DEPT_NAME", "부서명", 110));
+this.cboDept.DisplayMember = "DEPT_NAME";   // 필드/선택 텍스트는 계속 명칭
+this.cboDept.ValueMember = "DEPT_CODE";
+this.cboDept.DataSource = deptTable;        // DataSource 할당 전에 구성
+```
+
+- 드롭다운 상단에 **컬럼 헤더 행** 표시, 폭은 컬럼 합계만큼 자동 확장
+- 검색형(DropDown) 모드의 타이핑 필터는 **모든 컬럼 대상** — 코드("D3")로도
+  명칭("개발", 초성 "ㄱ")으로도 필터링
+- 선택 시 필드에는 `DisplayMember`(명칭)만 표시, `SelectedValue`는 그대로 코드
+- 구성 후 단일 컬럼으로 되돌리는 것은 미지원 (폼 로드 시 1회 구성 전제)
+
 ## 계약 보장 동작 (docs/design-notes.md §6-1)
 
 - `SelectedValue` → `DataSource` 순서로 설정해도 정상 동작 (보류 후 적용)

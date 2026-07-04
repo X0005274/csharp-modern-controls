@@ -107,6 +107,15 @@
                                           Margin="12,0,32,0"
                                           VerticalAlignment="Center"
                                           IsHitTestVisible="False" />
+                        <!-- 멀티컬럼 모드의 선택 텍스트: 항목 템플릿이 멀티컬럼 행이라
+                             필드에는 대신 TextSearch 기반 Text(표시 명칭)를 보여준다.
+                             표시 여부는 코드에서 관리. -->
+                        <TextBlock x:Name="MultiColumnSelectionText"
+                                   Text="{TemplateBinding Text}"
+                                   Margin="12,0,32,0"
+                                   VerticalAlignment="Center"
+                                   Visibility="Collapsed"
+                                   IsHitTestVisible="False" />
                         <!-- 편집 가능 텍스트 영역(검색형 콤보). IsEditable일 때
                              ContentSite 대신 표시된다; 오른쪽 32px는 셰브런 토글
                              몫으로 남긴다. -->
@@ -135,9 +144,19 @@
                                     Margin="0,2,0,0"
                                     MinWidth="{Binding ActualWidth, RelativeSource={RelativeSource TemplatedParent}}"
                                     MaxHeight="{TemplateBinding MaxDropDownHeight}">
-                                <ScrollViewer VerticalScrollBarVisibility="Auto">
-                                    <ItemsPresenter />
-                                </ScrollViewer>
+                                <DockPanel>
+                                    <!-- 멀티컬럼 헤더 행 호스트: 컬럼이 구성되면
+                                         코드에서 내용이 채워지고 표시된다 -->
+                                    <Border x:Name="DropDownHeaderHost"
+                                            DockPanel.Dock="Top"
+                                            Visibility="Collapsed"
+                                            Background="{StaticResource Brush.GridHeaderBackground}"
+                                            BorderBrush="{StaticResource Brush.BorderSubtle}"
+                                            BorderThickness="0,0,0,1" />
+                                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                        <ItemsPresenter />
+                                    </ScrollViewer>
+                                </DockPanel>
                             </Border>
                         </Popup>
                     </Grid>
