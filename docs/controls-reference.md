@@ -226,7 +226,7 @@ this.cboDept.DataSource = deptTable;        // 구성 후에 DataSource 할당
 | `PlaceholderText` | string | 미체크 시 힌트 (예: "직급 전체") |
 | `Text` | string | 체크 항목을 ", "로 연결한 표시 텍스트 (읽기 전용) |
 | `CheckedChanged` | 이벤트 | 체크 상태 변경 시 (일괄 변경은 1회) |
-| `CheckAll()` / `UncheckAll()` | 메서드 | 전체 체크/해제 — 드롭다운의 "전체 선택" 헤더와 동일 |
+| `CheckAll()` / `UncheckAll()` | 메서드 | 전체 체크/해제 — 드롭다운 헤더와 동일 동작. 헤더 라벨은 상태에 따라 "전체 선택" ↔ "전체 해제"(전부 체크 시)로 바뀜 |
 
 ### 예제 — 직급 다중 필터 (서버에 코드 전송)
 

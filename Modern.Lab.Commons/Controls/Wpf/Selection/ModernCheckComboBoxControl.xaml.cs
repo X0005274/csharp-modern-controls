@@ -376,20 +376,25 @@ namespace Modern.Lab.Controls.Wpf.Selection
             this.DisplayText.Text = joined;
             this.PlaceholderOverlay.Visibility = joined.Length == 0 ? Visibility.Visible : Visibility.Collapsed;
 
-            // 전체 선택 헤더: 전부 = 체크, 없음 = 해제, 일부 = 부분 선택(대시)
+            // 전체 선택 헤더: 전부 = 체크, 없음 = 해제, 일부 = 부분 선택(대시).
+            // 라벨도 다음 동작을 안내하도록 바뀐다 — 전부 체크 상태에서는
+            // "전체 해제", 그 외에는 "전체 선택".
             if (this.SelectAllCheck != null)
             {
                 if (this.checkItems.Count == 0 || texts.Count == 0)
                 {
                     this.SelectAllCheck.IsChecked = false;
+                    this.SelectAllCheck.Content = "전체 선택";
                 }
                 else if (texts.Count == this.checkItems.Count)
                 {
                     this.SelectAllCheck.IsChecked = true;
+                    this.SelectAllCheck.Content = "전체 해제";
                 }
                 else
                 {
                     this.SelectAllCheck.IsChecked = null;
+                    this.SelectAllCheck.Content = "전체 선택";
                 }
             }
         }
