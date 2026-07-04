@@ -89,6 +89,7 @@
   <ItemGroup>
     <!-- Input code-behind -->
     <Compile Include="Controls\Wpf\Input\ButtonKind.cs" />
+    <Compile Include="Controls\Wpf\Input\HangulTextMatcher.cs" />
     <Compile Include="Controls\Wpf\Input\ModernButtonControl.xaml.cs">
       <DependentUpon>ModernButtonControl.xaml</DependentUpon>
     </Compile>

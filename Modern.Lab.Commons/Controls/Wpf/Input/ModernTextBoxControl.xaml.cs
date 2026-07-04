@@ -164,7 +164,9 @@ namespace Modern.Lab.Controls.Wpf.Input
 
                 string candidateText = candidate.ToString();
 
-                if (candidateText.IndexOf(typed, StringComparison.OrdinalIgnoreCase) >= 0 &&
+                // Korean-aware matching: consonant jamo match syllable initials
+                // (초성 검색) and IME intermediate syllables keep matching.
+                if (HangulTextMatcher.Contains(candidateText, typed) &&
                     !string.Equals(candidateText, typed, StringComparison.Ordinal))
                 {
                     this.suggestionItems.Add(candidateText);

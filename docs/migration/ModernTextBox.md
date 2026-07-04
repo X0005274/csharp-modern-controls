@@ -12,7 +12,7 @@
 | `ReadOnly` | `TextBox.ReadOnly`와 동일 의미. 배경이 옅게 바뀜 |
 | `AutoCompleteMode` | `None` 외의 값(`Suggest`/`SuggestAppend`/`Append`)은 모두 **제안 드롭다운(Suggest)** 으로 동작 |
 | `AutoCompleteSource` | **`CustomSource`만 지원** — 다른 값은 자동완성 비활성 |
-| `AutoCompleteCustomSource` | `AutoCompleteStringCollection` 그대로 수용. 입력 텍스트 포함(contains, 대소문자 무시) 매칭, 최대 8건 표시. ↓/↑ 탐색, Enter 선택(선택 후 `EnterPressed` 발생), Esc 닫기, 클릭 선택 |
+| `AutoCompleteCustomSource` | `AutoCompleteStringCollection` 그대로 수용. 포함(contains) 매칭 + **한글 초성 검색**("ㄱ" → 김민수, "김ㅎ" → 김하늘) + 조합 중간 상태 매칭("기" → 김민수), 영문 대소문자 무시, 최대 8건 표시. ↓/↑ 탐색, Enter 선택(선택 후 `EnterPressed` 발생), Esc 닫기, 클릭 선택 |
 | `Enabled` | 전파됨 |
 
 ### 자동완성 예시 (기존 WinForms 코드 그대로)
