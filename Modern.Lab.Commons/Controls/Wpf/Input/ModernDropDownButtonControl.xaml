@@ -1,0 +1,107 @@
+<UserControl x:Class="Modern.Lab.Controls.Wpf.Input.ModernDropDownButtonControl"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             mc:Ignorable="d"
+             TextOptions.TextFormattingMode="Ideal"
+             TextOptions.TextRenderingMode="ClearType"
+             UseLayoutRounding="True"
+             x:Name="RootControl"
+             FontFamily="{DynamicResource Font.Family}"
+             d:DesignWidth="110" d:DesignHeight="32">
+    <UserControl.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="/Modern.Lab.Commons;component/Themes/Tokens.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </UserControl.Resources>
+
+    <!-- 보조(Secondary) 버튼 모양의 토글 + 메뉴 팝업.
+         ClickMode=Release: Press면 마우스 업이 팝업 밖 입력으로 처리되어 즉시 닫힌다. -->
+    <Grid>
+        <ToggleButton x:Name="DropToggle"
+                      Height="{StaticResource Size.ControlHeight}"
+                      Focusable="False"
+                      Cursor="Hand"
+                      ClickMode="Release">
+            <ToggleButton.Template>
+                <ControlTemplate TargetType="ToggleButton">
+                    <Border x:Name="ButtonBorder"
+                            CornerRadius="{StaticResource Radius.Sm}"
+                            Background="{StaticResource Brush.Surface}"
+                            BorderBrush="{StaticResource Brush.Border}"
+                            BorderThickness="1">
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+                            <TextBlock Text="{Binding Text, ElementName=RootControl}"
+                                       FontSize="{StaticResource Font.Size.Body}"
+                                       Foreground="{StaticResource Brush.TextPrimary}"
+                                       VerticalAlignment="Center" />
+                            <TextBlock Text="&#xE70D;"
+                                       FontFamily="Segoe MDL2 Assets"
+                                       FontSize="{StaticResource Font.Size.IconSm}"
+                                       Margin="6,0,0,0"
+                                       VerticalAlignment="Center"
+                                       Foreground="{StaticResource Brush.TextSecondary}" />
+                        </StackPanel>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="ButtonBorder" Property="Background" Value="{StaticResource Brush.HoverBackground}" />
+                        </Trigger>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter TargetName="ButtonBorder" Property="BorderBrush" Value="{StaticResource Brush.FocusBorder}" />
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter TargetName="ButtonBorder" Property="Background" Value="{StaticResource Brush.DisabledBackground}" />
+                            <Setter TargetName="ButtonBorder" Property="BorderBrush" Value="{StaticResource Brush.BorderSubtle}" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </ToggleButton.Template>
+        </ToggleButton>
+
+        <Popup x:Name="ItemsPopup"
+               PlacementTarget="{Binding ElementName=DropToggle}"
+               Placement="Bottom"
+               AllowsTransparency="True"
+               Focusable="False"
+               StaysOpen="False"
+               PopupAnimation="Slide"
+               IsOpen="{Binding IsChecked, ElementName=DropToggle, Mode=TwoWay}">
+            <Border Background="{StaticResource Brush.Surface}"
+                    BorderBrush="{StaticResource Brush.Border}"
+                    BorderThickness="1"
+                    CornerRadius="{StaticResource Radius.Sm}"
+                    Margin="0,2,0,0"
+                    MinWidth="{Binding ActualWidth, ElementName=DropToggle}">
+                <ItemsControl x:Name="MenuItemsControl">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Button Click="MenuItem_Click" Focusable="False" Cursor="Hand">
+                                <Button.Template>
+                                    <ControlTemplate TargetType="Button">
+                                        <Border x:Name="ItemBorder"
+                                                Background="Transparent"
+                                                Padding="{StaticResource Pad.Item}">
+                                            <TextBlock Text="{Binding DisplayText}"
+                                                       FontSize="{StaticResource Font.Size.Body}"
+                                                       Foreground="{StaticResource Brush.TextPrimary}"
+                                                       VerticalAlignment="Center" />
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter TargetName="ItemBorder" Property="Background" Value="{StaticResource Brush.HoverBackground}" />
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </Button.Template>
+                            </Button>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </Border>
+        </Popup>
+    </Grid>
+</UserControl>

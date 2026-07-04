@@ -1,0 +1,36 @@
+<UserControl x:Class="Modern.Lab.Controls.Wpf.Display.ModernStatusBadgeControl"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             mc:Ignorable="d"
+             TextOptions.TextFormattingMode="Ideal"
+             TextOptions.TextRenderingMode="ClearType"
+             UseLayoutRounding="True"
+             x:Name="RootControl"
+             FontFamily="{DynamicResource Font.Family}"
+             d:DesignWidth="70" d:DesignHeight="24">
+    <UserControl.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="/Modern.Lab.Commons;component/Themes/Tokens.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </UserControl.Resources>
+
+    <!-- 상태 표시 pill: 요약 칩과 동일한 비주얼의 단독 배지.
+         배경색은 Color 속성이, 글자색은 배경에서 자동 유도된다(코드비하인드). -->
+    <Border x:Name="PillBorder"
+            CornerRadius="{StaticResource Radius.Pill}"
+            Background="{StaticResource Brush.NeutralBackground}"
+            Padding="10,2"
+            HorizontalAlignment="Left"
+            VerticalAlignment="Center">
+        <TextBlock x:Name="PillText"
+                   Text="{Binding Text, ElementName=RootControl}"
+                   FontSize="{StaticResource Font.Size.Helper}"
+                   FontWeight="SemiBold"
+                   Foreground="{StaticResource Brush.NeutralText}"
+                   VerticalAlignment="Center" />
+    </Border>
+</UserControl>

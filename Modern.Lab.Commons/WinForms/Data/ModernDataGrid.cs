@@ -32,6 +32,9 @@ namespace Modern.Lab.WinForms.Controls.Data
         /// <summary>행 선택이 바뀔 때 발생한다(WinForms 호환 이름).</summary>
         public event EventHandler SelectionChanged;
 
+        /// <summary>높이 변화로 표시 가능 행 수(VisibleRowCapacity)가 바뀔 때 발생한다.</summary>
+        public event EventHandler VisibleRowCapacityChanged;
+
         /// <summary>적절한 기본 크기로 컨트롤을 생성한다.</summary>
         public ModernDataGrid()
         {
@@ -41,6 +44,34 @@ namespace Modern.Lab.WinForms.Controls.Data
             if (this.Wpf != null)
             {
                 this.Wpf.SelectionChanged += this.OnWpfSelectionChanged;
+                this.Wpf.VisibleRowCapacityChanged += this.OnWpfVisibleRowCapacityChanged;
+            }
+        }
+
+        /// <summary>
+        /// 현재 높이에서 세로 스크롤 없이 표시 가능한 행 수 (최소 1).
+        /// ModernPagination.PageSize에 넣으면 페이지 크기가 화면 높이를 따라간다 —
+        /// VisibleRowCapacityChanged에서 갱신하면 리사이즈에도 자동 대응.
+        /// </summary>
+        [Browsable(false)]
+        public int VisibleRowCapacity
+        {
+            get
+            {
+                if (this.Wpf != null)
+                {
+                    return this.Wpf.VisibleRowCapacity;
+                }
+
+                return 1;
+            }
+        }
+
+        private void OnWpfVisibleRowCapacityChanged(object sender, EventArgs e)
+        {
+            if (this.VisibleRowCapacityChanged != null)
+            {
+                this.VisibleRowCapacityChanged(this, EventArgs.Empty);
             }
         }
 

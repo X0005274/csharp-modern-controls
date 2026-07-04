@@ -1,0 +1,60 @@
+<UserControl x:Class="Modern.Lab.Controls.Wpf.Display.ModernBusyOverlayControl"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             mc:Ignorable="d"
+             TextOptions.TextFormattingMode="Ideal"
+             TextOptions.TextRenderingMode="ClearType"
+             UseLayoutRounding="True"
+             x:Name="RootControl"
+             FontFamily="{DynamicResource Font.Family}"
+             d:DesignWidth="400" d:DesignHeight="300">
+    <UserControl.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="/Modern.Lab.Commons;component/Themes/Tokens.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </UserControl.Resources>
+
+    <!-- 조회/처리 중 대상 영역을 덮는 로딩 패널.
+         ElementHost 제약상 아래 컨트롤이 비치는 반투명은 불가능하므로
+         밝은 불투명 표면 + 스피너 + 메시지로 구성한다. -->
+    <Border Background="{StaticResource Brush.Surface}"
+            BorderBrush="{StaticResource Brush.BorderSubtle}"
+            BorderThickness="1"
+            CornerRadius="{StaticResource Radius.Sm}">
+        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+            <!-- 회전 스피너: 액센트색 점선 링 -->
+            <Ellipse x:Name="Spinner"
+                     Width="32" Height="32"
+                     Stroke="{StaticResource Brush.Accent}"
+                     StrokeThickness="3"
+                     StrokeDashArray="16 8"
+                     StrokeDashCap="Round"
+                     RenderTransformOrigin="0.5,0.5">
+                <Ellipse.RenderTransform>
+                    <RotateTransform x:Name="SpinRotate" Angle="0" />
+                </Ellipse.RenderTransform>
+                <Ellipse.Triggers>
+                    <EventTrigger RoutedEvent="Ellipse.Loaded">
+                        <BeginStoryboard>
+                            <Storyboard RepeatBehavior="Forever">
+                                <DoubleAnimation Storyboard.TargetName="SpinRotate"
+                                                 Storyboard.TargetProperty="Angle"
+                                                 From="0" To="360" Duration="0:0:1.2" />
+                            </Storyboard>
+                        </BeginStoryboard>
+                    </EventTrigger>
+                </Ellipse.Triggers>
+            </Ellipse>
+
+            <TextBlock Text="{Binding Message, ElementName=RootControl}"
+                       Margin="0,12,0,0"
+                       HorizontalAlignment="Center"
+                       FontSize="{StaticResource Font.Size.Body}"
+                       Foreground="{StaticResource Brush.TextSecondary}" />
+        </StackPanel>
+    </Border>
+</UserControl>

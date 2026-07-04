@@ -43,9 +43,16 @@ namespace Modern.Lab.Controls.Wpf.Data
         /// <summary>행 선택이 바뀔 때 발생한다.</summary>
         public event EventHandler SelectionChanged;
 
+        /// <summary>높이 변화로 표시 가능 행 수(VisibleRowCapacity)가 바뀔 때 발생한다.</summary>
+        public event EventHandler VisibleRowCapacityChanged;
+
+        // 마지막으로 통지한 표시 가능 행 수 — 같은 값이면 이벤트를 삼킨다.
+        private int lastCapacity;
+
         public ModernDataGridControl()
         {
             this.InitializeComponent();
+            this.SizeChanged += this.OnControlSizeChanged;
         }
 
         /// <summary>표시할 행 목록.</summary>
@@ -73,6 +80,47 @@ namespace Modern.Lab.Controls.Wpf.Data
         public int RowCount
         {
             get { return this.InnerDataGrid.Items.Count; }
+        }
+
+        /// <summary>
+        /// 현재 높이에서 세로 스크롤 없이 표시 가능한 행 수 (최소 1).
+        /// 행/헤더 높이가 토큰으로 고정되어 있어 결정적으로 계산된다.
+        /// 페이지 크기를 화면 높이에 맞추는 용도(ModernPagination.PageSize 연동).
+        /// </summary>
+        public int VisibleRowCapacity
+        {
+            get
+            {
+                double rowHeight = (double)this.FindResource("Size.RowHeight");
+                double headerHeight = (double)this.FindResource("Size.GridHeaderHeight");
+
+                // 바깥 카드 테두리 위아래 1px씩 제외
+                double available = this.ActualHeight - headerHeight - 2.0;
+
+                if (available < rowHeight)
+                {
+                    return 1;
+                }
+
+                return (int)(available / rowHeight);
+            }
+        }
+
+        private void OnControlSizeChanged(object sender, SizeChangedEventArgs e)
+        {
+            int capacity = this.VisibleRowCapacity;
+
+            if (capacity == this.lastCapacity)
+            {
+                return;
+            }
+
+            this.lastCapacity = capacity;
+
+            if (this.VisibleRowCapacityChanged != null)
+            {
+                this.VisibleRowCapacityChanged(this, EventArgs.Empty);
+            }
         }
 
         /// <summary>선택된 행의 인덱스(아무것도 선택되지 않았으면 -1).</summary>
@@ -106,7 +154,17 @@ namespace Modern.Lab.Controls.Wpf.Data
         {
             DataGridTextColumn column = new DataGridTextColumn();
             column.Header = definition.HeaderText;
-            column.Binding = new Binding(definition.DataPropertyName);
+
+            Binding binding = new Binding(definition.DataPropertyName);
+
+            // 표시 형식: "N0" 같은 단순 형식은 "{0:N0}"으로 해석된다(WPF 규칙).
+            // 원본이 타입 컬럼(int/decimal/DateTime)일 때만 효과가 있다.
+            if (!string.IsNullOrEmpty(definition.Format))
+            {
+                binding.StringFormat = definition.Format;
+            }
+
+            column.Binding = binding;
 
             if (definition.Width > 0d)
             {

@@ -1,0 +1,114 @@
+<UserControl x:Class="Modern.Lab.Controls.Wpf.Selection.ModernTreeViewControl"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:local="clr-namespace:Modern.Lab.Controls.Wpf.Selection"
+             mc:Ignorable="d"
+             TextOptions.TextFormattingMode="Ideal"
+             TextOptions.TextRenderingMode="ClearType"
+             UseLayoutRounding="True"
+             x:Name="RootControl"
+             FontFamily="{DynamicResource Font.Family}"
+             d:DesignWidth="200" d:DesignHeight="300">
+    <UserControl.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="/Modern.Lab.Commons;component/Themes/Tokens.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+
+            <!-- 펼침 토글: 오른쪽 셰브런이 펼침 시 90도 회전해 아래를 향한다 -->
+            <Style x:Key="TreeExpanderStyle" TargetType="ToggleButton">
+                <Setter Property="Focusable" Value="False" />
+                <Setter Property="Cursor" Value="Hand" />
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="ToggleButton">
+                            <Border Background="Transparent" Width="18" Height="18">
+                                <TextBlock x:Name="Chevron"
+                                           Text="&#xE76C;"
+                                           FontFamily="Segoe MDL2 Assets"
+                                           FontSize="{StaticResource Font.Size.IconSm}"
+                                           Foreground="{StaticResource Brush.TextSecondary}"
+                                           HorizontalAlignment="Center"
+                                           VerticalAlignment="Center"
+                                           RenderTransformOrigin="0.5,0.5">
+                                    <TextBlock.RenderTransform>
+                                        <RotateTransform Angle="0" />
+                                    </TextBlock.RenderTransform>
+                                </TextBlock>
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsChecked" Value="True">
+                                    <Setter TargetName="Chevron" Property="RenderTransform">
+                                        <Setter.Value>
+                                            <RotateTransform Angle="90" />
+                                        </Setter.Value>
+                                    </Setter>
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+
+            <!-- 트리 항목: hover/선택 상태는 토큰, 자식은 18px 들여쓰기 -->
+            <Style x:Key="ModernTreeViewItemStyle" TargetType="TreeViewItem">
+                <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}" />
+                <Setter Property="IsSelected" Value="{Binding IsSelected, Mode=TwoWay}" />
+                <Setter Property="Foreground" Value="{StaticResource Brush.TextPrimary}" />
+                <Setter Property="FontSize" Value="{StaticResource Font.Size.Body}" />
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="TreeViewItem">
+                            <StackPanel>
+                                <Border x:Name="HeaderBorder"
+                                        CornerRadius="{StaticResource Radius.Sm}"
+                                        Background="Transparent"
+                                        Padding="2,3">
+                                    <StackPanel Orientation="Horizontal">
+                                        <ToggleButton x:Name="Expander"
+                                                      Style="{StaticResource TreeExpanderStyle}"
+                                                      IsChecked="{Binding IsExpanded, RelativeSource={RelativeSource TemplatedParent}, Mode=TwoWay}" />
+                                        <ContentPresenter ContentSource="Header" VerticalAlignment="Center" />
+                                    </StackPanel>
+                                </Border>
+                                <ItemsPresenter x:Name="ItemsHost" Margin="18,0,0,0" />
+                            </StackPanel>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsExpanded" Value="False">
+                                    <Setter TargetName="ItemsHost" Property="Visibility" Value="Collapsed" />
+                                </Trigger>
+                                <Trigger Property="HasItems" Value="False">
+                                    <Setter TargetName="Expander" Property="Visibility" Value="Hidden" />
+                                </Trigger>
+                                <Trigger SourceName="HeaderBorder" Property="IsMouseOver" Value="True">
+                                    <Setter TargetName="HeaderBorder" Property="Background" Value="{StaticResource Brush.HoverBackground}" />
+                                </Trigger>
+                                <!-- 선택이 hover보다 우선하도록 뒤에 선언 -->
+                                <Trigger Property="IsSelected" Value="True">
+                                    <Setter TargetName="HeaderBorder" Property="Background" Value="{StaticResource Brush.SelectedBackground}" />
+                                    <Setter Property="Foreground" Value="{StaticResource Brush.SelectedText}" />
+                                    <Setter Property="FontWeight" Value="SemiBold" />
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+        </ResourceDictionary>
+    </UserControl.Resources>
+
+    <TreeView x:Name="InnerTreeView"
+              Background="Transparent"
+              BorderThickness="0"
+              ItemContainerStyle="{StaticResource ModernTreeViewItemStyle}"
+              ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+              VirtualizingStackPanel.IsVirtualizing="False">
+        <TreeView.ItemTemplate>
+            <HierarchicalDataTemplate DataType="{x:Type local:TreeNodeItem}" ItemsSource="{Binding Children}">
+                <TextBlock Text="{Binding DisplayText}" Margin="2,0,4,0" VerticalAlignment="Center" />
+            </HierarchicalDataTemplate>
+        </TreeView.ItemTemplate>
+    </TreeView>
+</UserControl>

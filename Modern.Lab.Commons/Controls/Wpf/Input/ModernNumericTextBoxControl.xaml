@@ -1,0 +1,110 @@
+<UserControl x:Class="Modern.Lab.Controls.Wpf.Input.ModernNumericTextBoxControl"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             mc:Ignorable="d"
+             TextOptions.TextFormattingMode="Ideal"
+             TextOptions.TextRenderingMode="ClearType"
+             UseLayoutRounding="True"
+             x:Name="RootControl"
+             FontFamily="{DynamicResource Font.Family}"
+             d:DesignWidth="120" d:DesignHeight="32">
+    <UserControl.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="/Modern.Lab.Commons;component/Themes/Tokens.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </UserControl.Resources>
+
+    <!-- 숫자 전용 마스크 입력 필드: 숫자만 치면 천단위 콤마가 자동으로 붙고
+         (구분자는 코드가 삽입), 소수/음수는 옵션으로 허용한다. 숫자는 우측 정렬. -->
+    <Border x:Name="OuterBorder"
+            Height="{StaticResource Size.ControlHeight}"
+            CornerRadius="{StaticResource Radius.Sm}"
+            BorderThickness="1">
+        <Border.Style>
+            <Style TargetType="Border">
+                <Setter Property="Background" Value="{StaticResource Brush.Surface}" />
+                <Setter Property="BorderBrush" Value="{StaticResource Brush.Border}" />
+                <Style.Triggers>
+                    <DataTrigger Binding="{Binding IsMouseOver, ElementName=RootControl}" Value="True">
+                        <Setter Property="BorderBrush" Value="{StaticResource Brush.BorderHover}" />
+                    </DataTrigger>
+                    <!-- 포커스가 hover보다 우선: 나중에 선언되어 우선순위를 가진다 -->
+                    <DataTrigger Binding="{Binding IsKeyboardFocusWithin, ElementName=RootControl}" Value="True">
+                        <Setter Property="BorderBrush" Value="{StaticResource Brush.FocusBorder}" />
+                    </DataTrigger>
+                    <DataTrigger Binding="{Binding IsEnabled, ElementName=RootControl}" Value="False">
+                        <Setter Property="Background" Value="{StaticResource Brush.DisabledBackground}" />
+                        <Setter Property="BorderBrush" Value="{StaticResource Brush.BorderSubtle}" />
+                    </DataTrigger>
+                </Style.Triggers>
+            </Style>
+        </Border.Style>
+
+        <Grid>
+            <!-- 입력 전 안내 플레이스홀더: 에디터가 비어 있는 동안 회색으로 표시 -->
+            <TextBlock x:Name="PlaceholderLabel"
+                       Text="{Binding Placeholder, ElementName=RootControl}"
+                       Margin="{StaticResource Pad.Field}"
+                       HorizontalAlignment="Right"
+                       VerticalAlignment="Center"
+                       FontSize="{StaticResource Font.Size.Body}"
+                       Foreground="{StaticResource Brush.TextPlaceholder}"
+                       IsHitTestVisible="False">
+                <TextBlock.Style>
+                    <Style TargetType="TextBlock">
+                        <Setter Property="Visibility" Value="Collapsed" />
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding Text, ElementName=InnerTextBox}" Value="">
+                                <Setter Property="Visibility" Value="Visible" />
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </TextBlock.Style>
+            </TextBlock>
+
+            <!-- 숫자 에디터: 우측 정렬, 콤마는 TextChanged에서 자동 삽입 -->
+            <TextBox x:Name="InnerTextBox"
+                     Background="Transparent"
+                     BorderThickness="0"
+                     Padding="{StaticResource Pad.Field}"
+                     VerticalContentAlignment="Center"
+                     HorizontalContentAlignment="Right"
+                     FontSize="{StaticResource Font.Size.Body}"
+                     Foreground="{StaticResource Brush.TextPrimary}"
+                     MaxLength="24"
+                     TextChanged="InnerTextBox_TextChanged"
+                     LostKeyboardFocus="InnerTextBox_LostKeyboardFocus" />
+
+            <!-- 필수 미입력 점: Required이면서 값이 비어 있는 동안만 왼쪽에 표시.
+                 (숫자가 우측 정렬이라 점은 왼쪽 여백에 둔다) -->
+            <Border x:Name="RequiredDot"
+                    Width="6"
+                    Height="6"
+                    CornerRadius="3"
+                    HorizontalAlignment="Left"
+                    VerticalAlignment="Center"
+                    Margin="10,0,0,0"
+                    Background="{StaticResource Brush.ErrorBorder}"
+                    IsHitTestVisible="False">
+                <Border.Style>
+                    <Style TargetType="Border">
+                        <Setter Property="Visibility" Value="Collapsed" />
+                        <Style.Triggers>
+                            <MultiDataTrigger>
+                                <MultiDataTrigger.Conditions>
+                                    <Condition Binding="{Binding Required, ElementName=RootControl}" Value="True" />
+                                    <Condition Binding="{Binding Visibility, ElementName=PlaceholderLabel}" Value="Visible" />
+                                </MultiDataTrigger.Conditions>
+                                <Setter Property="Visibility" Value="Visible" />
+                            </MultiDataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Border.Style>
+            </Border>
+        </Grid>
+    </Border>
+</UserControl>

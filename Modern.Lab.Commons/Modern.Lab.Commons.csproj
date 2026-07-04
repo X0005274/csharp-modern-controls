@@ -66,12 +66,40 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </Page>
+    <Page Include="Controls\Wpf\Input\ModernNumericTextBoxControl.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="Controls\Wpf\Input\ModernCheckBoxControl.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="Controls\Wpf\Input\ModernToggleSwitchControl.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="Controls\Wpf\Input\ModernMonthPickerControl.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="Controls\Wpf\Input\ModernDropDownButtonControl.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
     <!-- Selection -->
     <Page Include="Controls\Wpf\Selection\ModernComboBoxControl.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </Page>
     <Page Include="Controls\Wpf\Selection\ModernCheckComboBoxControl.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="Controls\Wpf\Selection\ModernRadioGroupControl.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="Controls\Wpf\Selection\ModernTreeViewControl.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </Page>
@@ -88,8 +116,24 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </Page>
+    <Page Include="Controls\Wpf\Display\ModernBusyOverlayControl.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="Controls\Wpf\Display\ModernStatusBadgeControl.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="Controls\Wpf\Display\ModernToastControl.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
     <!-- Data -->
     <Page Include="Controls\Wpf\Data\ModernDataGridControl.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="Controls\Wpf\Data\ModernPaginationControl.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </Page>
@@ -97,6 +141,7 @@
   <ItemGroup>
     <!-- Shared WPF-side helpers -->
     <Compile Include="Controls\Wpf\Common\MemberPathReader.cs" />
+    <Compile Include="Controls\Wpf\Common\ChipColorHelper.cs" />
     <!-- Input code-behind -->
     <Compile Include="Controls\Wpf\Input\ButtonKind.cs" />
     <Compile Include="Controls\Wpf\Input\HangulTextMatcher.cs" />
@@ -109,6 +154,23 @@
     <Compile Include="Controls\Wpf\Input\ModernDatePickerControl.xaml.cs">
       <DependentUpon>ModernDatePickerControl.xaml</DependentUpon>
     </Compile>
+    <Compile Include="Controls\Wpf\Input\ModernNumericTextBoxControl.xaml.cs">
+      <DependentUpon>ModernNumericTextBoxControl.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Controls\Wpf\Input\ModernCheckBoxControl.xaml.cs">
+      <DependentUpon>ModernCheckBoxControl.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Controls\Wpf\Input\ModernToggleSwitchControl.xaml.cs">
+      <DependentUpon>ModernToggleSwitchControl.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Controls\Wpf\Input\ModernMonthPickerControl.xaml.cs">
+      <DependentUpon>ModernMonthPickerControl.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Controls\Wpf\Input\DropDownButtonItem.cs" />
+    <Compile Include="Controls\Wpf\Input\DropDownItemClickedEventArgs.cs" />
+    <Compile Include="Controls\Wpf\Input\ModernDropDownButtonControl.xaml.cs">
+      <DependentUpon>ModernDropDownButtonControl.xaml</DependentUpon>
+    </Compile>
     <!-- Selection code-behind -->
     <Compile Include="Controls\Wpf\Selection\ModernComboBoxControl.xaml.cs">
       <DependentUpon>ModernComboBoxControl.xaml</DependentUpon>
@@ -117,6 +179,14 @@
     <Compile Include="Controls\Wpf\Selection\CheckItemStyle.cs" />
     <Compile Include="Controls\Wpf\Selection\ModernCheckComboBoxControl.xaml.cs">
       <DependentUpon>ModernCheckComboBoxControl.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Controls\Wpf\Selection\RadioGroupItem.cs" />
+    <Compile Include="Controls\Wpf\Selection\ModernRadioGroupControl.xaml.cs">
+      <DependentUpon>ModernRadioGroupControl.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Controls\Wpf\Selection\TreeNodeItem.cs" />
+    <Compile Include="Controls\Wpf\Selection\ModernTreeViewControl.xaml.cs">
+      <DependentUpon>ModernTreeViewControl.xaml</DependentUpon>
     </Compile>
     <!-- Display code-behind -->
     <Compile Include="Controls\Wpf\Display\LabelKind.cs" />
@@ -130,11 +200,25 @@
     <Compile Include="Controls\Wpf\Display\ModernSummaryListControl.xaml.cs">
       <DependentUpon>ModernSummaryListControl.xaml</DependentUpon>
     </Compile>
+    <Compile Include="Controls\Wpf\Display\ModernBusyOverlayControl.xaml.cs">
+      <DependentUpon>ModernBusyOverlayControl.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Controls\Wpf\Display\ModernStatusBadgeControl.xaml.cs">
+      <DependentUpon>ModernStatusBadgeControl.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Controls\Wpf\Display\ToastKind.cs" />
+    <Compile Include="Controls\Wpf\Display\ModernToastControl.xaml.cs">
+      <DependentUpon>ModernToastControl.xaml</DependentUpon>
+    </Compile>
     <!-- Data code-behind -->
     <Compile Include="Controls\Wpf\Data\GridTextAlignment.cs" />
     <Compile Include="Controls\Wpf\Data\ModernDataGridColumn.cs" />
     <Compile Include="Controls\Wpf\Data\ModernDataGridControl.xaml.cs">
       <DependentUpon>ModernDataGridControl.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Controls\Wpf\Data\PaginationPageItem.cs" />
+    <Compile Include="Controls\Wpf\Data\ModernPaginationControl.xaml.cs">
+      <DependentUpon>ModernPaginationControl.xaml</DependentUpon>
     </Compile>
     <!-- WinForms wrapper hosting base (ElementHost) and wrappers -->
     <Compile Include="WinForms\Hosting\WpfElementHostBase.cs" />
@@ -142,12 +226,26 @@
     <Compile Include="WinForms\Input\ModernButton.cs" />
     <Compile Include="WinForms\Input\ModernTextBox.cs" />
     <Compile Include="WinForms\Input\ModernDatePicker.cs" />
+    <Compile Include="WinForms\Input\ModernNumericTextBox.cs" />
+    <Compile Include="WinForms\Input\ModernCheckBox.cs" />
+    <Compile Include="WinForms\Input\ModernToggleSwitch.cs" />
+    <Compile Include="WinForms\Input\ModernMonthPicker.cs" />
+    <Compile Include="WinForms\Input\ModernDropDownButton.cs" />
     <Compile Include="WinForms\Selection\ModernComboBox.cs" />
     <Compile Include="WinForms\Selection\ModernCheckComboBox.cs" />
+    <Compile Include="WinForms\Selection\ModernRadioGroup.cs" />
+    <Compile Include="WinForms\Selection\ModernTreeView.cs" />
     <Compile Include="WinForms\Display\ModernLabel.cs" />
     <Compile Include="WinForms\Display\ModernKpiCard.cs" />
     <Compile Include="WinForms\Display\ModernSummaryList.cs" />
+    <Compile Include="WinForms\Display\ModernBusyOverlay.cs" />
+    <Compile Include="WinForms\Display\ModernStatusBadge.cs" />
+    <Compile Include="WinForms\Display\ModernToast.cs" />
     <Compile Include="WinForms\Data\ModernDataGrid.cs" />
+    <Compile Include="WinForms\Data\ModernPagination.cs" />
+    <Compile Include="WinForms\Layout\ModernGroupBox.cs">
+      <SubType>Component</SubType>
+    </Compile>
     <Compile Include="WinForms\Layout\ModernCardPanel.cs">
       <SubType>Component</SubType>
     </Compile>

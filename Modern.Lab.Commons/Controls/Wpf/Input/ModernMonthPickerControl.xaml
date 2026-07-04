@@ -1,0 +1,156 @@
+<UserControl x:Class="Modern.Lab.Controls.Wpf.Input.ModernMonthPickerControl"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             mc:Ignorable="d"
+             TextOptions.TextFormattingMode="Ideal"
+             TextOptions.TextRenderingMode="ClearType"
+             UseLayoutRounding="True"
+             x:Name="RootControl"
+             FontFamily="{DynamicResource Font.Family}"
+             d:DesignWidth="110" d:DesignHeight="32">
+    <UserControl.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="/Modern.Lab.Commons;component/Themes/Tokens.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </UserControl.Resources>
+
+    <!-- 마스크 입력 방식 년월 필드: 숫자 6자리를 치면 yyyy-MM으로 자동 형식화되고,
+         달력 버튼은 월 선택 그리드(Year 뷰)를 연다. -->
+    <Border x:Name="OuterBorder"
+            Height="{StaticResource Size.ControlHeight}"
+            CornerRadius="{StaticResource Radius.Sm}"
+            BorderThickness="1">
+        <Border.Style>
+            <Style TargetType="Border">
+                <Setter Property="Background" Value="{StaticResource Brush.Surface}" />
+                <Setter Property="BorderBrush" Value="{StaticResource Brush.Border}" />
+                <Style.Triggers>
+                    <DataTrigger Binding="{Binding IsMouseOver, ElementName=RootControl}" Value="True">
+                        <Setter Property="BorderBrush" Value="{StaticResource Brush.BorderHover}" />
+                    </DataTrigger>
+                    <!-- 포커스가 hover보다 우선: 나중에 선언되어 우선순위를 가진다 -->
+                    <DataTrigger Binding="{Binding IsKeyboardFocusWithin, ElementName=RootControl}" Value="True">
+                        <Setter Property="BorderBrush" Value="{StaticResource Brush.FocusBorder}" />
+                    </DataTrigger>
+                    <DataTrigger Binding="{Binding IsEnabled, ElementName=RootControl}" Value="False">
+                        <Setter Property="Background" Value="{StaticResource Brush.DisabledBackground}" />
+                        <Setter Property="BorderBrush" Value="{StaticResource Brush.BorderSubtle}" />
+                    </DataTrigger>
+                </Style.Triggers>
+            </Style>
+        </Border.Style>
+
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+
+            <!-- 입력 전 형식 안내 플레이스홀더: 에디터가 비어 있는 동안 회색으로 표시 -->
+            <TextBlock x:Name="PlaceholderLabel"
+                       Grid.Column="0"
+                       Text="{Binding Placeholder, ElementName=RootControl}"
+                       Margin="{StaticResource Pad.Field}"
+                       VerticalAlignment="Center"
+                       FontSize="{StaticResource Font.Size.Body}"
+                       Foreground="{StaticResource Brush.TextPlaceholder}"
+                       IsHitTestVisible="False">
+                <TextBlock.Style>
+                    <Style TargetType="TextBlock">
+                        <Setter Property="Visibility" Value="Collapsed" />
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding Text, ElementName=InnerTextBox}" Value="">
+                                <Setter Property="Visibility" Value="Visible" />
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </TextBlock.Style>
+            </TextBlock>
+
+            <!-- 년월 에디터: 숫자 6자리 → yyyy-MM 자동 마스크 -->
+            <TextBox x:Name="InnerTextBox"
+                     Grid.Column="0"
+                     Background="Transparent"
+                     BorderThickness="0"
+                     Padding="{StaticResource Pad.Field}"
+                     VerticalContentAlignment="Center"
+                     FontSize="{StaticResource Font.Size.Body}"
+                     Foreground="{StaticResource Brush.TextPrimary}"
+                     MaxLength="7"
+                     TextChanged="InnerTextBox_TextChanged"
+                     LostKeyboardFocus="InnerTextBox_LostKeyboardFocus" />
+
+            <!-- 필수 미입력 점: Required이면서 값이 비어 있는 동안만 오른쪽에 표시 -->
+            <Border x:Name="RequiredDot"
+                    Grid.Column="0"
+                    Width="6"
+                    Height="6"
+                    CornerRadius="3"
+                    HorizontalAlignment="Right"
+                    VerticalAlignment="Center"
+                    Margin="0,0,6,0"
+                    Background="{StaticResource Brush.ErrorBorder}"
+                    IsHitTestVisible="False">
+                <Border.Style>
+                    <Style TargetType="Border">
+                        <Setter Property="Visibility" Value="Collapsed" />
+                        <Style.Triggers>
+                            <MultiDataTrigger>
+                                <MultiDataTrigger.Conditions>
+                                    <Condition Binding="{Binding Required, ElementName=RootControl}" Value="True" />
+                                    <Condition Binding="{Binding Visibility, ElementName=PlaceholderLabel}" Value="Visible" />
+                                </MultiDataTrigger.Conditions>
+                                <Setter Property="Visibility" Value="Visible" />
+                            </MultiDataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Border.Style>
+            </Border>
+
+            <!-- 달력(월 선택) 팝업 버튼 -->
+            <Button x:Name="CalendarButton" Grid.Column="1" Focusable="False" Cursor="Hand"
+                    Click="CalendarButton_Click">
+                <Button.Template>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="Transparent" Padding="6,0,10,0">
+                            <TextBlock x:Name="CalendarGlyph"
+                                       Text="&#xE787;"
+                                       FontFamily="Segoe MDL2 Assets"
+                                       FontSize="{StaticResource Font.Size.Icon}"
+                                       VerticalAlignment="Center"
+                                       Foreground="{StaticResource Brush.TextSecondary}" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="CalendarGlyph" Property="Foreground" Value="{StaticResource Brush.Accent}" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Button.Template>
+            </Button>
+
+            <Popup x:Name="MonthPopup"
+                   PlacementTarget="{Binding ElementName=OuterBorder}"
+                   Placement="Bottom"
+                   AllowsTransparency="True"
+                   StaysOpen="False">
+                <Border Background="{StaticResource Brush.Surface}"
+                        BorderBrush="{StaticResource Brush.Border}"
+                        BorderThickness="1"
+                        CornerRadius="{StaticResource Radius.Sm}"
+                        Margin="0,2,0,0">
+                    <!-- Year 뷰(12개월 그리드)로 고정 — 월 클릭이 곧 선택이 된다 -->
+                    <Calendar x:Name="PickerCalendar"
+                              DisplayMode="Year"
+                              DisplayDateStart="{Binding MinDate, ElementName=RootControl}"
+                              DisplayDateEnd="{Binding MaxDate, ElementName=RootControl}"
+                              DisplayModeChanged="PickerCalendar_DisplayModeChanged" />
+                </Border>
+            </Popup>
+        </Grid>
+    </Border>
+</UserControl>

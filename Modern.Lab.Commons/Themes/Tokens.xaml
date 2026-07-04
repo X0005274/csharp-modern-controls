@@ -83,6 +83,9 @@
     <SolidColorBrush x:Key="Brush.WarningText" Color="#FFB45309" />
     <!-- ErrorBorder는 진한 빨강(Danger 버튼 / 필수 표시);
          ErrorBorderSoft는 오류 상태 면에 쓰는 옅은 테두리 색이다. -->
+    <!-- 상태색: 성공/경고 (정보=Accent, 오류=ErrorBorder를 겸용) -->
+    <SolidColorBrush x:Key="Brush.StatusSuccess" Color="#FF16A34A" />
+    <SolidColorBrush x:Key="Brush.StatusWarning" Color="#FFD97706" />
     <SolidColorBrush x:Key="Brush.ErrorBorder" Color="#FFDC2626" />
     <!-- ErrorBorderSoft: 오류 상태 면의 옅은 테두리 + 필수 입력 필드의 테두리 표시 겸용 -->
     <SolidColorBrush x:Key="Brush.ErrorBorderSoft" Color="#FFFECACA" />
