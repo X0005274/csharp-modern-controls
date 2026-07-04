@@ -12,9 +12,9 @@ namespace Modern.Lab.Samples
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
 
-            // The employee management sample runs standalone for now; switch
-            // back to SampleShellForm once multiple samples exist again.
-            Application.Run(new EmployeeManagementForm());
+            // Shell hosts every sample screen; add new screens in
+            // SampleShellForm.RegisterSamples with one AddSample call.
+            Application.Run(new SampleShellForm());
         }
     }
 }

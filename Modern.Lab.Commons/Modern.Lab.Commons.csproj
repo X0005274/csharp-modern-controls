@@ -67,6 +67,10 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </Page>
+    <Page Include="Controls\Wpf\Selection\ModernCheckComboBoxControl.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
     <!-- Display -->
     <Page Include="Controls\Wpf\Display\ModernLabelControl.xaml">
       <Generator>MSBuild:Compile</Generator>
@@ -102,6 +106,10 @@
     <Compile Include="Controls\Wpf\Selection\ModernComboBoxControl.xaml.cs">
       <DependentUpon>ModernComboBoxControl.xaml</DependentUpon>
     </Compile>
+    <Compile Include="Controls\Wpf\Selection\CheckComboItem.cs" />
+    <Compile Include="Controls\Wpf\Selection\ModernCheckComboBoxControl.xaml.cs">
+      <DependentUpon>ModernCheckComboBoxControl.xaml</DependentUpon>
+    </Compile>
     <!-- Display code-behind -->
     <Compile Include="Controls\Wpf\Display\LabelKind.cs" />
     <Compile Include="Controls\Wpf\Display\ModernLabelControl.xaml.cs">
@@ -126,6 +134,7 @@
     <Compile Include="WinForms\Input\ModernButton.cs" />
     <Compile Include="WinForms\Input\ModernTextBox.cs" />
     <Compile Include="WinForms\Selection\ModernComboBox.cs" />
+    <Compile Include="WinForms\Selection\ModernCheckComboBox.cs" />
     <Compile Include="WinForms\Display\ModernLabel.cs" />
     <Compile Include="WinForms\Display\ModernKpiCard.cs" />
     <Compile Include="WinForms\Display\ModernSummaryList.cs" />

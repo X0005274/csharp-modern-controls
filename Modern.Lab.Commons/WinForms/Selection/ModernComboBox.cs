@@ -55,11 +55,15 @@ namespace Modern.Lab.WinForms.Controls.Selection
             this.fallbackDisplayMember = string.Empty;
             this.fallbackValueMember = string.Empty;
             this.fallbackPlaceholder = string.Empty;
-            this.fallbackDropDownStyle = ComboBoxStyle.DropDownList;
+
+            // Default matches System.Windows.Forms.ComboBox: DropDown (editable).
+            // Typing filters the list; clearing the text clears the selection.
+            this.fallbackDropDownStyle = ComboBoxStyle.DropDown;
 
             if (this.Wpf != null)
             {
                 this.Wpf.ItemsSource = this.manualItems;
+                this.Wpf.IsEditable = true;
                 this.Wpf.SelectionChanged += this.OnWpfSelectionChanged;
             }
         }
@@ -148,13 +152,14 @@ namespace Modern.Lab.WinForms.Controls.Selection
         }
 
         /// <summary>
-        /// Selection style (WinForms-compatible name). DropDownList (default) is
-        /// select-only; DropDown and Simple both behave as a search-style combo
-        /// where typing filters the bound list (초성 검색 included).
+        /// Selection style (WinForms-compatible name and default). DropDown
+        /// (default, editable) filters the bound list while typing (초성 검색
+        /// included) and clearing the text clears the selection; DropDownList
+        /// is select-only; Simple behaves as DropDown.
         /// </summary>
         [Category("모던 컨트롤")]
-        [Description("DropDownList=선택 전용, DropDown/Simple=입력으로 목록 필터링(검색형)")]
-        [DefaultValue(ComboBoxStyle.DropDownList)]
+        [Description("DropDown(기본)/Simple=입력으로 목록 필터링(검색형), DropDownList=선택 전용")]
+        [DefaultValue(ComboBoxStyle.DropDown)]
         public ComboBoxStyle DropDownStyle
         {
             get

@@ -61,6 +61,8 @@ namespace Modern.Lab.Samples
             this.cboDept.DataSource = deptTable;
             this.cboDept.SelectedIndex = -1;
 
+            // Rank filter is a check-combo: multiple ranks may be checked at
+            // once; nothing checked means "all" (placeholder shows).
             DataTable rankTable = new DataTable();
             rankTable.Columns.Add("RANK_CODE", typeof(string));
             rankTable.Columns.Add("RANK_NAME", typeof(string));
@@ -72,7 +74,6 @@ namespace Modern.Lab.Samples
             this.cboRank.DisplayMember = "RANK_NAME";
             this.cboRank.ValueMember = "RANK_CODE";
             this.cboRank.DataSource = rankTable;
-            this.cboRank.SelectedIndex = -1;
 
             this.gridEmployee.ConfigureColumns(
                 new ModernDataGridColumn("EMP_NO", "사번", 90),
@@ -107,7 +108,7 @@ namespace Modern.Lab.Samples
         {
             string nameFilter = this.txtName.Text.Trim();
             string deptCode = this.cboDept.SelectedValue as string;
-            string rankCode = this.cboRank.SelectedValue as string;
+            object[] rankCodes = this.cboRank.CheckedValues;
 
             List<string> conditions = new List<string>();
 
@@ -121,9 +122,16 @@ namespace Modern.Lab.Samples
                 conditions.Add("DEPT_CODE = '" + deptCode + "'");
             }
 
-            if (!string.IsNullOrEmpty(rankCode))
+            if (rankCodes != null && rankCodes.Length > 0)
             {
-                conditions.Add("POSITION = '" + rankCode + "'");
+                List<string> quoted = new List<string>();
+
+                foreach (object code in rankCodes)
+                {
+                    quoted.Add("'" + code.ToString().Replace("'", "''") + "'");
+                }
+
+                conditions.Add("POSITION IN (" + string.Join(", ", quoted.ToArray()) + ")");
             }
 
             DataView view = new DataView(this.employeeMaster);
@@ -178,7 +186,7 @@ namespace Modern.Lab.Samples
         {
             this.txtName.Text = string.Empty;
             this.cboDept.SelectedIndex = -1;
-            this.cboRank.SelectedIndex = -1;
+            this.cboRank.CheckedValues = null;
             this.ExecuteSearch();
         }
 

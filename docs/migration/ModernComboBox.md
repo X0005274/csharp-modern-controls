@@ -15,7 +15,7 @@
 | `SelectedIndex` | 미선택 시 -1 |
 | `Items` | 수동 항목 컬렉션 (`Items.Add(...)`). `DataSource` 지정 시 `DataSource`가 우선 |
 | `SelectedIndexChanged` | `DataSource` 할당 시 정확히 1회, 이후 사용자 선택 변경 시 발생 |
-| `DropDownStyle` | `DropDownList`(기본) = 선택 전용. **`DropDown`/`Simple` = 검색형 콤보** — 입력하면 목록이 필터링됨(한글 초성 검색 포함, "ㄱ" → 개발1팀·개발2팀·경영지원팀). 화살표로 탐색, 선택 시 `SelectedValue`/`SelectedIndexChanged` 정상 동작 |
+| `DropDownStyle` | **`DropDown`(기본, WinForms 기본값과 동일) = 검색형 콤보** — 입력하면 목록이 필터링되고(한글 초성 검색 포함, "ㄱ" → 개발1팀·개발2팀·경영지원팀) **입력을 모두 지우면 선택도 해제됨**(빈 입력 = 전체 패턴). `DropDownList` = 선택 전용 |
 | `Text` | 현재 선택/입력 텍스트 (읽기). 쓰기는 DropDown/Simple에서만 동작, DropDownList에서는 무동작 |
 | `Enabled` | 전파됨 |
 

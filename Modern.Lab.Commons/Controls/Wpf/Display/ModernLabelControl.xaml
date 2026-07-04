@@ -18,36 +18,57 @@
         </ResourceDictionary>
     </UserControl.Resources>
 
-    <!-- One TextBlock whose typography follows the Kind (token type ramp). -->
-    <TextBlock x:Name="InnerText"
-               Text="{Binding Text, ElementName=RootControl}"
-               VerticalAlignment="Center"
-               TextTrimming="CharacterEllipsis">
-        <TextBlock.Style>
-            <Style TargetType="TextBlock">
-                <!-- Defaults (Body): body size, regular weight, primary text color -->
-                <Setter Property="FontFamily" Value="{DynamicResource Font.Family}" />
-                <Setter Property="FontSize" Value="{StaticResource Font.Size.Body}" />
-                <Setter Property="FontWeight" Value="Normal" />
-                <Setter Property="Foreground" Value="{StaticResource Brush.TextPrimary}" />
-                <Style.Triggers>
-                    <DataTrigger Binding="{Binding Kind, ElementName=RootControl}" Value="Title">
-                        <Setter Property="FontSize" Value="{StaticResource Font.Size.Title}" />
-                        <Setter Property="FontWeight" Value="SemiBold" />
-                        <Setter Property="Foreground" Value="{StaticResource Brush.TextPrimary}" />
-                    </DataTrigger>
-                    <DataTrigger Binding="{Binding Kind, ElementName=RootControl}" Value="Label">
-                        <Setter Property="FontSize" Value="{StaticResource Font.Size.Label}" />
-                        <Setter Property="FontWeight" Value="SemiBold" />
-                        <Setter Property="Foreground" Value="{StaticResource Brush.TextSecondary}" />
-                    </DataTrigger>
-                    <DataTrigger Binding="{Binding Kind, ElementName=RootControl}" Value="Helper">
-                        <Setter Property="FontSize" Value="{StaticResource Font.Size.Helper}" />
-                        <Setter Property="FontWeight" Value="Normal" />
-                        <Setter Property="Foreground" Value="{StaticResource Brush.TextSecondary}" />
-                    </DataTrigger>
-                </Style.Triggers>
-            </Style>
-        </TextBlock.Style>
-    </TextBlock>
+    <!-- Text whose typography follows the Kind (token type ramp), plus an
+         optional required-field mark (red asterisk) after it. -->
+    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+        <TextBlock x:Name="InnerText"
+                   Text="{Binding Text, ElementName=RootControl}"
+                   VerticalAlignment="Center"
+                   TextTrimming="CharacterEllipsis">
+            <TextBlock.Style>
+                <Style TargetType="TextBlock">
+                    <!-- Defaults (Body): body size, regular weight, primary text color -->
+                    <Setter Property="FontFamily" Value="{DynamicResource Font.Family}" />
+                    <Setter Property="FontSize" Value="{StaticResource Font.Size.Body}" />
+                    <Setter Property="FontWeight" Value="Normal" />
+                    <Setter Property="Foreground" Value="{StaticResource Brush.TextPrimary}" />
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding Kind, ElementName=RootControl}" Value="Title">
+                            <Setter Property="FontSize" Value="{StaticResource Font.Size.Title}" />
+                            <Setter Property="FontWeight" Value="SemiBold" />
+                            <Setter Property="Foreground" Value="{StaticResource Brush.TextPrimary}" />
+                        </DataTrigger>
+                        <DataTrigger Binding="{Binding Kind, ElementName=RootControl}" Value="Label">
+                            <Setter Property="FontSize" Value="{StaticResource Font.Size.Label}" />
+                            <Setter Property="FontWeight" Value="SemiBold" />
+                            <Setter Property="Foreground" Value="{StaticResource Brush.TextSecondary}" />
+                        </DataTrigger>
+                        <DataTrigger Binding="{Binding Kind, ElementName=RootControl}" Value="Helper">
+                            <Setter Property="FontSize" Value="{StaticResource Font.Size.Helper}" />
+                            <Setter Property="FontWeight" Value="Normal" />
+                            <Setter Property="Foreground" Value="{StaticResource Brush.TextSecondary}" />
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </TextBlock.Style>
+        </TextBlock>
+        <!-- Required-field mark: strong red per token comment (ErrorBorder) -->
+        <TextBlock Text="*"
+                   Margin="3,0,0,0"
+                   VerticalAlignment="Center"
+                   FontWeight="SemiBold"
+                   FontSize="{StaticResource Font.Size.Label}"
+                   Foreground="{StaticResource Brush.ErrorBorder}">
+            <TextBlock.Style>
+                <Style TargetType="TextBlock">
+                    <Setter Property="Visibility" Value="Collapsed" />
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding Required, ElementName=RootControl}" Value="True">
+                            <Setter Property="Visibility" Value="Visible" />
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </TextBlock.Style>
+        </TextBlock>
+    </StackPanel>
 </UserControl>

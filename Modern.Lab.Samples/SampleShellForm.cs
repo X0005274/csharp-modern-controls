@@ -50,8 +50,8 @@ namespace Modern.Lab.Samples
 
         private void RegisterSamples()
         {
-            // Samples are being rebuilt one by one; register each new sample
-            // form here with one AddSample call.
+            // Register each sample screen here with one AddSample call.
+            this.AddSample("직원관리", () => new EmployeeManagementForm());
         }
 
         private void AddSample(string title, Func<Form> factory)

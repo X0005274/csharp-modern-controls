@@ -19,6 +19,7 @@ namespace Modern.Lab.WinForms.Controls.Display
         // WPF construction failed (Wpf == null).
         private string fallbackText;
         private Modern.Lab.Controls.Wpf.Display.LabelKind fallbackKind;
+        private bool fallbackRequired;
 
         /// <summary>Creates the control with a sensible default size.</summary>
         public ModernLabel()
@@ -26,6 +27,35 @@ namespace Modern.Lab.WinForms.Controls.Display
             this.Size = new Size(120, 24);
             this.fallbackText = "레이블";
             this.fallbackKind = Modern.Lab.Controls.Wpf.Display.LabelKind.Body;
+            this.fallbackRequired = false;
+        }
+
+        /// <summary>Shows a red asterisk after the text (required-field mark).</summary>
+        [Category("모던 컨트롤")]
+        [Description("필수 입력 표시(빨간 별표)를 텍스트 뒤에 붙일지 여부")]
+        [DefaultValue(false)]
+        public bool Required
+        {
+            get
+            {
+                if (this.Wpf != null)
+                {
+                    return this.Wpf.Required;
+                }
+
+                return this.fallbackRequired;
+            }
+            set
+            {
+                this.fallbackRequired = value;
+
+                if (this.Wpf != null)
+                {
+                    this.Wpf.Required = value;
+                }
+
+                this.InvalidateDesignTimePreview();
+            }
         }
 
         /// <summary>Text to display.</summary>

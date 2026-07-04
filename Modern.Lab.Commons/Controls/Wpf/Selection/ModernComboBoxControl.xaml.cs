@@ -335,8 +335,24 @@ namespace Modern.Lab.Controls.Wpf.Selection
 
             string typed = this.editableTextBox.Text;
 
-            this.RebuildFilteredItems(string.IsNullOrEmpty(typed) ? null : typed);
-            this.InnerComboBox.IsDropDownOpen = this.filteredItems.Count > 0 && !string.IsNullOrEmpty(typed);
+            if (string.IsNullOrEmpty(typed))
+            {
+                // Clearing the text clears the selection (empty means "all").
+                if (this.InnerComboBox.SelectedItem != null)
+                {
+                    this.InnerComboBox.SelectedItem = null;
+                    // The selection change sets suppressFilter expecting a text
+                    // rewrite, but the text is already empty — clear the flag.
+                    this.suppressFilter = false;
+                }
+
+                this.RebuildFilteredItems(null);
+                this.InnerComboBox.IsDropDownOpen = false;
+                return;
+            }
+
+            this.RebuildFilteredItems(typed);
+            this.InnerComboBox.IsDropDownOpen = this.filteredItems.Count > 0;
         }
 
         // Reopening the dropdown from the chevron should show the full list.

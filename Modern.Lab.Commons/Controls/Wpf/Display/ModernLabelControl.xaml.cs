@@ -26,6 +26,14 @@ namespace Modern.Lab.Controls.Wpf.Display
                 typeof(ModernLabelControl),
                 new PropertyMetadata(LabelKind.Body));
 
+        /// <summary>Shows a red asterisk after the text (required-field mark).</summary>
+        public static readonly DependencyProperty RequiredProperty =
+            DependencyProperty.Register(
+                "Required",
+                typeof(bool),
+                typeof(ModernLabelControl),
+                new PropertyMetadata(false));
+
         public ModernLabelControl()
         {
             this.InitializeComponent();
@@ -43,6 +51,13 @@ namespace Modern.Lab.Controls.Wpf.Display
         {
             get { return (LabelKind)this.GetValue(KindProperty); }
             set { this.SetValue(KindProperty, value); }
+        }
+
+        /// <summary>Shows a red asterisk after the text (required-field mark).</summary>
+        public bool Required
+        {
+            get { return (bool)this.GetValue(RequiredProperty); }
+            set { this.SetValue(RequiredProperty, value); }
         }
     }
 }
