@@ -1,6 +1,7 @@
 using System;
 using System.ComponentModel;
 using System.Drawing;
+using System.Windows.Forms;
 using Modern.Lab.WinForms.Controls.Hosting;
 
 namespace Modern.Lab.WinForms.Controls.Input
@@ -11,9 +12,12 @@ namespace Modern.Lab.WinForms.Controls.Input
     ///
     /// Compatible members: Text (override, localizable), TextChanged (the
     /// standard WinForms event, raised when the inner WPF text changes),
-    /// ReadOnly, Enabled. Additional members: PlaceholderText, EnterPressed
-    /// (search-on-enter; the WinForms KeyDown event does not fire for keys
-    /// handled inside the hosted WPF editor).
+    /// ReadOnly, Enabled, AutoCompleteMode/AutoCompleteSource/
+    /// AutoCompleteCustomSource (search-box style suggestion dropdown; every
+    /// non-None mode behaves as Suggest, and only CustomSource is supported).
+    /// Additional members: PlaceholderText, EnterPressed (search-on-enter; the
+    /// WinForms KeyDown event does not fire for keys handled inside the hosted
+    /// WPF editor).
     /// </summary>
     [ToolboxItem(true)]
     public class ModernTextBox : WpfElementHostBase<Modern.Lab.Controls.Wpf.Input.ModernTextBoxControl>
@@ -23,6 +27,10 @@ namespace Modern.Lab.WinForms.Controls.Input
         private string fallbackText;
         private string fallbackPlaceholder;
         private bool fallbackReadOnly;
+
+        private AutoCompleteMode autoCompleteMode;
+        private AutoCompleteSource autoCompleteSource;
+        private AutoCompleteStringCollection autoCompleteCustomSource;
 
         /// <summary>Raised when the Enter key is pressed inside the editor.</summary>
         public event EventHandler EnterPressed;
@@ -34,6 +42,9 @@ namespace Modern.Lab.WinForms.Controls.Input
             this.fallbackText = string.Empty;
             this.fallbackPlaceholder = string.Empty;
             this.fallbackReadOnly = false;
+            this.autoCompleteMode = AutoCompleteMode.None;
+            this.autoCompleteSource = AutoCompleteSource.None;
+            this.autoCompleteCustomSource = null;
 
             if (this.Wpf != null)
             {
@@ -128,6 +139,82 @@ namespace Modern.Lab.WinForms.Controls.Input
 
                 this.InvalidateDesignTimePreview();
             }
+        }
+
+        /// <summary>
+        /// Autocomplete behavior (WinForms-compatible name). Any value other
+        /// than None enables the suggestion dropdown (Suggest behavior).
+        /// </summary>
+        [Category("모던 컨트롤")]
+        [Description("자동완성 동작 — None 외의 값은 모두 제안 목록(Suggest)으로 동작")]
+        [DefaultValue(AutoCompleteMode.None)]
+        public AutoCompleteMode AutoCompleteMode
+        {
+            get
+            {
+                return this.autoCompleteMode;
+            }
+            set
+            {
+                this.autoCompleteMode = value;
+                this.ApplyAutoComplete();
+            }
+        }
+
+        /// <summary>
+        /// Autocomplete source (WinForms-compatible name). Only CustomSource is
+        /// supported; other values disable the dropdown.
+        /// </summary>
+        [Category("모던 컨트롤")]
+        [Description("자동완성 원본 — CustomSource만 지원")]
+        [DefaultValue(AutoCompleteSource.None)]
+        public AutoCompleteSource AutoCompleteSource
+        {
+            get
+            {
+                return this.autoCompleteSource;
+            }
+            set
+            {
+                this.autoCompleteSource = value;
+                this.ApplyAutoComplete();
+            }
+        }
+
+        /// <summary>
+        /// Custom autocomplete candidates (WinForms-compatible name and type).
+        /// Assign after filling; re-assign to refresh the candidates.
+        /// </summary>
+        [Browsable(false)]
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+        public AutoCompleteStringCollection AutoCompleteCustomSource
+        {
+            get
+            {
+                return this.autoCompleteCustomSource;
+            }
+            set
+            {
+                this.autoCompleteCustomSource = value;
+                this.ApplyAutoComplete();
+            }
+        }
+
+        // Pushes the effective candidate list to the WPF control. Order-tolerant:
+        // Mode/Source/CustomSource may be assigned in any order (contract rule 3).
+        private void ApplyAutoComplete()
+        {
+            if (this.Wpf == null)
+            {
+                return;
+            }
+
+            bool enabled =
+                this.autoCompleteMode != AutoCompleteMode.None &&
+                this.autoCompleteSource == AutoCompleteSource.CustomSource &&
+                this.autoCompleteCustomSource != null;
+
+            this.Wpf.AutoCompleteItemsSource = enabled ? this.autoCompleteCustomSource : null;
         }
 
         // Raises the standard WinForms TextChanged so existing handler wiring

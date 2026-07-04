@@ -49,28 +49,18 @@
         </Border.Style>
 
         <Grid>
-            <!-- Placeholder: visible only while the text is empty; never hit-testable -->
+            <!-- Placeholder: visible only while the editor is empty. Visibility is
+                 managed in code from the inner TextBox.TextChanged, which fires
+                 during IME composition too — a binding-based trigger would stay
+                 visible until the first Hangul syllable commits (WPF defers
+                 binding source updates while a composition is active). -->
             <TextBlock x:Name="PlaceholderText"
                        Text="{Binding Placeholder, ElementName=RootControl}"
                        Margin="{StaticResource Pad.Field}"
                        VerticalAlignment="Center"
                        FontSize="{StaticResource Font.Size.Body}"
                        Foreground="{StaticResource Brush.TextPlaceholder}"
-                       IsHitTestVisible="False">
-                <TextBlock.Style>
-                    <Style TargetType="TextBlock">
-                        <Setter Property="Visibility" Value="Collapsed" />
-                        <Style.Triggers>
-                            <DataTrigger Binding="{Binding Text, ElementName=RootControl}" Value="">
-                                <Setter Property="Visibility" Value="Visible" />
-                            </DataTrigger>
-                            <DataTrigger Binding="{Binding Text, ElementName=RootControl}" Value="{x:Null}">
-                                <Setter Property="Visibility" Value="Visible" />
-                            </DataTrigger>
-                        </Style.Triggers>
-                    </Style>
-                </TextBlock.Style>
-            </TextBlock>
+                       IsHitTestVisible="False" />
 
             <!-- The actual editor: borderless, transparent, centered vertically -->
             <TextBox x:Name="InnerTextBox"
@@ -82,7 +72,63 @@
                      VerticalContentAlignment="Center"
                      FontSize="{StaticResource Font.Size.Body}"
                      Foreground="{StaticResource Brush.TextPrimary}"
-                     KeyDown="InnerTextBox_KeyDown" />
+                     KeyDown="InnerTextBox_KeyDown"
+                     PreviewKeyDown="InnerTextBox_PreviewKeyDown"
+                     TextChanged="InnerTextBox_TextChanged"
+                     LostKeyboardFocus="InnerTextBox_LostKeyboardFocus" />
+
+            <!-- Autocomplete dropdown (search-box style). Items are not focusable
+                 so keyboard focus stays in the editor while navigating. -->
+            <Popup x:Name="SuggestionPopup"
+                   PlacementTarget="{Binding ElementName=OuterBorder}"
+                   Placement="Bottom"
+                   AllowsTransparency="True"
+                   Focusable="False"
+                   StaysOpen="True"
+                   PopupAnimation="Slide">
+                <Border Background="{StaticResource Brush.Surface}"
+                        BorderBrush="{StaticResource Brush.Border}"
+                        BorderThickness="1"
+                        CornerRadius="{StaticResource Radius.Sm}"
+                        Margin="0,2,0,0"
+                        MinWidth="{Binding ActualWidth, ElementName=OuterBorder}"
+                        MaxHeight="240">
+                    <ListBox x:Name="SuggestionList"
+                             BorderThickness="0"
+                             Background="Transparent"
+                             ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                        <ListBox.ItemContainerStyle>
+                            <Style TargetType="ListBoxItem">
+                                <Setter Property="Focusable" Value="False" />
+                                <Setter Property="Padding" Value="{StaticResource Pad.Item}" />
+                                <Setter Property="FontSize" Value="{StaticResource Font.Size.Body}" />
+                                <Setter Property="Foreground" Value="{StaticResource Brush.TextPrimary}" />
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="ListBoxItem">
+                                            <Border x:Name="ItemBorder"
+                                                    Background="Transparent"
+                                                    Padding="{TemplateBinding Padding}">
+                                                <ContentPresenter VerticalAlignment="Center" />
+                                            </Border>
+                                            <ControlTemplate.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter TargetName="ItemBorder" Property="Background" Value="{StaticResource Brush.HoverBackground}" />
+                                                </Trigger>
+                                                <Trigger Property="IsSelected" Value="True">
+                                                    <Setter TargetName="ItemBorder" Property="Background" Value="{StaticResource Brush.SelectedBackground}" />
+                                                    <Setter Property="Foreground" Value="{StaticResource Brush.SelectedText}" />
+                                                </Trigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
+                                <EventSetter Event="PreviewMouseLeftButtonDown" Handler="SuggestionItem_MouseDown" />
+                            </Style>
+                        </ListBox.ItemContainerStyle>
+                    </ListBox>
+                </Border>
+            </Popup>
         </Grid>
     </Border>
 </UserControl>

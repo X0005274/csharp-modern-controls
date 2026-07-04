@@ -84,6 +84,19 @@ namespace Modern.Lab.Samples
             this.listDeptCount.ValueMember = "CNT";
             this.listRankCount.DisplayMember = "CATEGORY";
             this.listRankCount.ValueMember = "CNT";
+
+            // Search-box style autocomplete on the name filter, wired exactly
+            // like the legacy WinForms TextBox members.
+            AutoCompleteStringCollection nameCandidates = new AutoCompleteStringCollection();
+
+            foreach (DataRow row in this.employeeMaster.Rows)
+            {
+                nameCandidates.Add(row["EMP_NAME"].ToString());
+            }
+
+            this.txtName.AutoCompleteMode = AutoCompleteMode.Suggest;
+            this.txtName.AutoCompleteSource = AutoCompleteSource.CustomSource;
+            this.txtName.AutoCompleteCustomSource = nameCandidates;
         }
 
         // Runs the query against the in-memory master and pushes the result into
