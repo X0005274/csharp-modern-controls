@@ -23,6 +23,7 @@ namespace Modern.Lab.WinForms.Controls.Selection
         private string fallbackIdMember;
         private string fallbackParentIdMember;
         private string fallbackDisplayMember;
+        private string fallbackForeColorMember;
 
         /// <summary>선택 노드가 바뀔 때 발생한다.</summary>
         public event EventHandler SelectedValueChanged;
@@ -34,6 +35,7 @@ namespace Modern.Lab.WinForms.Controls.Selection
             this.fallbackIdMember = string.Empty;
             this.fallbackParentIdMember = string.Empty;
             this.fallbackDisplayMember = string.Empty;
+            this.fallbackForeColorMember = string.Empty;
 
             if (this.Wpf != null)
             {
@@ -139,6 +141,36 @@ namespace Modern.Lab.WinForms.Controls.Selection
                 if (this.Wpf != null)
                 {
                     this.Wpf.DisplayMemberPath = value;
+                }
+            }
+        }
+
+        /// <summary>
+        /// 노드 텍스트 색으로 사용할 컬럼/속성 이름 (선택 사항).
+        /// 값은 "#DC2626" 같은 색 문자열 — 비어 있거나 해석 불가면 기본색.
+        /// 상태(Scrap 등)에 따라 노드를 색으로 구분할 때 쓴다.
+        /// </summary>
+        [Category("모던 컨트롤")]
+        [Description("노드 텍스트 색 컬럼/속성 이름 — 값은 #RRGGBB 색 문자열")]
+        [DefaultValue("")]
+        public string ForeColorMember
+        {
+            get
+            {
+                if (this.Wpf != null)
+                {
+                    return this.Wpf.ForeColorMemberPath;
+                }
+
+                return this.fallbackForeColorMember;
+            }
+            set
+            {
+                this.fallbackForeColorMember = value;
+
+                if (this.Wpf != null)
+                {
+                    this.Wpf.ForeColorMemberPath = value;
                 }
             }
         }

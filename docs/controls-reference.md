@@ -223,11 +223,13 @@ this.tglShowEmail.CheckedChanged += this.OnShowEmailToggled;   // 켬/끔에 따
 | `Text` | string | 입력 텍스트. 한글 조합 중에는 음절 확정 시점에 반영 |
 | `PlaceholderText` | string | 비어 있을 때 회색 힌트. 자음 하나만 쳐도 즉시 사라짐 |
 | `ReadOnly` | bool | 읽기 전용 (배경이 옅게 변함) |
+| `CharacterCasing` | `CharacterCasing` | 입력 즉시 대문자/소문자 강제 (WinForms 호환 이름, 기본 Normal). 코드/ID 입력용 |
+| `AllowedCharacters` | string | 허용 문자 집합 (빈 값 = 제한 없음). 지정하면 타이핑·붙여넣기·IME 무관하게 그 외 문자가 제거됨. 예: `"ABC…XYZ0123456789.-"` |
 | `TextChanged` | 이벤트 | 표준 WinForms 이벤트 |
 | `EnterPressed` | 이벤트 | Enter 키 입력 시 발생 — **기존 `KeyDown`으로 Enter를 잡던 코드는 이 이벤트로 교체** (WPF 에디터가 처리한 키는 WinForms `KeyDown`으로 오지 않음) |
 | `AutoCompleteMode` | `AutoCompleteMode` | `None` 외 값은 모두 제안 드롭다운(Suggest)으로 동작 |
 | `AutoCompleteSource` | `AutoCompleteSource` | **`CustomSource`만 지원** |
-| `AutoCompleteCustomSource` | `AutoCompleteStringCollection` | 후보 목록. 재할당으로 갱신 |
+| `AutoCompleteCustomSource` | `AutoCompleteStringCollection` | 후보 목록. 재할당으로 갱신 — 입력 중(포커스 상태) 재할당하면 드롭다운이 즉시 다시 필터링되므로, `TextChanged` + 디바운스 + 서버 조회로 **typeahead** 구현 가능 |
 
 ### 예제 — 검색 입력 + 자동완성
 
@@ -476,6 +478,7 @@ this.radioSort.SelectedValueChanged += this.OnSortChanged;
 | `SelectedValue` | 선택 노드 키 (`null` = 미선택). 설정 시 조상 자동 펼침 |
 | `SelectedItem` | 선택 노드의 원본 행 (읽기 전용) |
 | `SelectedValueChanged` | 선택 변경 시 1회 발생 |
+| `ForeColorMember` | 노드 텍스트 색 컬럼 (선택). 값은 `"#DC2626"` 같은 색 문자열 — 비었거나 해석 불가면 기본색. Scrap 등 상태 강조용 |
 | `ExpandAll()` / `CollapseAll()` | 전체 펼침/접기 |
 
 ```csharp
@@ -505,6 +508,9 @@ this.treeOrg.SelectedValueChanged += this.OnOrgTreeSelectionChanged;
 | `SelectedItem` | object | 선택 행 (`DataRowView`) — 기존 `CurrentRow.DataBoundItem` 대체 |
 | `SelectedIndex` | int | 미선택 = -1 |
 | `SelectionChanged` | 이벤트 | 행 선택 변경 시 |
+| `ShowStatusBar` | bool | 기본 false. true면 그리드 하단에 상태바 표시 — 왼쪽에 행 수 자동 표기 |
+| `StatusCountFormat` | string | 상태바 행 수 형식. 기본 `"{0:N0} rows"` — `{0}`에 현재 행 수 |
+| `StatusText` | string | 상태바 오른쪽 자유 텍스트 (선택 대상·조회 조건 등) |
 
 ### 예제 — 컬럼 정의와 선택 행 사용
 
@@ -528,6 +534,11 @@ if (row != null)
 {
     string empNo = row["EMP_NO"].ToString();
 }
+
+// 상태바 — 행 수는 자동, 오른쪽 텍스트는 조회 시마다 갱신
+this.gridEmployee.ShowStatusBar = true;
+this.gridEmployee.StatusCountFormat = "조회 {0:N0}건";
+this.gridEmployee.StatusText = "부서: 개발1팀";   // 비워두면 표시 없음
 ```
 
 ---
@@ -541,7 +552,12 @@ if (row != null)
 | `TotalCount` | 전체 건수 — 조회 응답마다 갱신하면 페이지 수 자동 계산 |
 | `PageSize` | 페이지당 건수 (기본 20) |
 | `CurrentPage` | 현재 페이지 (1부터, 범위 자동 보정) |
+| `TotalCountFormat` | 좌측 건수 표기 형식. 기본 `"총 {0:N0}건"` — 영문 화면이면 `"{0:N0} records"` 등으로 |
 | `PageChanged` | 페이지가 바뀔 때 1회 발생 — 해당 페이지를 조회해서 그리드에 바인딩 |
+
+**그리드 상태바(`ModernDataGrid.ShowStatusBar`)와의 역할 구분**: 둘 다 그리드 하단에
+건수를 표시하므로 **한 그리드에는 하나만** 쓴다. 페이징이 필요한 그리드 → 페이지 바
+(건수 + 페이지 이동), 페이징 없는 단순 목록 → 상태바 (건수 + 문맥 텍스트).
 
 ```csharp
 // 조회 완료 시

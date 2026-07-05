@@ -34,6 +34,14 @@ namespace Modern.Lab.Controls.Wpf.Data
                 typeof(ModernPaginationControl),
                 new PropertyMetadata(20, OnPagingShapeChanged, CoercePageSize));
 
+        /// <summary>총 건수 표기 형식. {0}에 전체 건수가 들어간다.</summary>
+        public static readonly DependencyProperty TotalCountFormatProperty =
+            DependencyProperty.Register(
+                "TotalCountFormat",
+                typeof(string),
+                typeof(ModernPaginationControl),
+                new PropertyMetadata("총 {0:N0}건", OnPagingShapeChanged));
+
         /// <summary>현재 페이지 (1부터). 범위를 벗어나면 자동 보정된다.</summary>
         public static readonly DependencyProperty CurrentPageProperty =
             DependencyProperty.Register(
@@ -71,6 +79,13 @@ namespace Modern.Lab.Controls.Wpf.Data
         {
             get { return (int)this.GetValue(PageSizeProperty); }
             set { this.SetValue(PageSizeProperty, value); }
+        }
+
+        /// <summary>총 건수 표기 형식 ({0} = 전체 건수).</summary>
+        public string TotalCountFormat
+        {
+            get { return (string)this.GetValue(TotalCountFormatProperty); }
+            set { this.SetValue(TotalCountFormatProperty, value); }
         }
 
         /// <summary>현재 페이지 (1부터).</summary>
@@ -141,7 +156,18 @@ namespace Modern.Lab.Controls.Wpf.Data
             int pageCount = this.PageCount;
             int current = this.CurrentPage;
 
-            this.TotalText.Text = "총 " + this.TotalCount.ToString("N0", CultureInfo.InvariantCulture) + "건";
+            // 총 건수 텍스트 — 형식 문자열 오류는 형식 그대로 출력하는 것으로 완화한다.
+            string totalFormat = this.TotalCountFormat;
+
+            try
+            {
+                this.TotalText.Text = string.Format(CultureInfo.InvariantCulture, totalFormat ?? string.Empty, this.TotalCount);
+            }
+            catch (FormatException)
+            {
+                this.TotalText.Text = totalFormat;
+            }
+
             this.PrevButton.IsEnabled = current > 1;
             this.NextButton.IsEnabled = current < pageCount;
 

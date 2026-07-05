@@ -5,6 +5,7 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Media;
 using Modern.Lab.Controls.Wpf.Common;
 
 namespace Modern.Lab.Controls.Wpf.Selection
@@ -51,6 +52,17 @@ namespace Modern.Lab.Controls.Wpf.Selection
         public static readonly DependencyProperty DisplayMemberPathProperty =
             DependencyProperty.Register(
                 "DisplayMemberPath",
+                typeof(string),
+                typeof(ModernTreeViewControl),
+                new PropertyMetadata(string.Empty, OnDataShapeChanged));
+
+        /// <summary>
+        /// 노드 텍스트 색 컬럼/속성 이름 (선택 사항). 값은 "#DC2626" 같은
+        /// 색 문자열이며, 비어 있거나 해석 불가하면 테마 기본색을 쓴다.
+        /// </summary>
+        public static readonly DependencyProperty ForeColorMemberPathProperty =
+            DependencyProperty.Register(
+                "ForeColorMemberPath",
                 typeof(string),
                 typeof(ModernTreeViewControl),
                 new PropertyMetadata(string.Empty, OnDataShapeChanged));
@@ -109,6 +121,13 @@ namespace Modern.Lab.Controls.Wpf.Selection
         {
             get { return (string)this.GetValue(DisplayMemberPathProperty); }
             set { this.SetValue(DisplayMemberPathProperty, value); }
+        }
+
+        /// <summary>노드 텍스트 색 컬럼/속성 이름 (선택 사항).</summary>
+        public string ForeColorMemberPath
+        {
+            get { return (string)this.GetValue(ForeColorMemberPathProperty); }
+            set { this.SetValue(ForeColorMemberPathProperty, value); }
         }
 
         /// <summary>선택 노드의 키. null은 미선택.</summary>
@@ -200,6 +219,11 @@ namespace Modern.Lab.Controls.Wpf.Selection
                     string displayText = MemberPathReader.ReadDisplayText(row, this.DisplayMemberPath);
                     TreeNodeItem node = new TreeNodeItem(idValue, displayText, row);
                     node.PropertyChanged += this.OnNodePropertyChanged;
+
+                    if (!string.IsNullOrEmpty(this.ForeColorMemberPath))
+                    {
+                        node.Foreground = CreateForegroundBrush(MemberPathReader.Read(row, this.ForeColorMemberPath));
+                    }
 
                     nodesByKey.Add(key, node);
                     this.allNodes.Add(node);
@@ -311,6 +335,33 @@ namespace Modern.Lab.Controls.Wpf.Selection
             }
 
             return null;
+        }
+
+        // 색 문자열("#DC2626", "Red" 등)을 고정(Frozen) Brush로 해석한다.
+        // 빈 값/해석 불가는 null — 테마 기본색을 상속한다(예외 없음).
+        private static Brush CreateForegroundBrush(object colorValue)
+        {
+            string colorText = ToKeyString(colorValue);
+
+            if (colorText.Length == 0)
+            {
+                return null;
+            }
+
+            try
+            {
+                Brush brush = (Brush)new BrushConverter().ConvertFromString(colorText);
+                brush.Freeze();
+                return brush;
+            }
+            catch (FormatException)
+            {
+                return null;
+            }
+            catch (NotSupportedException)
+            {
+                return null;
+            }
         }
 
         // 키 비교는 문자열 기준으로 한다 — DataTable의 박싱 타입 차이

@@ -44,6 +44,7 @@
     </Reference>
     <Reference Include="System.Windows.Forms" />
     <Reference Include="System.Drawing" />
+    <Reference Include="System.Web.Extensions" />
     <Reference Include="WindowsFormsIntegration" />
   </ItemGroup>
   <ItemGroup>
@@ -57,6 +58,13 @@
     <Compile Include="EmployeeManagementForm.Designer.cs">
       <DependentUpon>EmployeeManagementForm.cs</DependentUpon>
     </Compile>
+    <Compile Include="LotHistoryForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="LotHistoryForm.Designer.cs">
+      <DependentUpon>LotHistoryForm.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Services\JsonTableConverter.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>

@@ -28,7 +28,10 @@ namespace Modern.Lab.Samples
         private void InitializeLayout()
         {
             this.Text = "Modern.Lab Samples";
-            this.ClientSize = new Size(1100, 700);
+
+            // 회사 실사용 영역(약 1700×800)에 맞춘 크기 — 내비 200을 제외한
+            // 콘텐츠 영역이 1540×약 800이 되도록.
+            this.ClientSize = new Size(1740, 840);
             this.StartPosition = FormStartPosition.CenterScreen;
             this.Font = new Font("Segoe UI", 9f);
             this.BackColor = Color.FromArgb(247, 248, 250);
@@ -51,6 +54,7 @@ namespace Modern.Lab.Samples
         private void RegisterSamples()
         {
             // 각 샘플 화면을 여기서 AddSample 호출 하나로 등록한다.
+            this.AddSample("Lot History", () => new LotHistoryForm());
             this.AddSample("직원관리", () => new EmployeeManagementForm());
         }
 

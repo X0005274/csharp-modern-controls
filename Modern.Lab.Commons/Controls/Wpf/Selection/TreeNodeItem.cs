@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Windows.Media;
 
 namespace Modern.Lab.Controls.Wpf.Selection
 {
@@ -19,6 +20,15 @@ namespace Modern.Lab.Controls.Wpf.Selection
             this.Children = new ObservableCollection<TreeNodeItem>();
             this.isExpanded = true;
             this.isSelected = false;
+        }
+
+        /// <summary>노드 텍스트 색 (null = 테마 기본색 상속).</summary>
+        public Brush Foreground { get; internal set; }
+
+        /// <summary>사용자 지정 텍스트 색 보유 여부 — XAML DataTrigger 키.</summary>
+        public bool HasCustomForeground
+        {
+            get { return this.Foreground != null; }
         }
 
         /// <summary>노드 값 (IdMemberPath 기준).</summary>

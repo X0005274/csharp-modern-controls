@@ -12,12 +12,14 @@ namespace Modern.Lab.WinForms.Controls.Input
     ///
     /// 호환 멤버: Text(override, localizable), TextChanged(내부 WPF 텍스트가
     /// 바뀔 때 발생하는 표준 WinForms 이벤트), ReadOnly, Enabled,
+    /// CharacterCasing(입력 즉시 대문자/소문자 강제),
     /// AutoCompleteMode/AutoCompleteSource/AutoCompleteCustomSource
     /// (검색창 스타일 추천 드롭다운; None이 아닌 모든 모드는 Suggest로
     /// 동작하며 CustomSource만 지원한다).
-    /// 추가 멤버: PlaceholderText, EnterPressed(엔터로 검색; 호스팅된 WPF
-    /// 에디터 내부에서 처리되는 키에는 WinForms KeyDown 이벤트가 발생하지
-    /// 않는다).
+    /// 추가 멤버: PlaceholderText, AllowedCharacters(허용 문자 집합 — 그 외
+    /// 문자는 타이핑/붙여넣기 모두 제거), EnterPressed(엔터로 검색; 호스팅된
+    /// WPF 에디터 내부에서 처리되는 키에는 WinForms KeyDown 이벤트가
+    /// 발생하지 않는다).
     /// </summary>
     [ToolboxItem(true)]
     public class ModernTextBox : WpfElementHostBase<Modern.Lab.Controls.Wpf.Input.ModernTextBoxControl>
@@ -28,6 +30,8 @@ namespace Modern.Lab.WinForms.Controls.Input
         private string fallbackPlaceholder;
         private bool fallbackReadOnly;
         private bool fallbackRequired;
+        private CharacterCasing fallbackCharacterCasing;
+        private string fallbackAllowedCharacters;
 
         private AutoCompleteMode autoCompleteMode;
         private AutoCompleteSource autoCompleteSource;
@@ -44,6 +48,8 @@ namespace Modern.Lab.WinForms.Controls.Input
             this.fallbackPlaceholder = string.Empty;
             this.fallbackReadOnly = false;
             this.fallbackRequired = false;
+            this.fallbackCharacterCasing = CharacterCasing.Normal;
+            this.fallbackAllowedCharacters = string.Empty;
             this.autoCompleteMode = AutoCompleteMode.None;
             this.autoCompleteSource = AutoCompleteSource.None;
             this.autoCompleteCustomSource = null;
@@ -169,6 +175,98 @@ namespace Modern.Lab.WinForms.Controls.Input
 
                 this.InvalidateDesignTimePreview();
             }
+        }
+
+        /// <summary>
+        /// 입력 즉시 대문자/소문자 강제 변환 (WinForms TextBox 호환 이름).
+        /// 기본 Normal = 변환 없음.
+        /// </summary>
+        [Category("모던 컨트롤")]
+        [Description("입력 즉시 대문자/소문자 강제 변환 — 코드/ID 입력용")]
+        [DefaultValue(CharacterCasing.Normal)]
+        public CharacterCasing CharacterCasing
+        {
+            get
+            {
+                if (this.Wpf != null)
+                {
+                    return ToWinFormsCasing(this.Wpf.CharacterCasing);
+                }
+
+                return this.fallbackCharacterCasing;
+            }
+            set
+            {
+                this.fallbackCharacterCasing = value;
+
+                if (this.Wpf != null)
+                {
+                    this.Wpf.CharacterCasing = ToWpfCasing(value);
+                }
+            }
+        }
+
+        /// <summary>
+        /// 허용 문자 집합 (빈 문자열 = 제한 없음). 지정하면 타이핑·붙여넣기·IME를
+        /// 가리지 않고 집합에 없는 문자가 제거된다.
+        /// 예: 대문자 영문+숫자 ID → CharacterCasing.Upper와
+        /// "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789" 조합.
+        /// </summary>
+        [Category("모던 컨트롤")]
+        [Description("허용 문자 집합 — 지정하면 그 외 문자는 입력/붙여넣기 모두 제거 (빈 값 = 제한 없음)")]
+        [DefaultValue("")]
+        public string AllowedCharacters
+        {
+            get
+            {
+                if (this.Wpf != null)
+                {
+                    return this.Wpf.AllowedCharacters;
+                }
+
+                return this.fallbackAllowedCharacters;
+            }
+            set
+            {
+                this.fallbackAllowedCharacters = value;
+
+                if (this.Wpf != null)
+                {
+                    this.Wpf.AllowedCharacters = value;
+                }
+            }
+        }
+
+        // WinForms와 WPF의 CharacterCasing enum은 값 순서가 다르다
+        // (WinForms: Normal/Upper/Lower, WPF: Normal/Lower/Upper) — 명시 매핑.
+        private static System.Windows.Controls.CharacterCasing ToWpfCasing(CharacterCasing casing)
+        {
+            if (casing == CharacterCasing.Upper)
+            {
+                return System.Windows.Controls.CharacterCasing.Upper;
+            }
+
+            if (casing == CharacterCasing.Lower)
+            {
+                return System.Windows.Controls.CharacterCasing.Lower;
+            }
+
+            return System.Windows.Controls.CharacterCasing.Normal;
+        }
+
+        private static CharacterCasing ToWinFormsCasing(System.Windows.Controls.CharacterCasing casing)
+        {
+            if (casing == System.Windows.Controls.CharacterCasing.Upper)
+            {
+                return CharacterCasing.Upper;
+            }
+
+            if (casing == System.Windows.Controls.CharacterCasing.Lower)
+            {
+                return CharacterCasing.Lower;
+            }
+
+            return CharacterCasing.Normal;
         }
 
         /// <summary>

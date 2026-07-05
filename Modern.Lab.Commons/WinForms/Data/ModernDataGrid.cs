@@ -28,6 +28,9 @@ namespace Modern.Lab.WinForms.Controls.Data
         // 디자인 타임 WPF 생성이 실패한 경우(Wpf == null)에도 속성 그리드가
         // 동작하도록 하는 폴백 저장소.
         private bool fallbackAutoGenerateColumns;
+        private bool fallbackShowStatusBar;
+        private string fallbackStatusText;
+        private string fallbackStatusCountFormat;
 
         /// <summary>행 선택이 바뀔 때 발생한다(WinForms 호환 이름).</summary>
         public event EventHandler SelectionChanged;
@@ -40,6 +43,9 @@ namespace Modern.Lab.WinForms.Controls.Data
         {
             this.Size = new Size(480, 240);
             this.fallbackAutoGenerateColumns = true;
+            this.fallbackShowStatusBar = false;
+            this.fallbackStatusText = string.Empty;
+            this.fallbackStatusCountFormat = "{0:N0} rows";
 
             if (this.Wpf != null)
             {
@@ -141,6 +147,88 @@ namespace Modern.Lab.WinForms.Controls.Data
                 if (this.Wpf != null)
                 {
                     this.Wpf.AutoGenerateColumns = value;
+                }
+            }
+        }
+
+        /// <summary>그리드 하단 상태바 표시 여부 (행 수 자동 표기 + StatusText).</summary>
+        [Category("모던 컨트롤")]
+        [Description("그리드 하단 상태바 표시 여부 — 왼쪽 행 수 자동 표기, 오른쪽 StatusText")]
+        [DefaultValue(false)]
+        public bool ShowStatusBar
+        {
+            get
+            {
+                if (this.Wpf != null)
+                {
+                    return this.Wpf.ShowStatusBar;
+                }
+
+                return this.fallbackShowStatusBar;
+            }
+            set
+            {
+                this.fallbackShowStatusBar = value;
+
+                if (this.Wpf != null)
+                {
+                    this.Wpf.ShowStatusBar = value;
+                }
+
+                this.InvalidateDesignTimePreview();
+            }
+        }
+
+        /// <summary>상태바 오른쪽에 표시할 자유 텍스트 (선택 대상·조회 조건 등).</summary>
+        [Category("모던 컨트롤")]
+        [Description("상태바 오른쪽에 표시할 자유 텍스트")]
+        [Localizable(true)]
+        [DefaultValue("")]
+        public string StatusText
+        {
+            get
+            {
+                if (this.Wpf != null)
+                {
+                    return this.Wpf.StatusText;
+                }
+
+                return this.fallbackStatusText;
+            }
+            set
+            {
+                this.fallbackStatusText = value;
+
+                if (this.Wpf != null)
+                {
+                    this.Wpf.StatusText = value;
+                }
+            }
+        }
+
+        /// <summary>상태바 왼쪽 행 수 표기 형식. {0}에 현재 행 수가 들어간다.</summary>
+        [Category("모던 컨트롤")]
+        [Description("상태바 행 수 표기 형식 — {0}에 현재 행 수가 들어간다")]
+        [Localizable(true)]
+        [DefaultValue("{0:N0} rows")]
+        public string StatusCountFormat
+        {
+            get
+            {
+                if (this.Wpf != null)
+                {
+                    return this.Wpf.StatusCountFormat;
+                }
+
+                return this.fallbackStatusCountFormat;
+            }
+            set
+            {
+                this.fallbackStatusCountFormat = value;
+
+                if (this.Wpf != null)
+                {
+                    this.Wpf.StatusCountFormat = value;
                 }
             }
         }

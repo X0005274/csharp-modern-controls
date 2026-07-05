@@ -113,7 +113,30 @@
             Background="{StaticResource Brush.Surface}"
             BorderBrush="{StaticResource Brush.Border}"
             BorderThickness="1">
-        <DataGrid x:Name="InnerDataGrid"
+        <DockPanel>
+            <!-- 상태바: 그리드 하단에 붙는 얇은 요약 스트립.
+                 왼쪽은 행 수(StatusCountFormat 형식), 오른쪽은 StatusText.
+                 ShowStatusBar가 true일 때만 보인다. -->
+            <Border x:Name="StatusBarStrip"
+                    DockPanel.Dock="Bottom"
+                    Visibility="Collapsed"
+                    Background="{StaticResource Brush.SurfaceAlt}"
+                    BorderBrush="{StaticResource Brush.BorderSubtle}"
+                    BorderThickness="0,1,0,0"
+                    Padding="{StaticResource Pad.Field}">
+                <DockPanel>
+                    <TextBlock x:Name="StatusRightText"
+                               DockPanel.Dock="Right"
+                               FontSize="{StaticResource Font.Size.Label}"
+                               Foreground="{StaticResource Brush.TextSecondary}"
+                               VerticalAlignment="Center" />
+                    <TextBlock x:Name="StatusCountText"
+                               FontSize="{StaticResource Font.Size.Label}"
+                               Foreground="{StaticResource Brush.TextSecondary}"
+                               VerticalAlignment="Center" />
+                </DockPanel>
+            </Border>
+            <DataGrid x:Name="InnerDataGrid"
                   Background="Transparent"
                   BorderThickness="0"
                   ItemsSource="{Binding ItemsSource, ElementName=RootControl}"
@@ -142,5 +165,6 @@
                   VerticalScrollBarVisibility="Auto"
                   HorizontalScrollBarVisibility="Auto"
                   SelectionChanged="InnerDataGrid_SelectionChanged" />
+        </DockPanel>
     </Border>
 </UserControl>

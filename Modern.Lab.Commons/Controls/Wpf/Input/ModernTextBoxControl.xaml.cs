@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.ObjectModel;
+using System.Text;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -12,6 +13,8 @@ namespace Modern.Lab.Controls.Wpf.Input
     /// - Text: 입력 텍스트 (양방향)
     /// - Placeholder: 텍스트가 비어 있는 동안 표시되는 힌트
     /// - IsReadOnly: 읽기 전용 상태
+    /// - CharacterCasing: 입력 즉시 대문자/소문자 강제 (코드/ID 입력용)
+    /// - AllowedCharacters: 허용 문자 집합 — 그 외 문자는 입력/붙여넣기 모두 제거
     /// - AutoCompleteItemsSource: 추천 드롭다운의 후보 항목
     /// - TextChanged: Text가 바뀔 때마다 발생
     /// - EnterPressed: Enter 키를 눌렀을 때 발생 (엔터로 검색)
@@ -24,7 +27,10 @@ namespace Modern.Lab.Controls.Wpf.Input
     /// </summary>
     public partial class ModernTextBoxControl : UserControl
     {
-        private const int MaxSuggestionCount = 8;
+        // 후보 개수의 안전 상한 — 화면 표시 제한이 아니다. 매칭된 후보는 모두
+        // 목록에 담기고 드롭다운의 MaxHeight + 스크롤로 보여준다. 이 값은
+        // 로컬 소스가 비정상적으로 클 때(수만 건) UI가 멈추는 것만 막는다.
+        private const int MaxSuggestionCount = 100;
 
         /// <summary>입력 텍스트. 기본적으로 양방향 바인딩.</summary>
         public static readonly DependencyProperty TextProperty =
@@ -53,6 +59,26 @@ namespace Modern.Lab.Controls.Wpf.Input
                 typeof(ModernTextBoxControl),
                 new PropertyMetadata(false));
 
+        /// <summary>입력 즉시 대문자/소문자로 강제 변환 (기본 Normal = 변환 없음).</summary>
+        public static readonly DependencyProperty CharacterCasingProperty =
+            DependencyProperty.Register(
+                "CharacterCasing",
+                typeof(CharacterCasing),
+                typeof(ModernTextBoxControl),
+                new PropertyMetadata(CharacterCasing.Normal, OnCharacterCasingChanged));
+
+        /// <summary>
+        /// 허용 문자 집합. 비어 있으면 제한 없음. 지정하면 타이핑·붙여넣기·IME를
+        /// 가리지 않고 집합에 없는 문자가 제거된다 (예: 대문자 ID 입력용
+        /// "ABC...XYZ0123456789.-").
+        /// </summary>
+        public static readonly DependencyProperty AllowedCharactersProperty =
+            DependencyProperty.Register(
+                "AllowedCharacters",
+                typeof(string),
+                typeof(ModernTextBoxControl),
+                new PropertyMetadata(string.Empty));
+
         /// <summary>필수 입력 필드 표시 — 필드 왼쪽에 빨간 세로 바를 그린다.</summary>
         public static readonly DependencyProperty RequiredProperty =
             DependencyProperty.Register(
@@ -71,7 +97,7 @@ namespace Modern.Lab.Controls.Wpf.Input
                 "AutoCompleteItemsSource",
                 typeof(IEnumerable),
                 typeof(ModernTextBoxControl),
-                new PropertyMetadata(null));
+                new PropertyMetadata(null, OnAutoCompleteItemsSourceChanged));
 
         private readonly ObservableCollection<string> suggestionItems;
         private bool suppressSuggestions;
@@ -110,6 +136,20 @@ namespace Modern.Lab.Controls.Wpf.Input
             set { this.SetValue(IsReadOnlyProperty, value); }
         }
 
+        /// <summary>입력 즉시 대문자/소문자로 강제 변환 (기본 Normal).</summary>
+        public CharacterCasing CharacterCasing
+        {
+            get { return (CharacterCasing)this.GetValue(CharacterCasingProperty); }
+            set { this.SetValue(CharacterCasingProperty, value); }
+        }
+
+        /// <summary>허용 문자 집합 (빈 문자열 = 제한 없음).</summary>
+        public string AllowedCharacters
+        {
+            get { return (string)this.GetValue(AllowedCharactersProperty); }
+            set { this.SetValue(AllowedCharactersProperty, value); }
+        }
+
         /// <summary>필수 입력 필드 표시(필드 왼쪽 빨간 세로 바).</summary>
         public bool Required
         {
@@ -130,6 +170,27 @@ namespace Modern.Lab.Controls.Wpf.Input
             this.InnerTextBox.Focus();
         }
 
+        // 대소문자 강제는 WPF TextBox 자체 기능(CharacterCasing)에 위임한다 —
+        // 입력 시점에 변환되므로 TextChanged에는 이미 변환된 텍스트가 들어온다.
+        private static void OnCharacterCasingChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+        {
+            ModernTextBoxControl control = (ModernTextBoxControl)d;
+            control.InnerTextBox.CharacterCasing = (CharacterCasing)e.NewValue;
+        }
+
+        // 후보 목록이 입력 중에 비동기로 도착하는 시나리오(서버 typeahead) 지원:
+        // 에디터에 포커스가 있는 동안 소스를 재할당하면 추천을 즉시 다시 필터링한다.
+        // 포커스가 없으면(코드로 텍스트/소스만 바꾼 경우) 드롭다운을 열지 않는다.
+        private static void OnAutoCompleteItemsSourceChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+        {
+            ModernTextBoxControl control = (ModernTextBoxControl)d;
+
+            if (control.InnerTextBox.IsKeyboardFocused)
+            {
+                control.RefreshSuggestions();
+            }
+        }
+
         private static void OnTextPropertyChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
         {
             ModernTextBoxControl control = (ModernTextBoxControl)d;
@@ -144,6 +205,13 @@ namespace Modern.Lab.Controls.Wpf.Input
         // 둘 다 첫 자음 입력부터 반응하게 한다.
         private void InnerTextBox_TextChanged(object sender, TextChangedEventArgs e)
         {
+            // 허용 문자 제한: 텍스트가 정리되면 중첩 TextChanged가 나머지를
+            // 처리하므로 이번 호출은 여기서 끝낸다.
+            if (this.EnforceAllowedCharacters())
+            {
+                return;
+            }
+
             this.PlaceholderText.Visibility = string.IsNullOrEmpty(this.InnerTextBox.Text)
                 ? Visibility.Visible
                 : Visibility.Collapsed;
@@ -155,6 +223,47 @@ namespace Modern.Lab.Controls.Wpf.Input
             }
 
             this.RefreshSuggestions();
+        }
+
+        // AllowedCharacters에 없는 문자를 제거하고 캐럿 위치를 보정한다.
+        // 타이핑·붙여넣기·IME 확정 텍스트가 모두 TextChanged를 지나므로
+        // 이 한 곳에서 전부 걸러진다. 변경이 있었으면 true.
+        private bool EnforceAllowedCharacters()
+        {
+            string allowed = this.AllowedCharacters;
+            string text = this.InnerTextBox.Text;
+
+            if (string.IsNullOrEmpty(allowed) || text.Length == 0)
+            {
+                return false;
+            }
+
+            StringBuilder filtered = new StringBuilder(text.Length);
+            int caret = this.InnerTextBox.CaretIndex;
+            int newCaret = caret;
+
+            for (int index = 0; index < text.Length; index++)
+            {
+                char current = text[index];
+
+                if (allowed.IndexOf(current) >= 0)
+                {
+                    filtered.Append(current);
+                }
+                else if (index < caret)
+                {
+                    newCaret = newCaret - 1;
+                }
+            }
+
+            if (filtered.Length == text.Length)
+            {
+                return false;
+            }
+
+            this.InnerTextBox.Text = filtered.ToString();
+            this.InnerTextBox.CaretIndex = Math.Max(0, newCaret);
+            return true;
         }
 
         private void RefreshSuggestions()

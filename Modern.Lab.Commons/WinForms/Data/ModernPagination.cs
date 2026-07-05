@@ -19,6 +19,7 @@ namespace Modern.Lab.WinForms.Controls.Data
         // 디자인 타임 WPF 생성이 실패한 경우(Wpf == null)에도 속성 그리드가
         // 동작하도록 하는 폴백 저장소.
         private int fallbackPageSize;
+        private string fallbackTotalCountFormat;
 
         /// <summary>현재 페이지가 바뀔 때 발생한다.</summary>
         public event EventHandler PageChanged;
@@ -28,6 +29,7 @@ namespace Modern.Lab.WinForms.Controls.Data
         {
             this.Size = new Size(500, 32);
             this.fallbackPageSize = 20;
+            this.fallbackTotalCountFormat = "총 {0:N0}건";
 
             if (this.Wpf != null)
             {
@@ -80,6 +82,35 @@ namespace Modern.Lab.WinForms.Controls.Data
                 if (this.Wpf != null)
                 {
                     this.Wpf.PageSize = value;
+                }
+
+                this.InvalidateDesignTimePreview();
+            }
+        }
+
+        /// <summary>총 건수 표기 형식. {0}에 전체 건수가 들어간다.</summary>
+        [Category("모던 컨트롤")]
+        [Description("총 건수 표기 형식 — {0}에 전체 건수가 들어간다")]
+        [Localizable(true)]
+        [DefaultValue("총 {0:N0}건")]
+        public string TotalCountFormat
+        {
+            get
+            {
+                if (this.Wpf != null)
+                {
+                    return this.Wpf.TotalCountFormat;
+                }
+
+                return this.fallbackTotalCountFormat;
+            }
+            set
+            {
+                this.fallbackTotalCountFormat = value;
+
+                if (this.Wpf != null)
+                {
+                    this.Wpf.TotalCountFormat = value;
                 }
 
                 this.InvalidateDesignTimePreview();
