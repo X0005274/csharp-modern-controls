@@ -47,6 +47,10 @@ namespace Modern.Lab.WinForms.Controls.Hosting
         // 다시 렌더링된다.
         private Bitmap previewCache;
 
+        // "크기 1px 흔들기"(리사이즈 흉내) 재진입 가드. 흔들기가 유발하는
+        // OnResize가 InvalidateDesignTimePreview로 되돌아와 무한 재귀하는 것을 막는다.
+        private bool isNudgingBounds;
+
         /// <summary>
         /// 내부에 호스팅되는 실제 WPF 컨트롤. 래퍼 서브클래스가 이 컨트롤의
         /// 속성을 읽고 쓴다. 디자인 타임 생성이 실패한 경우에만 null일 수
@@ -123,15 +127,112 @@ namespace Modern.Lab.WinForms.Controls.Hosting
         }
 
         /// <summary>
-        /// 디자인 타임 미리보기 캐시를 무효화한다. 속성 변경이 미리보기에
-        /// 반영되도록 래퍼는 속성 setter에서 이 메서드를 호출해야 한다.
-        /// 런타임에는 아무것도 하지 않는다.
+        /// 디자인 타임 미리보기 캐시를 무효화하고 새 스냅숏을 즉시 렌더한다.
+        /// 속성 변경이 미리보기에 반영되도록 래퍼는 속성 setter에서 이 메서드를
+        /// 호출해야 한다. 런타임에는 아무것도 하지 않는다.
+        ///
+        /// 값 변경이 미리보기에 즉시 반영되는 실제 조건은 두 가지다:
+        /// (1) 스냅숏 자체가 바뀐 값으로 렌더돼야 한다 — 이는 RenderPreviewBitmap이
+        ///     렌더 전에 바인딩/DataTrigger 큐를 소화하고 재배치함으로써 보장한다
+        ///     (자세한 원인은 그 메서드 주석과 docs/design-notes.md 5-1절 참고).
+        /// (2) 디자이너 표면이 실제로 다시 그려져야 한다 — Invalidate만으로는 다음
+        ///     메시지 루프 틱에야 반영돼 "포커스를 옮겨야 보이는" 것처럼 느껴지므로,
+        ///     여기서 캐시를 미리 만들고 Update로 동기 리페인트해 즉시 반영한다.
         /// </summary>
         protected void InvalidateDesignTimePreview()
         {
-            if (this.isDesignTime || this.DesignMode)
+            if (!(this.isDesignTime || this.DesignMode))
             {
-                this.DisposePreviewCache();
+                return;
+            }
+
+            // 낡은 캐시를 버리고 "그 자리에서 동기로" 다시 렌더한다.
+            //
+            // WPF 디스패처의 BeginInvoke로 재렌더를 미루던 방식은 디자인 타임에서
+            // 신뢰할 수 없다: 디자인 표면에는 WPF 콘텐츠가 실제로 호스팅되지 않아
+            // (HwndSource 없음) 디스패처의 Background 큐를 펌프하는 주체가 없고,
+            // 그 결과 콜백이 큐에 박혀 한참 뒤(또는 컨트롤 dispose 시)에야 발화한다.
+            // 반면 RenderPreviewBitmap은 어느 문맥에서 불러도 올바른 값으로 렌더됨을
+            // 확인했다(내부에서 Dispatcher.Invoke로 바인딩 큐를 동기 소화). 따라서
+            // 여기서 동기로 렌더해 캐시에 담고, Invalidate+Update로 즉시 다시 그린다.
+            // (분석: docs/design-notes.md 5-2절)
+            this.DisposePreviewCache();
+            if (this.Width > 0 && this.Height > 0)
+            {
+                this.previewCache = this.RenderPreviewBitmap();
+            }
+
+            if (this.IsHandleCreated)
+            {
+                // Invalidate만으로는 디자인 표면이 다음 페인트 틱에야 갱신되므로,
+                // Update로 즉시(동기) WM_PAINT를 돌려 방금 만든 캐시를 바로 반영한다.
+                this.Invalidate();
+                this.Update();
+
+                // 자기 자신(또는 직계 부모)만 Update해서는 화면이 안 바뀐다.
+                // 계측 결과: 값 변경 직후 우리 OnPaint가 새 스냅숏을 정상으로 그리고
+                // 부모 영역 무효화+Update까지 실행돼도 화면은 옛 모습이며, 이후 8초간
+                // 이 컨트롤에 WM_PAINT가 오지 않는다. 반면 디자인 표면 클릭(선택 변경)
+                // 이나 리사이즈 때는 폼의 "모든" 컨트롤이 일제히 다시 페인트되며 그제서야
+                // 반영된다. 즉 VS 디자인 표면은 루트(디자이너 프레임) 수준에서 합성되고,
+                // 중간 컨트롤의 개별 페인트는 그 합성 버퍼에 반영되지 않는다.
+                // 따라서 부모가 아니라 "최상위 루트"에서 이 컨트롤 영역을 무효화해
+                // 디자이너가 그 영역을 다시 합성(자식 포함 재페인트)하도록 강제한다.
+                // (분석: docs/design-notes.md 5-3절)
+                Control root = this;
+                while (root.Parent != null)
+                {
+                    root = root.Parent;
+                }
+
+                if (!object.ReferenceEquals(root, this) && root.IsHandleCreated)
+                {
+                    Rectangle rootRect = root.RectangleToClient(this.RectangleToScreen(this.ClientRectangle));
+                    rootRect.Inflate(2, 2); // 테두리·어도너 겹침 여유
+                    root.Invalidate(rootRect, true);
+                    root.Update();
+                }
+
+                // 크기 1px 흔들기(리사이즈 흉내) — 이 환경에서 검증된 "유일한" 화면
+                // 갱신 경로. 계측 결과, 새 스냅숏을 자기 창에 실제 WM_PAINT로 두 번
+                // 그려도(자기 Update + 루트 무효화 경유) VS 디자이너 화면은 갱신되지
+                // 않았고, 오직 실제 크기 변경만 반영됐다. 크기 변경은
+                // WM_WINDOWPOSCHANGED를 통해 디자이너(ControlDesigner/BehaviorService)
+                // 의 표면 재동기화를 강제하기 때문이다. 폭(도킹 등으로 폭이 고정이면
+                // 높이)을 1px 늘렸다 즉시 되돌려 그 경로를 그대로 태운다. 최종 크기는
+                // 원래 값 그대로이므로 .Designer.cs 직렬화에는 아무 변화가 없다.
+                // (분석: docs/design-notes.md 5-3절)
+                if (!this.isNudgingBounds)
+                {
+                    this.isNudgingBounds = true;
+                    try
+                    {
+                        int originalWidth = this.Width;
+                        this.Width = originalWidth + 1;
+                        if (this.Width == originalWidth + 1)
+                        {
+                            this.Width = originalWidth;
+                        }
+                        else
+                        {
+                            // Dock 등으로 폭이 고정된 컨트롤은 높이로 시도한다.
+                            int originalHeight = this.Height;
+                            this.Height = originalHeight + 1;
+                            if (this.Height == originalHeight + 1)
+                            {
+                                this.Height = originalHeight;
+                            }
+                        }
+                    }
+                    finally
+                    {
+                        this.isNudgingBounds = false;
+                    }
+                }
+            }
+            else
+            {
+                // 핸들이 아직 없으면(로드 초기) 첫 페인트가 알아서 그린다.
                 this.Invalidate();
             }
         }
@@ -254,16 +355,30 @@ namespace Modern.Lab.WinForms.Controls.Hosting
             try
             {
                 System.Windows.Size size = new System.Windows.Size(this.Width, this.Height);
+
+                // 1단계: 최초 측정/배치로 시각 트리를 활성화한다(바인딩/트리거가
+                // 살아있는 상태가 된다).
+                this.Wpf.Measure(size);
+                this.Wpf.Arrange(new System.Windows.Rect(size));
+
+                // 2단계: 대기 중인 바인딩/DataTrigger를 먼저 소화시킨다.
+                // Kind→FontSize/FontWeight, Required/TitleBar→Visibility 같은 변경은
+                // XAML에서 ElementName 바인딩(예: {Binding Kind, ElementName=RootControl})에
+                // 연결된 DataTrigger로 처리되며, 이는 DispatcherPriority.DataBind로
+                // "비동기" 반영된다. 즉 래퍼 setter에서 this.Wpf.Kind를 대입한 직후에는
+                // 트리거가 아직 적용되지 않았다. 여기서 큐를 비우지 않고 바로 렌더하면
+                // "변경 직전"(예: Title이 아니라 Body) 모습이 스냅숏에 찍혀, 값 변경이
+                // 미리보기에 반영되지 않는다. (분석: docs/design-notes.md 5-1절)
+                this.Wpf.Dispatcher.Invoke(
+                    System.Windows.Threading.DispatcherPriority.DataBind,
+                    new Action(delegate { }));
+
+                // 3단계: 트리거가 바꾼 FontSize/FontWeight/Visibility로 다시 측정/배치
+                // 한다. 2단계 없이 UpdateLayout만 하면 바뀌기 전 폰트로 레이아웃이
+                // 잡히고, 2단계 후 재배치를 안 하면 레이아웃이 더러운 채 렌더된다.
                 this.Wpf.Measure(size);
                 this.Wpf.Arrange(new System.Windows.Rect(size));
                 this.Wpf.UpdateLayout();
-
-                // 화면 밖 인스턴스는 렌더 패스가 돌지 않으므로, 대기 중인
-                // 바인딩/DataTrigger/렌더 디스패처 작업을 여기서 소화시킨다.
-                // 이게 없으면 속성 변경(Kind 등)이 다음 페인트에야 스냅숏에 반영된다.
-                this.Wpf.Dispatcher.Invoke(
-                    System.Windows.Threading.DispatcherPriority.Render,
-                    new Action(delegate { }));
 
                 RenderTargetBitmap target = new RenderTargetBitmap(
                     this.Width, this.Height, 96d, 96d, PixelFormats.Pbgra32);

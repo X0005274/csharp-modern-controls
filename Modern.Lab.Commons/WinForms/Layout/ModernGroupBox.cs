@@ -20,16 +20,54 @@ namespace Modern.Lab.WinForms.Controls.Layout
         // Themes/Tokens.xaml에서 미러링한 토큰(GDI+는 XAML 리소스를 읽을 수 없다):
         // Brush.TextPrimary / Brush.BorderSubtle / 구조 요소 SemiBold 9pt.
         private static readonly Color TitleColor = Color.FromArgb(17, 24, 39);
+        private static readonly Color AccentTitleColor = Color.FromArgb(0, 120, 212); // Brush.Accent 미러
         private static readonly Color SeparatorColor = Color.FromArgb(229, 231, 235);
         private const int HeaderHeight = 32;
 
         private string titleText;
+        private FontStyle titleFontStyle;
+        private bool titleAccent;
 
         /// <summary>헤더 높이를 확보한 기본 패딩으로 그룹박스를 생성한다.</summary>
         public ModernGroupBox()
         {
             this.titleText = "그룹";
+            this.titleFontStyle = FontStyle.Regular;
             this.Padding = new Padding(12, HeaderHeight + 8, 12, 12);
+        }
+
+        /// <summary>헤더 타이틀에 적용할 폰트 스타일(Bold/Italic 조합 가능).</summary>
+        [Category("모던 컨트롤")]
+        [Description("헤더 타이틀에 적용할 폰트 스타일(Bold/Italic 조합 가능)")]
+        [DefaultValue(FontStyle.Regular)]
+        public FontStyle TitleFontStyle
+        {
+            get
+            {
+                return this.titleFontStyle;
+            }
+            set
+            {
+                this.titleFontStyle = value;
+                this.Invalidate();
+            }
+        }
+
+        /// <summary>헤더 타이틀을 액센트 색(#0078D4)으로 강조할지 여부.</summary>
+        [Category("모던 컨트롤")]
+        [Description("헤더 타이틀을 액센트 색으로 강조할지 여부")]
+        [DefaultValue(false)]
+        public bool TitleAccent
+        {
+            get
+            {
+                return this.titleAccent;
+            }
+            set
+            {
+                this.titleAccent = value;
+                this.Invalidate();
+            }
         }
 
         /// <summary>헤더에 표시되는 타이틀(GroupBox.Text와 동일한 의미).</summary>
@@ -63,9 +101,9 @@ namespace Modern.Lab.WinForms.Controls.Layout
             }
 
             // 타이틀: 구조 요소 규칙(SemiBold)을 따른다. Segoe UI Semibold가
-            // 없으면 Bold로 폴백된다.
-            using (Font titleFont = new Font("Segoe UI Semibold", 9f, FontStyle.Regular))
-            using (SolidBrush titleBrush = new SolidBrush(TitleColor))
+            // 없으면 Bold로 폴백된다. TitleFontStyle로 Bold/Italic을 겹칠 수 있다.
+            using (Font titleFont = new Font("Segoe UI Semibold", 9f, this.titleFontStyle))
+            using (SolidBrush titleBrush = new SolidBrush(this.titleAccent ? AccentTitleColor : TitleColor))
             {
                 SizeF textSize = e.Graphics.MeasureString(this.titleText, titleFont);
                 float textY = (HeaderHeight - textSize.Height) / 2f + 1f;

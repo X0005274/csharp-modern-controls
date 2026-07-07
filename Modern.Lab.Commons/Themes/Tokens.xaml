@@ -44,7 +44,9 @@
     <SolidColorBrush x:Key="Brush.AccentHover" Color="#FF106EBE" />
     <SolidColorBrush x:Key="Brush.AccentPressed" Color="#FF005A9E" />
     <SolidColorBrush x:Key="Brush.OnAccent" Color="#FFFFFFFF" />
-    <SolidColorBrush x:Key="Brush.SelectedBackground" Color="#FFCFE4F7" />
+    <!-- 선택 강조: 그리드/리스트/트리 공통. 상태색 행 위에서도 구분되면서
+         과하지 않은 중간톤 블루(#CFE4F7은 너무 옅고 #9CC9EE는 과함). -->
+    <SolidColorBrush x:Key="Brush.SelectedBackground" Color="#FFB6D9F2" />
     <SolidColorBrush x:Key="Brush.SelectedText" Color="#FF005A9E" />
     <SolidColorBrush x:Key="Brush.FocusBorder" Color="#FF0078D4" />
     <SolidColorBrush x:Key="Brush.FocusRing" Color="#330078D4" />

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Data;
+using System.Drawing;
 using System.Net;
 using System.Text;
 using System.Threading;
@@ -442,7 +443,9 @@ namespace Modern.Lab.Samples
             string subType = GetString(row, "SUB_PROD_TYP");
             string stat = GetString(row, "LOT_STAT_TYP");
 
-            this.lblSelId.Text = GetString(row, "ID");
+            // 카드 제목에 선택 ID를 표시한다(내부 큰 ID 라벨은 제목과 중복이라 제거).
+            string selectedId = GetString(row, "ID");
+            this.detailCard.Text = selectedId.Length > 0 ? selectedId : "Selection";
             this.badgeType.Text = subType.Length > 0 ? subType : "-";
             this.badgeType.Color = typeBadgeColors.ContainsKey(subType) ? typeBadgeColors[subType] : string.Empty;
             this.badgeStat.Text = stat.Length > 0 ? stat : "-";
@@ -454,6 +457,44 @@ namespace Modern.Lab.Samples
             this.valEqp.Text = GetString(row, "EQP_ID");
             this.valCarrier.Text = GetString(row, "CARRIER_ID");
             this.valEventTm.Text = GetString(row, "EVENT_TM");
+        }
+
+        // Selection 상세 표의 셀 배경/괘선을 그린다.
+        // 캡션 열(0,2,4)은 그리드 헤더처럼 옅은 회색으로 칠하고,
+        // 모든 셀에 디자인 토큰 색(Brush.BorderSubtle=#E5E7EB) 괘선을 둘러
+        // "표" 형태로 보이게 한다. (TableLayoutPanel 기본 CellBorderStyle은
+        // 진회색 클래식 선이라 쓰지 않는다.)
+        private void OnDetailCellPaint(object sender, TableLayoutCellPaintEventArgs e)
+        {
+            bool captionColumn = e.Column == 0 || e.Column == 2 || e.Column == 4;
+
+            if (captionColumn)
+            {
+                using (SolidBrush headerBrush = new SolidBrush(Color.FromArgb(247, 248, 250)))
+                {
+                    e.Graphics.FillRectangle(headerBrush, e.CellBounds);
+                }
+            }
+
+            using (Pen linePen = new Pen(Color.FromArgb(229, 231, 235)))
+            {
+                Rectangle cell = e.CellBounds;
+
+                // 오른쪽·아래 선은 모든 셀에, 왼쪽·위 선은 가장자리 셀에만 그려
+                // 이웃 셀과 선이 겹치지 않게 한다.
+                e.Graphics.DrawLine(linePen, cell.Right - 1, cell.Top, cell.Right - 1, cell.Bottom - 1);
+                e.Graphics.DrawLine(linePen, cell.Left, cell.Bottom - 1, cell.Right - 1, cell.Bottom - 1);
+
+                if (e.Column == 0)
+                {
+                    e.Graphics.DrawLine(linePen, cell.Left, cell.Top, cell.Left, cell.Bottom - 1);
+                }
+
+                if (e.Row == 0)
+                {
+                    e.Graphics.DrawLine(linePen, cell.Left, cell.Top, cell.Right - 1, cell.Top);
+                }
+            }
         }
 
         // 선택 노드가 Lot이면 그 Lot의 웨이퍼, Wafer이면 같은 Lot의 웨이퍼
@@ -521,7 +562,7 @@ namespace Modern.Lab.Samples
 
         private void ClearSelection()
         {
-            this.lblSelId.Text = "-";
+            this.detailCard.Text = "Selection";
             this.badgeType.Text = "-";
             this.badgeType.Color = string.Empty;
             this.badgeStat.Text = "-";

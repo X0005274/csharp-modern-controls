@@ -138,6 +138,93 @@ protected override void OnPaint(PaintEventArgs e)
 }                                                  // 예외 시 자리표시자 폴백
 ```
 
+### 5-1. 스냅숏 렌더 전에 바인딩/DataTrigger 큐를 먼저 소화하고 재배치해야 한다 (2026-07-07)
+
+**증상**: 속성 그리드에서 값을 바꿔도(예: `ModernLabel.Kind`를 Body→Title) 디자이너
+미리보기가 그 자리에서 바뀌지 않는다. 저장 후 폼을 닫았다 다시 열면 그제서야 반영된다.
+
+**진짜 원인 — 바인딩 반영과 레이아웃의 순서**:
+
+모던 컨트롤은 값에 따른 시각 변화를 XAML의 **ElementName 바인딩 + DataTrigger**로
+처리한다. 예) `ModernLabelControl`의 `Kind`:
+
+```xml
+<DataTrigger Binding="{Binding Kind, ElementName=RootControl}" Value="Title">
+    <Setter Property="FontSize" Value="{StaticResource Font.Size.Title}" />
+    ...
+```
+
+이런 ElementName 바인딩/DataTrigger는 소스 DP(`Wpf.Kind`)를 대입하는 즉시 반영되지
+않고 **`DispatcherPriority.DataBind`로 비동기 반영**된다. 그런데 처음 구현한
+`RenderPreviewBitmap`은 **Measure/Arrange/UpdateLayout → 렌더** 순서였다:
+
+1. 측정/배치 — 이 시점엔 트리거가 아직 안 걸려 **Body 폰트로 레이아웃**
+2. (뒤늦게) 디스패처가 DataBind를 소화하며 트리거 적용 → FontSize=Title, 레이아웃이
+   다시 더러워짐 — 하지만 **재배치는 하지 않음**
+3. `RenderTargetBitmap.Render` — 더럽거나 "변경 직전"(Body) 상태가 캡처됨
+
+그 스냅숏이 캐시에 고정되고 이후 무효화가 없어 값 변경이 안 보였다. 재오픈 때만 맞게
+보인 건, 폼 로드 중 여러 레이아웃/페인트/디스패처 사이클이 자연히 돌아 결국 최신
+상태가 렌더됐기 때문이다. (WM_PAINT 재진입 문맥이 원인이라는 초기 가설은 틀렸다 —
+문맥과 무관하게 **렌더 직전에 바인딩을 flush하고 다시 배치**하면 해결된다.)
+
+**규칙**: `RenderPreviewBitmap`은 반드시 아래 순서로 렌더한다.
+
+1. `Measure/Arrange` — 시각 트리를 활성화한다(바인딩/트리거가 살아난다).
+2. `Dispatcher.Invoke(DispatcherPriority.DataBind, …)` — 대기 중인 바인딩/DataTrigger를
+   소화한다(예: Kind→FontSize/FontWeight, Required/TitleBar→Visibility).
+3. `Measure/Arrange/UpdateLayout` — 트리거가 바꾼 값으로 **다시** 배치한다.
+4. `RenderTargetBitmap.Render`.
+
+부가로, 값 변경이 "즉시" 보이려면 스냅숏을 `InvalidateDesignTimePreview`(속성 setter·
+`OnResize` 경로)에서 미리 만들어 캐시에 담아 둔다. 이 수정은 베이스 클래스
+(`WpfElementHostBase`)에 있으므로 모든 래퍼가 함께 고쳐진다.
+
+### 5-2. WPF 디스패처 BeginInvoke는 디자인 타임에 실행되지 않는다 (2026-07-07)
+
+한때 재렌더를 `Wpf.Dispatcher.BeginInvoke(DispatcherPriority.Background, …)`로 미루는
+방식을 시도했으나 **디자인 타임에서는 동작하지 않는다**. 파일 로그 계측으로 확인한 사실:
+
+- 디자인 표면에는 WPF 콘텐츠가 실제로 호스팅되지 않으므로(HwndSource 없음) WPF
+  디스패처의 Background 큐를 펌프하는 주체가 없다.
+- 큐에 넣은 콜백은 폼 로드·속성 변경 중에는 전혀 발화하지 않다가, **폼을 닫을 때
+  (컨트롤 dispose 시점) 한꺼번에 뒤늦게** 발화했다.
+
+반면 `RenderPreviewBitmap`은 어느 문맥에서 호출해도(속성 커밋 문맥 포함) 5-1의 순서
+(배치 → `Dispatcher.Invoke(DataBind)` flush → 재배치 → 렌더)만 지키면 항상 바뀐 값이
+올바르게 담긴 스냅숏을 만든다는 것도 같은 계측으로 확인됐다.
+
+**규칙**: 디자인 타임 스냅숏 재렌더는 절대 WPF 디스패처에 미루지 말고,
+`InvalidateDesignTimePreview` 안에서 **동기로** 수행해 캐시에 담는다.
+
+### 5-3. VS 디자이너 화면은 컨트롤의 WM_PAINT로 갱신되지 않는다 — 크기 1px 흔들기 (2026-07-07)
+
+5-1·5-2를 다 고쳐 "올바른 스냅숏을 그 자리에서 동기로 캐시"해도, **속성 그리드에서
+값을 바꾸면 디자이너 화면이 그 자리에서 안 바뀌는** 최종 증상이 남았다. 파일 로그
+계측으로 확인한 사실:
+
+- 값 커밋 직후 새(Title) 스냅숏이 정상 렌더되고, 컨트롤 자신의 `Invalidate+Update`로
+  한 번, 루트(디자이너 프레임) 영역 무효화 경유의 실제 WM_PAINT로 또 한 번 — **새
+  모습이 두 번이나 실제로 그려졌는데도 화면은 옛 모습 그대로**였다.
+- 부모/루트 무효화 후에도 화면 반영은 없었고, **실제 크기 변경(리사이즈)** 때만
+  반영됐다. 크기 변경은 WM_WINDOWPOSCHANGED를 통해 디자이너(ControlDesigner/
+  BehaviorService)의 표면 재동기화를 강제하기 때문이다.
+- 즉 이 환경(VS 18)의 디자이너 화면 갱신을 코드에서 확실히 일으키는 경로는 "실제
+  크기 변경"뿐이다.
+
+**규칙**: `InvalidateDesignTimePreview`는 동기 재렌더 후 다음 순서로 화면을 갱신한다.
+
+1. 자기 자신 `Invalidate()` + `Update()` (자기 창의 캐시 blit).
+2. 컨트롤 트리 최상위 루트에서 이 컨트롤 영역을 `Invalidate(rect, true)` + `Update()`.
+3. **크기 1px 흔들기**: 폭을 +1 했다 즉시 되돌린다(폭이 Dock 등으로 고정이면 높이로
+   시도). 이것이 실제로 화면을 갱신하는 결정적 단계다. 최종 크기는 원래 값이므로
+   `.Designer.cs` 직렬화에는 변화가 없다. 흔들기가 유발하는 `OnResize` 재진입은
+   `isNudgingBounds` 가드로 차단한다.
+
+이 처리는 전부 베이스 클래스(`WpfElementHostBase`)에 있으므로 모든 래퍼가 함께
+동작한다. 검증: `ModernLabel.Kind`를 Body→Title로 바꾸면 리사이즈·포커스 이동 없이
+그 자리에서 즉시 반영됨을 확인(2026-07-07).
+
 ## 6-1. 컨트롤 설계 계약 (2026-07-04 합의)
 
 모든 모던 컨트롤은 아래 계약을 지킨다. 목표: **기존 WinForms 폼에서 컨트롤 교체가

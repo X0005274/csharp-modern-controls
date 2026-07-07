@@ -77,6 +77,9 @@
     <EmbeddedResource Include="EmployeeManagementForm.resx">
       <DependentUpon>EmployeeManagementForm.cs</DependentUpon>
     </EmbeddedResource>
+    <EmbeddedResource Include="LotHistoryForm.resx">
+      <DependentUpon>LotHistoryForm.cs</DependentUpon>
+    </EmbeddedResource>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
