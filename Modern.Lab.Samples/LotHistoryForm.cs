@@ -14,24 +14,23 @@ using Modern.Lab.Samples.Services;
 namespace Modern.Lab.Samples
 {
     /// <summary>
-    /// Lot History 화면 — MES Lot/Wafer 계보 트리와 선택 노드의 이력 조회.
+    /// Lot History 화면 — MES Lot 계보 트리와 선택 Lot의 이력·웨이퍼 조회.
     ///
     /// 영역 구성 (계약 룰 5 — 레이아웃은 WinForms 담당):
-    /// - 상단: 조회 카드 (Type 다중 필터[체크콤보] + Lot ID 검색[필수, 자동완성])
-    /// - 중앙 좌측: Lot/Wafer 계보 트리(Scrap Lot은 빨간 텍스트) + 선택 Lot의 웨이퍼 목록
-    /// - 중앙 우측: 선택 노드 상세 카드 + 이력 그리드 (최신순, 하단 상태바 —
-    ///   이력은 한 번에 봐야 하므로 페이징하지 않는다)
+    /// - 상단: 조회 카드 (Type 다중 필터[체크콤보] + Lot ID 검색[필수, 자동완성 — LOT만])
+    /// - 중앙 좌측: Lot 계보 트리(Scrap Lot은 빨간 텍스트) + 선택 Lot의 웨이퍼 목록
+    /// - 중앙 우측: 선택 Lot 상세 카드(주요 컬럼 표) + 이력 그리드
+    ///   (MES_LOT_HIS 전체 컬럼, 최신순, 하단 상태바 — 페이징 없음)
     ///
     /// 화면 오픈 시 자동 조회는 하지 않는다 — Lot ID(필수)를 넣고 Search로 조회한다.
-    ///
-    /// 서버는 검색 결과의 조상(최상위 Lot까지)과 자손을 함께 내려주고
-    /// IS_MATCH로 직접 매칭 노드를 표시한다 — 클라이언트는 그 값으로
-    /// 조회된 Lot/Wafer를 자동 선택한다.
+    /// 트리/자동완성은 LOT만 다룬다. 트리에서 Lot을 선택하면 그 Lot의 이력(LOT_HIS)과
+    /// 웨이퍼 목록(WF_MAS)을 서버에서 함께 불러온다(로딩 팝업 표시).
+    /// 검색어와 LOT_ID가 정확히 일치하면 그 Lot을, 없으면 첫 Lot을 자동 선택한다.
     ///
     /// 서버 호출은 아래 "서버 조회 (★ 회사 환경 교체 지점)" 영역의 private
-    /// 메서드 3개에만 있다 — 회사 환경에서는 그 메서드들의 본문만 사내
-    /// 인터페이스(전문/미들웨어) 호출로 바꾸면 된다. 반환 타입이 DataTable /
-    /// string[]이라 화면 코드는 손대지 않는다.
+    /// 메서드 4개(tree/ids/history/wafers)에만 있다 — 회사 환경에서는 그 메서드들의
+    /// 본문만 사내 인터페이스(전문/미들웨어) 호출로 바꾸면 된다. 반환 타입이
+    /// DataTable / string[]이라 화면 코드는 손대지 않는다.
     /// 모든 조회는 백그라운드 스레드 + UI Invoke 패턴(계약 규칙 3)으로 수행한다.
     /// </summary>
     public partial class LotHistoryForm : Form
@@ -51,6 +50,9 @@ namespace Modern.Lab.Samples
 
         // 자동완성 요청 버전 — 오래된 응답이 최신 후보를 덮어쓰지 않게 한다.
         private int autoCompleteVersion;
+
+        // 트리 선택(이력/웨이퍼 조회) 버전 — 빠른 재선택 시 오래된 응답을 버린다.
+        private int selectionVersion;
 
         // Scrap 상태 노드의 트리 텍스트 색.
         private const string scrapForeColor = "#DC2626";
@@ -126,13 +128,17 @@ namespace Modern.Lab.Samples
             }
         }
 
-        // 선택 노드의 이력 (최신순).
-        private DataTable RequestHistory(string nodeId, string nodeKind)
+        // 선택 Lot의 이력 (MES_LOT_HIS 전체 컬럼, 최신순).
+        private DataTable RequestLotHistory(string lotId)
         {
-            string query =
-                "/api/mes/history?id=" + Uri.EscapeDataString(nodeId ?? string.Empty) +
-                "&kind=" + Uri.EscapeDataString(nodeKind ?? "LOT");
+            string query = "/api/mes/history?lotId=" + Uri.EscapeDataString(lotId ?? string.Empty);
+            return this.DownloadTable(query);
+        }
 
+        // 선택 Lot에 속한 Wafer 목록 (MES_WF_MAS 현재 상태).
+        private DataTable RequestWafers(string lotId)
+        {
+            string query = "/api/mes/wafers?lotId=" + Uri.EscapeDataString(lotId ?? string.Empty);
             return this.DownloadTable(query);
         }
 
@@ -169,37 +175,47 @@ namespace Modern.Lab.Samples
             this.autoCompleteTimer.Interval = 300;
             this.autoCompleteTimer.Tick += this.OnAutoCompleteTimerTick;
 
-            // 트리: 서버 통합 트리 응답(ID/PARENT_ID)을 그대로 계보로 사용.
-            // Scrap 노드는 클라이언트에서 채운 NODE_COLOR 컬럼으로 빨간 텍스트가 된다.
-            this.treeLotWf.IdMember = "ID";
-            this.treeLotWf.ParentIdMember = "PARENT_ID";
-            this.treeLotWf.DisplayMember = "ID";
+            // 트리: LOT 계보만 표시한다(Wafer 제외). LOT_ID/PARENT_LOT_ID로 계보 구성.
+            // Scrap Lot은 클라이언트에서 채운 NODE_COLOR 컬럼으로 빨간 텍스트가 된다.
+            this.treeLotWf.IdMember = "LOT_ID";
+            this.treeLotWf.ParentIdMember = "PARENT_LOT_ID";
+            this.treeLotWf.DisplayMember = "LOT_ID";
             this.treeLotWf.ForeColorMember = "NODE_COLOR";
 
             // 공정 진행 단계 표시: 이력 이벤트를 LABEL/STATE로 만들어 넘긴다.
             this.stepIndicator.DisplayMember = "LABEL";
             this.stepIndicator.StateMember = "STATE";
 
-            // 선택 Lot의 웨이퍼 목록 (Lot과 중복되는 정보는 제외한 웨이퍼 고유 항목).
+            // 선택 Lot에 속한 Wafer 목록 (MES_WF_MAS 현재 상태).
             this.gridWafers.ConfigureColumns(
-                new ModernDataGridColumn("ID", "Wafer ID", 150),
-                new ModernDataGridColumn("LOT_STAT_TYP", "Status", 62) { TextAlignment = GridTextAlignment.Center },
-                new ModernDataGridColumn("EVENT_CD", "Event"));
+                new ModernDataGridColumn("WF_ID", "Wafer ID", 150),
+                new ModernDataGridColumn("SUB_PROD_TYP", "Type", 70) { TextAlignment = GridTextAlignment.Center },
+                new ModernDataGridColumn("LOT_STAT_TYP", "Status", 66) { TextAlignment = GridTextAlignment.Center },
+                new ModernDataGridColumn("EVENT_CD", "Event", 90),
+                new ModernDataGridColumn("OPER_ID", "Oper", 90),
+                new ModernDataGridColumn("EQP_ID", "Eqp", 90));
 
             // Scrap 웨이퍼 행은 옅은 빨강 배경(트리 텍스트 빨강과 짝).
             this.gridWafers.RowColorMember = "ROW_COLOR";
 
+            // 이력 그리드: MES_LOT_HIS 전체 컬럼 + 파생(DURATION). 실제 컬럼명 그대로 바인딩.
             this.gridHistory.ConfigureColumns(
-                new ModernDataGridColumn("EVENT_TM", "Event Time", 160) { TextAlignment = GridTextAlignment.Center },
-                new ModernDataGridColumn("DURATION", "Duration", 90) { TextAlignment = GridTextAlignment.Center },
-                new ModernDataGridColumn("EVENT_CD", "Event", 100) { TextAlignment = GridTextAlignment.Center },
-                new ModernDataGridColumn("OPER_ID", "Operation", 110) { TextAlignment = GridTextAlignment.Center },
-                new ModernDataGridColumn("EQP_ID", "Equipment", 110) { TextAlignment = GridTextAlignment.Center },
-                new ModernDataGridColumn("CARRIER_ID", "Carrier", 100) { TextAlignment = GridTextAlignment.Center },
-                new ModernDataGridColumn("STK_ID", "Stocker", 100) { TextAlignment = GridTextAlignment.Center },
-                new ModernDataGridColumn("LOT_STAT_TYP", "Status", 90) { TextAlignment = GridTextAlignment.Center },
-                new ModernDataGridColumn("FLOW_ID", "Flow", 150),
-                new ModernDataGridColumn("TIMEKEY", "Time Key"));
+                new ModernDataGridColumn("EVENT_TM", "Event Time", 150) { TextAlignment = GridTextAlignment.Center },
+                new ModernDataGridColumn("DURATION", "Duration", 84) { TextAlignment = GridTextAlignment.Center },
+                new ModernDataGridColumn("EVENT_CD", "Event", 96) { TextAlignment = GridTextAlignment.Center },
+                new ModernDataGridColumn("LOT_STAT_TYP", "Status", 84) { TextAlignment = GridTextAlignment.Center },
+                new ModernDataGridColumn("OPER_ID", "Operation", 96) { TextAlignment = GridTextAlignment.Center },
+                new ModernDataGridColumn("EQP_ID", "Equipment", 96) { TextAlignment = GridTextAlignment.Center },
+                new ModernDataGridColumn("CARRIER_ID", "Carrier", 92) { TextAlignment = GridTextAlignment.Center },
+                new ModernDataGridColumn("STK_ID", "Stocker", 92) { TextAlignment = GridTextAlignment.Center },
+                new ModernDataGridColumn("FLOW_ID", "Flow", 130),
+                new ModernDataGridColumn("PROD_ID", "Product", 150),
+                new ModernDataGridColumn("PROD_TYP", "Prod Type", 90) { TextAlignment = GridTextAlignment.Center },
+                new ModernDataGridColumn("SUB_PROD_TYP", "Sub Type", 90) { TextAlignment = GridTextAlignment.Center },
+                new ModernDataGridColumn("ORG_LOT_ID", "Org Lot", 120),
+                new ModernDataGridColumn("PARENT_LOT_ID", "Parent Lot", 120),
+                new ModernDataGridColumn("LOT_ID", "Lot", 120),
+                new ModernDataGridColumn("TIMEKEY", "Time Key", 150));
 
             // 이력 행 상태별 색: Scrapped 빨강, JobEnd(완료) 초록.
             this.gridHistory.RowColorMember = "ROW_COLOR";
@@ -277,6 +293,12 @@ namespace Modern.Lab.Samples
 
                     this.Invoke(new MethodInvoker(delegate
                     {
+                        // 트리가 참조하는 컬럼이 (해당 값이 전부 null이면 JSON에서 키가
+                        // 생략돼) 누락될 수 있으므로 미리 보장한다.
+                        EnsureColumns(tree, "LOT_ID", "PARENT_LOT_ID", "ORG_LOT_ID",
+                            "SUB_PROD_TYP", "PROD_TYP", "LOT_STAT_TYP", "EVENT_CD", "PROD_ID",
+                            "FLOW_ID", "OPER_ID", "EQP_ID", "CARRIER_ID", "STK_ID", "EVENT_TM");
+
                         ApplyScrapColor(tree);
                         this.treeData = tree;
 
@@ -307,7 +329,7 @@ namespace Modern.Lab.Samples
             });
         }
 
-        // Scrap 상태 노드에 트리 텍스트 색 컬럼(NODE_COLOR)을 채운다.
+        // Scrap 상태 Lot에 트리 텍스트 색 컬럼(NODE_COLOR)을 채운다.
         private static void ApplyScrapColor(DataTable tree)
         {
             if (!tree.Columns.Contains("NODE_COLOR"))
@@ -315,18 +337,11 @@ namespace Modern.Lab.Samples
                 tree.Columns.Add("NODE_COLOR", typeof(string));
             }
 
-            // 웨이퍼 목록 그리드의 Scrap 행 배경(옅은 빨강).
-            if (!tree.Columns.Contains("ROW_COLOR"))
-            {
-                tree.Columns.Add("ROW_COLOR", typeof(string));
-            }
-
             foreach (DataRow row in tree.Rows)
             {
                 if (ToText(row, "LOT_STAT_TYP") == "Scrap")
                 {
                     row["NODE_COLOR"] = scrapForeColor;   // 트리 텍스트 빨강
-                    row["ROW_COLOR"] = scrapRowColor;     // 웨이퍼 그리드 행 배경
                 }
             }
         }
@@ -341,8 +356,38 @@ namespace Modern.Lab.Samples
                 return;
             }
 
+            // 자동완성 목록에서 항목을 "선택"하면 그 값이 그대로 TextBox에 들어와
+            // TextChanged가 다시 발생한다. 이때 값이 이미 후보 목록에 있는 완전 일치이면
+            // 재조회/재표시를 건너뛴다 — 선택 직후 같은 값으로 목록이 다시 뜨는 것을 막는다.
+            if (this.IsExistingCandidate(this.txtLotId.Text.Trim()))
+            {
+                this.autoCompleteTimer.Stop();
+                return;
+            }
+
             this.autoCompleteTimer.Stop();
             this.autoCompleteTimer.Start();
+        }
+
+        // 현재 자동완성 후보 목록에 주어진 텍스트와 대소문자 무시 완전 일치가 있는지.
+        private bool IsExistingCandidate(string text)
+        {
+            AutoCompleteStringCollection source = this.txtLotId.AutoCompleteCustomSource;
+
+            if (source == null || text.Length == 0)
+            {
+                return false;
+            }
+
+            foreach (string candidate in source)
+            {
+                if (string.Equals(candidate, text, StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         private void OnAutoCompleteTimerTick(object sender, EventArgs e)
@@ -386,28 +431,21 @@ namespace Modern.Lab.Samples
             });
         }
 
-        // 자동 선택 대상: 검색어와 ID가 정확히 일치하는 노드가 있으면 그 노드,
-        // 없으면 서버가 IS_MATCH='Y'로 표시한 첫 노드.
+        // 자동 선택 대상: 검색어와 LOT_ID가 정확히 일치하는 Lot이 있으면 그 Lot,
+        // 없으면 트리의 첫 Lot(정렬상 최상단).
         private static string FindAutoSelectId(DataTable tree, string keyword)
         {
-            string firstMatch = null;
-
             foreach (DataRow row in tree.Rows)
             {
-                string id = ToText(row, "ID");
+                string lotId = ToText(row, "LOT_ID");
 
-                if (string.Equals(id, keyword, StringComparison.OrdinalIgnoreCase))
+                if (string.Equals(lotId, keyword, StringComparison.OrdinalIgnoreCase))
                 {
-                    return id;
-                }
-
-                if (firstMatch == null && ToText(row, "IS_MATCH") == "Y")
-                {
-                    firstMatch = id;
+                    return lotId;
                 }
             }
 
-            return firstMatch;
+            return tree.Rows.Count > 0 ? ToText(tree.Rows[0], "LOT_ID") : null;
         }
 
         // ===== 트리 선택 → 상세 + 웨이퍼 목록 + 이력 =====
@@ -422,7 +460,8 @@ namespace Modern.Lab.Samples
             this.ApplyTreeSelection();
         }
 
-        // 현재 트리 선택 상태를 상세 카드/웨이퍼 목록/이력 그리드에 반영한다.
+        // 현재 트리 선택(LOT) 상태를 상세 카드에 즉시 반영하고, 이력/웨이퍼는
+        // 서버에서 백그라운드로 불러온다(로딩 팝업 표시).
         private void ApplyTreeSelection()
         {
             DataRowView selected = this.treeLotWf.SelectedItem as DataRowView;
@@ -434,8 +473,7 @@ namespace Modern.Lab.Samples
             }
 
             this.FillDetail(selected);
-            this.FillWaferList(selected);
-            this.LoadHistory(GetString(selected, "ID"), GetString(selected, "NODE_KIND"));
+            this.LoadLotDetails(GetString(selected, "LOT_ID"));
         }
 
         private void FillDetail(DataRowView row)
@@ -443,20 +481,100 @@ namespace Modern.Lab.Samples
             string subType = GetString(row, "SUB_PROD_TYP");
             string stat = GetString(row, "LOT_STAT_TYP");
 
-            // 카드 제목에 선택 ID를 표시한다(내부 큰 ID 라벨은 제목과 중복이라 제거).
-            string selectedId = GetString(row, "ID");
-            this.detailCard.Text = selectedId.Length > 0 ? selectedId : "Selection";
+            // 카드 제목에 선택 Lot ID를 표시한다.
+            string lotId = GetString(row, "LOT_ID");
+            this.detailCard.Text = lotId.Length > 0 ? lotId : "Selection";
             this.badgeType.Text = subType.Length > 0 ? subType : "-";
             this.badgeType.Color = typeBadgeColors.ContainsKey(subType) ? typeBadgeColors[subType] : string.Empty;
             this.badgeStat.Text = stat.Length > 0 ? stat : "-";
             this.badgeStat.Color = statBadgeColors.ContainsKey(stat) ? statBadgeColors[stat] : string.Empty;
 
+            // Selection: Lot의 주요 컬럼들 (MES_LOT_MAS 현재 상태).
             this.valProduct.Text = GetString(row, "PROD_ID");
+            this.valProdTyp.Text = GetString(row, "PROD_TYP");
+            this.valEvent.Text = GetString(row, "EVENT_CD");
             this.valFlow.Text = GetString(row, "FLOW_ID");
             this.valOper.Text = GetString(row, "OPER_ID");
             this.valEqp.Text = GetString(row, "EQP_ID");
             this.valCarrier.Text = GetString(row, "CARRIER_ID");
+            this.valStk.Text = GetString(row, "STK_ID");
             this.valEventTm.Text = GetString(row, "EVENT_TM");
+        }
+
+        // 선택 Lot의 이력(MES_LOT_HIS)과 웨이퍼 목록(MES_WF_MAS)을 백그라운드에서
+        // 함께 불러온다. 두 조회가 끝날 때까지 로딩 팝업이 계속 표시된다.
+        private void LoadLotDetails(string lotId)
+        {
+            this.busyMain.Busy = true;
+            this.selectionVersion = this.selectionVersion + 1;
+            int version = this.selectionVersion;
+
+            ThreadPool.QueueUserWorkItem(delegate(object state)
+            {
+                try
+                {
+                    DataTable history = this.RequestLotHistory(lotId);
+                    DataTable wafers = this.RequestWafers(lotId);
+
+                    this.Invoke(new MethodInvoker(delegate
+                    {
+                        // 그 사이 다른 Lot이 선택됐으면 이 응답은 버린다.
+                        if (version != this.selectionVersion)
+                        {
+                            return;
+                        }
+
+                        // ---- 이력 그리드 (LOT_HIS 전체 컬럼) ----
+                        EnsureColumns(history, "TIMEKEY", "LOT_ID", "EVENT_CD", "EVENT_TM",
+                            "PROD_ID", "PROD_TYP", "SUB_PROD_TYP", "ORG_LOT_ID", "PARENT_LOT_ID",
+                            "CARRIER_ID", "FLOW_ID", "OPER_ID", "EQP_ID", "STK_ID", "LOT_STAT_TYP");
+                        AddDurationColumn(history);
+                        AddRowColor(history);
+                        this.gridHistory.DataSource = history;
+                        this.gridHistory.StatusText = lotId + CycleTimeSuffix(history);
+                        this.stepIndicator.DataSource = BuildStepTable(history);
+
+                        // ---- 웨이퍼 목록 ----
+                        EnsureColumns(wafers, "WF_ID", "SUB_PROD_TYP", "LOT_STAT_TYP",
+                            "EVENT_CD", "OPER_ID", "EQP_ID");
+                        AddWaferRowColor(wafers);
+                        this.gridWafers.DataSource = wafers;
+                        this.waferCard.Text = "Wafers — " + lotId;
+
+                        this.busyMain.Busy = false;
+                    }));
+                }
+                catch (Exception ex)
+                {
+                    this.Invoke(new MethodInvoker(delegate
+                    {
+                        this.busyMain.Busy = false;
+                        this.toastMain.Show("Server call failed: " + ex.Message, ToastKind.Error);
+                    }));
+                }
+            });
+        }
+
+        // 웨이퍼 목록의 Scrap 행 배경(옅은 빨강) 컬럼을 채운다.
+        private static void AddWaferRowColor(DataTable wafers)
+        {
+            if (wafers == null)
+            {
+                return;
+            }
+
+            if (!wafers.Columns.Contains("ROW_COLOR"))
+            {
+                wafers.Columns.Add("ROW_COLOR", typeof(string));
+            }
+
+            foreach (DataRow row in wafers.Rows)
+            {
+                if (ToText(row, "LOT_STAT_TYP") == "Scrap")
+                {
+                    row["ROW_COLOR"] = scrapRowColor;
+                }
+            }
         }
 
         // Selection 상세 표의 셀 배경/괘선을 그린다.
@@ -497,69 +615,6 @@ namespace Modern.Lab.Samples
             }
         }
 
-        // 선택 노드가 Lot이면 그 Lot의 웨이퍼, Wafer이면 같은 Lot의 웨이퍼
-        // (형제)를 좌측 하단 목록에 보여준다.
-        private void FillWaferList(DataRowView row)
-        {
-            string kind = GetString(row, "NODE_KIND");
-            string lotId = kind == "LOT" ? GetString(row, "ID") : GetString(row, "PARENT_ID");
-
-            if (this.treeData == null || lotId.Length == 0 ||
-                !this.treeData.Columns.Contains("NODE_KIND") ||
-                !this.treeData.Columns.Contains("PARENT_ID"))
-            {
-                this.gridWafers.DataSource = null;
-                this.waferCard.Text = "Wafers";
-                return;
-            }
-
-            string filter = "NODE_KIND = 'WF' AND PARENT_ID = '" + lotId.Replace("'", "''") + "'";
-            DataView wafers = new DataView(this.treeData, filter, "ID", DataViewRowState.CurrentRows);
-
-            this.gridWafers.DataSource = wafers;
-            this.waferCard.Text = "Wafers — " + lotId;
-        }
-
-        private void LoadHistory(string nodeId, string nodeKind)
-        {
-            this.busyMain.Busy = true;
-
-            ThreadPool.QueueUserWorkItem(delegate(object state)
-            {
-                try
-                {
-                    DataTable history = this.RequestHistory(nodeId, nodeKind);
-
-                    this.Invoke(new MethodInvoker(delegate
-                    {
-                        // 이벤트 간 소요시간(이전 이벤트→이 이벤트) 컬럼을 채운다.
-                        AddDurationColumn(history);
-
-                        // 행 상태 색 컬럼: Scrapped 빨강, JobEnd(완료) 초록.
-                        AddRowColor(history);
-
-                        // 이력은 한 번에 본다 — 페이징 없이 전체 바인딩,
-                        // 건수와 조회 대상 + 총 사이클타임을 그리드 상태바에 표시.
-                        this.gridHistory.DataSource = history;
-                        this.gridHistory.StatusText = nodeId + " · " + nodeKind + CycleTimeSuffix(history);
-
-                        // 공정 진행 단계 바(이벤트 시간순, 마지막이 현재/Scrap).
-                        this.stepIndicator.DataSource = BuildStepTable(history);
-
-                        this.busyMain.Busy = false;
-                    }));
-                }
-                catch (Exception ex)
-                {
-                    this.Invoke(new MethodInvoker(delegate
-                    {
-                        this.busyMain.Busy = false;
-                        this.toastMain.Show("Server call failed: " + ex.Message, ToastKind.Error);
-                    }));
-                }
-            });
-        }
-
         private void ClearSelection()
         {
             this.detailCard.Text = "Selection";
@@ -568,10 +623,13 @@ namespace Modern.Lab.Samples
             this.badgeStat.Text = "-";
             this.badgeStat.Color = string.Empty;
             this.valProduct.Text = "-";
+            this.valProdTyp.Text = "-";
+            this.valEvent.Text = "-";
             this.valFlow.Text = "-";
             this.valOper.Text = "-";
             this.valEqp.Text = "-";
             this.valCarrier.Text = "-";
+            this.valStk.Text = "-";
             this.valEventTm.Text = "-";
             this.gridWafers.DataSource = null;
             this.waferCard.Text = "Wafers";
@@ -746,6 +804,25 @@ namespace Modern.Lab.Samples
 
         // 서버 응답에 컬럼 자체가 없거나(null 키 생략) DBNull인 경우를 모두
         // 빈 문자열로 처리한다.
+        // 그리드/바인딩이 참조하는 컬럼이 DataTable에 없으면 문자열 빈 컬럼으로
+        // 추가한다. JsonTableConverter는 값이 전부 null인 컬럼을 만들지 않으므로
+        // (서버가 null 키를 생략), 바인딩 오류를 막으려면 표시 직전에 보장해야 한다.
+        private static void EnsureColumns(DataTable table, params string[] columnNames)
+        {
+            if (table == null)
+            {
+                return;
+            }
+
+            foreach (string name in columnNames)
+            {
+                if (!table.Columns.Contains(name))
+                {
+                    table.Columns.Add(name, typeof(string));
+                }
+            }
+        }
+
         private static string GetString(DataRowView row, string columnName)
         {
             if (!row.Row.Table.Columns.Contains(columnName))

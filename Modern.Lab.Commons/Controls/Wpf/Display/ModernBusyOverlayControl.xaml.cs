@@ -17,6 +17,14 @@ namespace Modern.Lab.Controls.Wpf.Display
                 typeof(ModernBusyOverlayControl),
                 new PropertyMetadata("처리 중..."));
 
+        /// <summary>주 메시지 아래 표시되는 보조 안내 문구(선택; 비어 있으면 숨김).</summary>
+        public static readonly DependencyProperty SubMessageProperty =
+            DependencyProperty.Register(
+                "SubMessage",
+                typeof(string),
+                typeof(ModernBusyOverlayControl),
+                new PropertyMetadata(string.Empty));
+
         public ModernBusyOverlayControl()
         {
             this.InitializeComponent();
@@ -27,6 +35,13 @@ namespace Modern.Lab.Controls.Wpf.Display
         {
             get { return (string)this.GetValue(MessageProperty); }
             set { this.SetValue(MessageProperty, value); }
+        }
+
+        /// <summary>주 메시지 아래 표시되는 보조 안내 문구(선택; 비어 있으면 숨김).</summary>
+        public string SubMessage
+        {
+            get { return (string)this.GetValue(SubMessageProperty); }
+            set { this.SetValue(SubMessageProperty, value); }
         }
     }
 }

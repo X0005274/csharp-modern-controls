@@ -12,6 +12,8 @@
 | 멤버 | 비고 |
 |---|---|
 | `Text` | 헤더 타이틀. `Control.Text` override, `[Localizable(true)]` |
+| `TitleFontStyle` | 헤더 타이틀 폰트 스타일(`FontStyle` — Bold/Italic 조합). 기본 `Regular` |
+| `TitleAccent` | `true`면 헤더 타이틀을 액센트 색(#0078D4)으로 강조. 기본 `false` |
 | `Controls` / `Padding` / `Dock` 등 | 일반 Panel과 동일. 기본 Padding이 헤더 높이(40px 상단)를 확보 |
 | `Enabled` | 전파됨 |
 

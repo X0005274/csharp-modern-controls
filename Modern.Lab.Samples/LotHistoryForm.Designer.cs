@@ -58,6 +58,12 @@ namespace Modern.Lab.Samples
             this.valCarrier = new Modern.Lab.WinForms.Controls.Display.ModernLabel();
             this.capEventTm = new Modern.Lab.WinForms.Controls.Display.ModernLabel();
             this.valEventTm = new Modern.Lab.WinForms.Controls.Display.ModernLabel();
+            this.capProdTyp = new Modern.Lab.WinForms.Controls.Display.ModernLabel();
+            this.valProdTyp = new Modern.Lab.WinForms.Controls.Display.ModernLabel();
+            this.capEvent = new Modern.Lab.WinForms.Controls.Display.ModernLabel();
+            this.valEvent = new Modern.Lab.WinForms.Controls.Display.ModernLabel();
+            this.capStk = new Modern.Lab.WinForms.Controls.Display.ModernLabel();
+            this.valStk = new Modern.Lab.WinForms.Controls.Display.ModernLabel();
             this.spStep = new System.Windows.Forms.Panel();
             this.stepCard = new Modern.Lab.WinForms.Controls.Layout.ModernGroupBox();
             this.stepIndicator = new Modern.Lab.WinForms.Controls.Display.ModernStepIndicator();
@@ -240,11 +246,11 @@ namespace Modern.Lab.Samples
             // 
             // busyMain
             // 
-            this.busyMain.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.busyMain.Location = new System.Drawing.Point(0, 246);
+            this.busyMain.Location = new System.Drawing.Point(432, 370);
             this.busyMain.Message = "Loading...";
+            this.busyMain.SubMessage = "이력을 불러오는 중입니다";
             this.busyMain.Name = "busyMain";
-            this.busyMain.Size = new System.Drawing.Size(1164, 430);
+            this.busyMain.Size = new System.Drawing.Size(300, 180);
             this.busyMain.TabIndex = 3;
             this.busyMain.Visible = false;
             this.busyMain.Child = null;
@@ -278,7 +284,7 @@ namespace Modern.Lab.Samples
             this.detailCard.Location = new System.Drawing.Point(0, 106);
             this.detailCard.Name = "detailCard";
             this.detailCard.Padding = new System.Windows.Forms.Padding(12, 40, 12, 8);
-            this.detailCard.Size = new System.Drawing.Size(1164, 152);
+            this.detailCard.Size = new System.Drawing.Size(1164, 190);
             this.detailCard.TabIndex = 0;
             this.detailCard.Text = "Selection";
             this.detailCard.TitleAccent = true;
@@ -297,22 +303,29 @@ namespace Modern.Lab.Samples
             this.tblDetail.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 33.34F));
             this.tblDetail.Controls.Add(this.capProduct, 0, 0);
             this.tblDetail.Controls.Add(this.valProduct, 1, 0);
-            this.tblDetail.Controls.Add(this.capFlow, 2, 0);
-            this.tblDetail.Controls.Add(this.valFlow, 3, 0);
-            this.tblDetail.Controls.Add(this.capOper, 4, 0);
-            this.tblDetail.Controls.Add(this.valOper, 5, 0);
-            this.tblDetail.Controls.Add(this.capEqp, 0, 1);
-            this.tblDetail.Controls.Add(this.valEqp, 1, 1);
-            this.tblDetail.Controls.Add(this.capCarrier, 2, 1);
-            this.tblDetail.Controls.Add(this.valCarrier, 3, 1);
-            this.tblDetail.Controls.Add(this.capEventTm, 4, 1);
-            this.tblDetail.Controls.Add(this.valEventTm, 5, 1);
+            this.tblDetail.Controls.Add(this.capProdTyp, 2, 0);
+            this.tblDetail.Controls.Add(this.valProdTyp, 3, 0);
+            this.tblDetail.Controls.Add(this.capEvent, 4, 0);
+            this.tblDetail.Controls.Add(this.valEvent, 5, 0);
+            this.tblDetail.Controls.Add(this.capFlow, 0, 1);
+            this.tblDetail.Controls.Add(this.valFlow, 1, 1);
+            this.tblDetail.Controls.Add(this.capOper, 2, 1);
+            this.tblDetail.Controls.Add(this.valOper, 3, 1);
+            this.tblDetail.Controls.Add(this.capEqp, 4, 1);
+            this.tblDetail.Controls.Add(this.valEqp, 5, 1);
+            this.tblDetail.Controls.Add(this.capCarrier, 0, 2);
+            this.tblDetail.Controls.Add(this.valCarrier, 1, 2);
+            this.tblDetail.Controls.Add(this.capStk, 2, 2);
+            this.tblDetail.Controls.Add(this.valStk, 3, 2);
+            this.tblDetail.Controls.Add(this.capEventTm, 4, 2);
+            this.tblDetail.Controls.Add(this.valEventTm, 5, 2);
             this.tblDetail.Location = new System.Drawing.Point(12, 76);
             this.tblDetail.Name = "tblDetail";
-            this.tblDetail.RowCount = 2;
+            this.tblDetail.RowCount = 3;
             this.tblDetail.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 32F));
             this.tblDetail.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 32F));
-            this.tblDetail.Size = new System.Drawing.Size(1140, 65);
+            this.tblDetail.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 32F));
+            this.tblDetail.Size = new System.Drawing.Size(1140, 97);
             this.tblDetail.TabIndex = 3;
             this.tblDetail.CellPaint += new System.Windows.Forms.TableLayoutCellPaintEventHandler(this.OnDetailCellPaint);
             //
@@ -333,9 +346,69 @@ namespace Modern.Lab.Samples
             this.badgeStat.TabIndex = 2;
             this.badgeStat.Text = "-";
             this.badgeStat.Child = null;
-            // 
+            //
+            // capProdTyp
+            //
+            this.capProdTyp.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(247)))), ((int)(((byte)(248)))), ((int)(((byte)(250)))));
+            this.capProdTyp.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.capProdTyp.Kind = Modern.Lab.Controls.Wpf.Display.LabelKind.Label;
+            this.capProdTyp.Margin = new System.Windows.Forms.Padding(10, 5, 3, 5);
+            this.capProdTyp.Name = "capProdTyp";
+            this.capProdTyp.TabIndex = 15;
+            this.capProdTyp.Text = "Prod Type";
+            this.capProdTyp.Child = null;
+            //
+            // valProdTyp
+            //
+            this.valProdTyp.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.valProdTyp.Margin = new System.Windows.Forms.Padding(10, 5, 3, 5);
+            this.valProdTyp.Name = "valProdTyp";
+            this.valProdTyp.TabIndex = 16;
+            this.valProdTyp.Text = "-";
+            this.valProdTyp.Child = null;
+            //
+            // capEvent
+            //
+            this.capEvent.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(247)))), ((int)(((byte)(248)))), ((int)(((byte)(250)))));
+            this.capEvent.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.capEvent.Kind = Modern.Lab.Controls.Wpf.Display.LabelKind.Label;
+            this.capEvent.Margin = new System.Windows.Forms.Padding(10, 5, 3, 5);
+            this.capEvent.Name = "capEvent";
+            this.capEvent.TabIndex = 17;
+            this.capEvent.Text = "Event";
+            this.capEvent.Child = null;
+            //
+            // valEvent
+            //
+            this.valEvent.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.valEvent.Margin = new System.Windows.Forms.Padding(10, 5, 3, 5);
+            this.valEvent.Name = "valEvent";
+            this.valEvent.TabIndex = 18;
+            this.valEvent.Text = "-";
+            this.valEvent.Child = null;
+            //
+            // capStk
+            //
+            this.capStk.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(247)))), ((int)(((byte)(248)))), ((int)(((byte)(250)))));
+            this.capStk.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.capStk.Kind = Modern.Lab.Controls.Wpf.Display.LabelKind.Label;
+            this.capStk.Margin = new System.Windows.Forms.Padding(10, 5, 3, 5);
+            this.capStk.Name = "capStk";
+            this.capStk.TabIndex = 19;
+            this.capStk.Text = "Stocker";
+            this.capStk.Child = null;
+            //
+            // valStk
+            //
+            this.valStk.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.valStk.Margin = new System.Windows.Forms.Padding(10, 5, 3, 5);
+            this.valStk.Name = "valStk";
+            this.valStk.TabIndex = 20;
+            this.valStk.Text = "-";
+            this.valStk.Child = null;
+            //
             // capProduct
-            // 
+            //
             this.capProduct.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(247)))), ((int)(((byte)(248)))), ((int)(((byte)(250)))));
             this.capProduct.Dock = System.Windows.Forms.DockStyle.Fill;
             this.capProduct.Kind = Modern.Lab.Controls.Wpf.Display.LabelKind.Label;
@@ -629,6 +702,12 @@ namespace Modern.Lab.Samples
         private Modern.Lab.WinForms.Controls.Display.ModernStatusBadge badgeType;
         private Modern.Lab.WinForms.Controls.Display.ModernStatusBadge badgeStat;
         private Modern.Lab.WinForms.Controls.Display.ModernLabel capProduct;
+        private Modern.Lab.WinForms.Controls.Display.ModernLabel capProdTyp;
+        private Modern.Lab.WinForms.Controls.Display.ModernLabel valProdTyp;
+        private Modern.Lab.WinForms.Controls.Display.ModernLabel capEvent;
+        private Modern.Lab.WinForms.Controls.Display.ModernLabel valEvent;
+        private Modern.Lab.WinForms.Controls.Display.ModernLabel capStk;
+        private Modern.Lab.WinForms.Controls.Display.ModernLabel valStk;
         private Modern.Lab.WinForms.Controls.Display.ModernLabel valProduct;
         private Modern.Lab.WinForms.Controls.Display.ModernLabel capFlow;
         private Modern.Lab.WinForms.Controls.Display.ModernLabel valFlow;

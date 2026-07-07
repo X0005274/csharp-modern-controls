@@ -9,7 +9,7 @@
              UseLayoutRounding="True"
              x:Name="RootControl"
              FontFamily="{DynamicResource Font.Family}"
-             d:DesignWidth="400" d:DesignHeight="300">
+             d:DesignWidth="300" d:DesignHeight="180">
     <UserControl.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
@@ -18,43 +18,115 @@
         </ResourceDictionary>
     </UserControl.Resources>
 
-    <!-- 조회/처리 중 대상 영역을 덮는 로딩 패널.
-         ElementHost 제약상 아래 컨트롤이 비치는 반투명은 불가능하므로
-         밝은 불투명 표면 + 스피너 + 메시지로 구성한다. -->
-    <Border Background="{StaticResource Brush.Surface}"
-            BorderBrush="{StaticResource Brush.BorderSubtle}"
-            BorderThickness="1"
-            CornerRadius="{StaticResource Radius.Sm}">
-        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
-            <!-- 회전 스피너: 액센트색 점선 링 -->
-            <Ellipse x:Name="Spinner"
-                     Width="32" Height="32"
-                     Stroke="{StaticResource Brush.Accent}"
-                     StrokeThickness="3"
-                     StrokeDashArray="16 8"
-                     StrokeDashCap="Round"
-                     RenderTransformOrigin="0.5,0.5">
-                <Ellipse.RenderTransform>
-                    <RotateTransform x:Name="SpinRotate" Angle="0" />
-                </Ellipse.RenderTransform>
-                <Ellipse.Triggers>
-                    <EventTrigger RoutedEvent="Ellipse.Loaded">
-                        <BeginStoryboard>
-                            <Storyboard RepeatBehavior="Forever">
-                                <DoubleAnimation Storyboard.TargetName="SpinRotate"
-                                                 Storyboard.TargetProperty="Angle"
-                                                 From="0" To="360" Duration="0:0:1.2" />
-                            </Storyboard>
-                        </BeginStoryboard>
-                    </EventTrigger>
-                </Ellipse.Triggers>
-            </Ellipse>
+    <!-- 조회/처리 중 표시하는 컴팩트 로딩 팝업.
+         대상 영역을 통째로 가리지 않고, 가운데 작은 카드만 띄운다(래퍼가 부모
+         중앙에 배치). ElementHost는 불투명이므로 카드 바깥 여백은 래퍼의 BackColor
+         (흰색)로 채워지며, 그 위에 그림자가 얹혀 "떠 있는 카드"처럼 보인다.
+         루트 배경을 흰색으로 두어(ElementHost.BackColor 의존 없이) 카드 바깥
+         여백을 결정적으로 흰색으로 채운다. 그리드 표면도 흰색이라 사각 모서리가
+         자연스럽게 묻힌다. -->
+    <Grid Background="{StaticResource Brush.Surface}">
+        <Border HorizontalAlignment="Center"
+                VerticalAlignment="Center"
+                Margin="14"
+                MinWidth="200"
+                Background="{StaticResource Brush.Surface}"
+                BorderBrush="{StaticResource Brush.Border}"
+                BorderThickness="1"
+                CornerRadius="{StaticResource Radius.Lg}"
+                Padding="32,24">
+            <Border.Effect>
+                <DropShadowEffect Color="#FF1E293B"
+                                  Opacity="0.28"
+                                  BlurRadius="22"
+                                  ShadowDepth="4"
+                                  Direction="270" />
+            </Border.Effect>
 
-            <TextBlock Text="{Binding Message, ElementName=RootControl}"
-                       Margin="0,12,0,0"
-                       HorizontalAlignment="Center"
-                       FontSize="{StaticResource Font.Size.Body}"
-                       Foreground="{StaticResource Brush.TextSecondary}" />
-        </StackPanel>
-    </Border>
+            <StackPanel HorizontalAlignment="Center">
+                <!-- 아크 스피너: 옅은 트랙 링 위에서 액센트 그라디언트 3/4 아크가 회전.
+                     회전축은 RenderTransformOrigin(0.5,0.5) "하나만" 쓴다 — CenterX/Y와
+                     함께 쓰면 축이 더해져 스피너가 궤도를 벗어나 흔들린다. -->
+                <Grid Width="46" Height="46" HorizontalAlignment="Center">
+                    <Ellipse Width="38" Height="38"
+                             HorizontalAlignment="Center"
+                             VerticalAlignment="Center"
+                             Stroke="{StaticResource Brush.BorderSubtle}"
+                             StrokeThickness="4.5" />
+                    <Path StrokeThickness="4.5"
+                          StrokeStartLineCap="Round"
+                          StrokeEndLineCap="Round"
+                          HorizontalAlignment="Center"
+                          VerticalAlignment="Center"
+                          RenderTransformOrigin="0.5,0.5">
+                        <Path.Stroke>
+                            <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                <GradientStop Color="#FF0078D4" Offset="0" />
+                                <GradientStop Color="#FF5EB0EE" Offset="1" />
+                            </LinearGradientBrush>
+                        </Path.Stroke>
+                        <Path.Data>
+                            <PathGeometry>
+                                <PathFigure StartPoint="23,4">
+                                    <ArcSegment Point="4,23"
+                                                Size="19,19"
+                                                IsLargeArc="True"
+                                                SweepDirection="Clockwise" />
+                                </PathFigure>
+                            </PathGeometry>
+                        </Path.Data>
+                        <Path.RenderTransform>
+                            <RotateTransform x:Name="SpinRotate" Angle="0" />
+                        </Path.RenderTransform>
+                        <Path.Triggers>
+                            <EventTrigger RoutedEvent="Path.Loaded">
+                                <BeginStoryboard>
+                                    <Storyboard RepeatBehavior="Forever">
+                                        <DoubleAnimation Storyboard.TargetName="SpinRotate"
+                                                         Storyboard.TargetProperty="Angle"
+                                                         From="0" To="360" Duration="0:0:0.9" />
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </EventTrigger>
+                        </Path.Triggers>
+                    </Path>
+                </Grid>
+
+                <!-- 주 메시지 -->
+                <TextBlock Text="{Binding Message, ElementName=RootControl}"
+                           Margin="0,16,0,0"
+                           HorizontalAlignment="Center"
+                           FontSize="{StaticResource Font.Size.Body}"
+                           FontWeight="SemiBold"
+                           Foreground="{StaticResource Brush.TextPrimary}">
+                    <TextBlock.Style>
+                        <Style TargetType="TextBlock">
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding Message, ElementName=RootControl}" Value="">
+                                    <Setter Property="Visibility" Value="Collapsed" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TextBlock.Style>
+                </TextBlock>
+
+                <!-- 보조 메시지(선택) — 비어 있으면 숨긴다. -->
+                <TextBlock Text="{Binding SubMessage, ElementName=RootControl}"
+                           Margin="0,5,0,0"
+                           HorizontalAlignment="Center"
+                           FontSize="{StaticResource Font.Size.Helper}"
+                           Foreground="{StaticResource Brush.TextSecondary}">
+                    <TextBlock.Style>
+                        <Style TargetType="TextBlock">
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding SubMessage, ElementName=RootControl}" Value="">
+                                    <Setter Property="Visibility" Value="Collapsed" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TextBlock.Style>
+                </TextBlock>
+            </StackPanel>
+        </Border>
+    </Grid>
 </UserControl>

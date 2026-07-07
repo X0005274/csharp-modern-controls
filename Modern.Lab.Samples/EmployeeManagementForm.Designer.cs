@@ -379,9 +379,10 @@ namespace Modern.Lab.Samples
             //
             // busyOverlay
             //
-            this.busyOverlay.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.busyOverlay.Location = new System.Drawing.Point(300, 240);
             this.busyOverlay.Message = "직원 정보를 조회하는 중...";
             this.busyOverlay.Name = "busyOverlay";
+            this.busyOverlay.Size = new System.Drawing.Size(300, 180);
             this.busyOverlay.TabIndex = 6;
             this.busyOverlay.Child = null;
             //
