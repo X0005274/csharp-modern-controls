@@ -23,9 +23,9 @@ namespace Modern.Lab.WinForms.Controls.Display
     [DesignerCategory("Code")]
     public class ModernStatusBadge : Control
     {
-        // Themes/Tokens.xaml에서 미러링한 토큰: 중립 배지 색과 텍스트 크기.
-        private static readonly Color NeutralBackground = System.Drawing.Color.FromArgb(243, 244, 246); // Brush.NeutralBackground
-        private static readonly Color NeutralText = System.Drawing.Color.FromArgb(55, 65, 81);          // Brush.NeutralText
+        // 중립 배지 색은 중앙 팔레트(ModernTheme)에서 — 라이트/다크에 따라 바뀐다.
+        private static Color NeutralBackground { get { return Modern.Lab.Theming.ModernTheme.NeutralBackground; } }
+        private static Color NeutralText { get { return Modern.Lab.Theming.ModernTheme.NeutralText; } }
 
         // Font.Size.Helper 12 DIU = 9pt, 배지 텍스트는 SemiBold.
         private static readonly Font BadgeFont = new Font("Segoe UI Semibold", 9f);

@@ -17,11 +17,10 @@ namespace Modern.Lab.WinForms.Controls.Layout
     [ToolboxItem(true)]
     public class ModernGroupBox : ModernCardPanel
     {
-        // Themes/Tokens.xaml에서 미러링한 토큰(GDI+는 XAML 리소스를 읽을 수 없다):
-        // Brush.TextPrimary / Brush.BorderSubtle / 구조 요소 SemiBold 9pt.
-        private static readonly Color TitleColor = Color.FromArgb(17, 24, 39);
-        private static readonly Color AccentTitleColor = Color.FromArgb(0, 120, 212); // Brush.Accent 미러
-        private static readonly Color SeparatorColor = Color.FromArgb(229, 231, 235);
+        // 제목/구분선 색은 중앙 팔레트(ModernTheme)에서 — 라이트/다크에 따라 바뀐다.
+        private static Color TitleColor { get { return Modern.Lab.Theming.ModernTheme.TextPrimary; } }
+        private static Color AccentTitleColor { get { return Modern.Lab.Theming.ModernTheme.Accent; } }
+        private static Color SeparatorColor { get { return Modern.Lab.Theming.ModernTheme.BorderSubtle; } }
         private const int HeaderHeight = 32;
 
         private string titleText;

@@ -2,6 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.Windows;
 
+using Modern.Lab.Theming;
+
 namespace Modern.Lab.Controls.Wpf.Common
 {
     /// <summary>
@@ -19,6 +21,10 @@ namespace Modern.Lab.Controls.Wpf.Common
         // URI → 로드된 사전. 토큰 사전은 읽기 전용으로만 쓰이므로 공유해도 안전하다.
         private static readonly Dictionary<Uri, ResourceDictionary> cache =
             new Dictionary<Uri, ResourceDictionary>();
+
+        // 다크 오버라이드 사전 — 다크 모드일 때 Tokens.xaml 뒤에 병합해 같은 키를 덮는다.
+        private static readonly Uri DarkOverrideUri =
+            new Uri("/Modern.Lab.Commons;component/Themes/Tokens.Dark.xaml", UriKind.Relative);
 
         private Uri sourceUri;
 
@@ -41,19 +47,32 @@ namespace Modern.Lab.Controls.Wpf.Common
                     return;
                 }
 
-                ResourceDictionary shared;
+                this.MergedDictionaries.Add(Load(value));
 
-                lock (cache)
+                // 다크 모드면 메인 토큰 사전 뒤에 다크 오버라이드를 병합한다 —
+                // 병합 사전은 나중에 추가된 쪽이 이기므로 StaticResource가 다크 값을 집는다.
+                // 라이트(기본)에서는 아무것도 하지 않으므로 다른 시스템은 영향이 없다.
+                if (ModernTheme.IsDark
+                        && value.OriginalString.EndsWith("Tokens.xaml", StringComparison.OrdinalIgnoreCase))
                 {
-                    if (!cache.TryGetValue(value, out shared))
-                    {
-                        shared = new ResourceDictionary();
-                        shared.Source = value;
-                        cache.Add(value, shared);
-                    }
+                    this.MergedDictionaries.Add(Load(DarkOverrideUri));
                 }
+            }
+        }
 
-                this.MergedDictionaries.Add(shared);
+        /// <summary>URI별로 한 번만 로드해 캐시된 사전을 돌려준다.</summary>
+        private static ResourceDictionary Load(Uri uri)
+        {
+            lock (cache)
+            {
+                ResourceDictionary shared;
+                if (!cache.TryGetValue(uri, out shared))
+                {
+                    shared = new ResourceDictionary();
+                    shared.Source = uri;
+                    cache.Add(uri, shared);
+                }
+                return shared;
             }
         }
     }

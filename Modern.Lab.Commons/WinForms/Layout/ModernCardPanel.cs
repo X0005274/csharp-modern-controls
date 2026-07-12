@@ -20,10 +20,10 @@ namespace Modern.Lab.WinForms.Controls.Layout
     [ToolboxItem(true)]
     public class ModernCardPanel : Panel
     {
-        // Themes/Tokens.xaml에서 미러링한 카드 토큰(GDI+는 XAML 리소스를
-        // 읽을 수 없다): Brush.Surface / Brush.BorderSubtle / Radius.Lg.
-        private static readonly Color SurfaceColor = Color.FromArgb(255, 255, 255);
-        private static readonly Color BorderColor = Color.FromArgb(229, 231, 235);
+        // 카드 표면/테두리 색은 중앙 팔레트(ModernTheme)에서 — 라이트/다크에 따라 바뀐다.
+        // (Brush.Surface / Brush.BorderSubtle / Radius.Lg 미러링.)
+        private static Color SurfaceColor { get { return Modern.Lab.Theming.ModernTheme.Surface; } }
+        private static Color BorderColor { get { return Modern.Lab.Theming.ModernTheme.BorderSubtle; } }
         private const int CardCornerRadius = 8;
 
         /// <summary>카드 표면과 기본 패딩으로 패널을 생성한다.</summary>

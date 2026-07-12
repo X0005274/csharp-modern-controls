@@ -24,12 +24,13 @@ namespace Modern.Lab.WinForms.Controls.Display
     [DesignerCategory("Code")]
     public class ModernLabel : Control
     {
-        // Themes/Tokens.xaml에서 미러링한 토큰(GDI+는 XAML 리소스를 읽을 수 없다).
-        private static readonly Color TextPrimaryColor = Color.FromArgb(17, 24, 39);      // Brush.TextPrimary
-        private static readonly Color TextSecondaryColor = Color.FromArgb(107, 114, 128); // Brush.TextSecondary
-        private static readonly Color DisabledTextColor = Color.FromArgb(156, 163, 175);  // Brush.DisabledText
-        private static readonly Color AccentColor = Color.FromArgb(0, 120, 212);          // Brush.Accent
-        private static readonly Color RequiredColor = Color.FromArgb(220, 38, 38);        // Brush.ErrorBorder
+        // 색은 중앙 팔레트(ModernTheme)에서 읽는다 — 라이트/다크 테마에 따라 값이 바뀐다.
+        // (GDI+는 XAML 리소스를 읽을 수 없으므로 Themes/Tokens.xaml 값을 팔레트로 미러링.)
+        private static Color TextPrimaryColor { get { return Modern.Lab.Theming.ModernTheme.TextPrimary; } }
+        private static Color TextSecondaryColor { get { return Modern.Lab.Theming.ModernTheme.TextSecondary; } }
+        private static Color DisabledTextColor { get { return Modern.Lab.Theming.ModernTheme.DisabledText; } }
+        private static Color AccentColor { get { return Modern.Lab.Theming.ModernTheme.Accent; } }
+        private static Color RequiredColor { get { return Modern.Lab.Theming.ModernTheme.RequiredRed; } }
 
         // 타입 램프 미러: Body/Label/Helper 12 DIU = 9pt, Title 16 DIU = 12pt.
         // 구조 요소(Title/Label)는 SemiBold, 본문/도움말은 Regular.
