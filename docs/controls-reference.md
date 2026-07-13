@@ -814,15 +814,20 @@ Application.Run(new MainForm());
 
 동작 확인은 샘플 갤러리로: `Modern.Lab.Samples.exe --dark`
 
-### ModernThemeWinForms.Apply(form) — 폼 다크 적용 헬퍼 (v0.5.0)
+### ModernThemeWinForms.Apply(root) — 화면 다크 적용 헬퍼 (v0.5.0)
 
 `Modern.Lab.Theming.ModernThemeWinForms`. 다크 모드일 때만 동작하고 라이트
 모드에서는 완전한 no-op이므로 조건문 없이 항상 호출해도 안전하다.
 
+`Apply(Control root)` — **root는 Form이 아니어도 된다.** 화면이 UserControl이나
+사내/서드파티 프레임워크의 베이스 컨트롤이면 그 루트를 그대로 넘긴다. root가
+Form이 아니면 타이틀바는 건드리지 않으므로, 최상위 폼에서
+`ApplyDarkTitleBar(mainForm)`을 한 번 따로 호출한다.
+
 | 하는 일 | 내용 |
 |---|---|
-| 타이틀바 | OS 타이틀바를 다크로 (DWM immersive dark mode, Win10 1809+; 미지원 OS는 조용히 무시) |
-| 폼 배경 | `ModernTheme.Background`로 설정 |
+| 타이틀바 | root가 Form일 때만 — OS 타이틀바를 다크로 (DWM immersive dark mode, Win10 1809+; 미지원 OS는 조용히 무시) |
+| 루트 배경 | `ModernTheme.Background`로 설정 |
 | 자식 컨트롤 | 전체 재귀 순회하며 아래 표의 "알려진 라이트 색"과 **정확히 일치**하는 `BackColor`/`ForeColor`만 다크 팔레트로 치환 — 상태색(빨강/초록 등) 등 의도적인 색은 보존 |
 
 색 치환 표:
@@ -837,8 +842,12 @@ Application.Run(new MainForm());
 | (55,65,81) | `NeutralText` |
 
 - WPF(ElementHost) 컨트롤은 건너뛴다 — `Tokens.Dark.xaml`이 스스로 처리.
-- 런타임에 동적으로 추가한 컨트롤은 추가 후 `Apply(form)`을 다시 호출하면 된다
-  (폼 생성 시 1회 호출 기준으로 설계 — 반복 호출을 전제로 하지는 말 것).
+- 런타임에 동적으로 추가한 컨트롤은 추가 후 `Apply(root)`를 다시 호출하면 된다
+  (화면 생성 시 1회 호출 기준으로 설계 — 반복 호출을 전제로 하지는 말 것).
+- **커스텀 페인트에는 닿지 않는다** — `Paint`/`CellPaint` 핸들러 안에서 색을
+  하드코딩해 직접 그리는 코드는 Apply가 바꿀 수 없다. 그런 코드는
+  `ModernTheme` 팔레트 색으로 그리도록 고친다 (예: 샘플
+  `LotHistoryForm.OnDetailCellPaint` — 캡션 `SurfaceAlt`, 괘선 `BorderSubtle`).
 - 타이틀바만 필요하면 `ModernThemeWinForms.ApplyDarkTitleBar(form)` 개별 사용 가능.
 - 알려진 한계: `ModernSpreadGrid`(FarPoint COM)는 내부 셀 색이 라이트로 고정 —
   다크 지원은 추후 과제.

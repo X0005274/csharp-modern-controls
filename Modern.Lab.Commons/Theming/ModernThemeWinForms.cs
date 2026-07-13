@@ -40,12 +40,17 @@ namespace Modern.Lab.Theming
         private static extern int DwmSetWindowAttribute(IntPtr hwnd, int attribute, ref int value, int size);
 
         /// <summary>
-        /// 폼에 다크 테마를 적용한다: 타이틀바 + 폼 배경 + 자식 컨트롤 색 치환.
+        /// 화면 루트에 다크 테마를 적용한다: (Form이면) 타이틀바 + 배경 + 자식 컨트롤 색 치환.
         /// 라이트 모드에서는 아무 것도 하지 않는다.
+        ///
+        /// root는 Form일 필요가 없다 — 사내/서드파티 프레임워크처럼 화면이
+        /// UserControl이나 자체 베이스 컨트롤 기반이어도 그대로 넘기면 된다.
+        /// root가 Form이 아니면 타이틀바는 건드리지 않으므로, 최상위 폼에는
+        /// <see cref="ApplyDarkTitleBar(Form)"/>를 한 번 따로 호출한다.
         /// </summary>
-        public static void Apply(Form form)
+        public static void Apply(Control root)
         {
-            if (form == null)
+            if (root == null)
             {
                 return;
             }
@@ -55,9 +60,15 @@ namespace Modern.Lab.Theming
                 return;
             }
 
-            ApplyDarkTitleBar(form);
-            form.BackColor = ModernTheme.Background;
-            RemapChildColors(form);
+            Form form = root as Form;
+
+            if (form != null)
+            {
+                ApplyDarkTitleBar(form);
+            }
+
+            root.BackColor = ModernTheme.Background;
+            RemapChildColors(root);
         }
 
         /// <summary>

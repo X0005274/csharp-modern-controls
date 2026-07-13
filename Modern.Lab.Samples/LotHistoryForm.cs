@@ -596,23 +596,25 @@ namespace Modern.Lab.Samples
         }
 
         // Selection 상세 표의 셀 배경/괘선을 그린다.
-        // 캡션 열(0,2,4)은 그리드 헤더처럼 옅은 회색으로 칠하고,
-        // 모든 셀에 디자인 토큰 색(Brush.BorderSubtle=#E5E7EB) 괘선을 둘러
-        // "표" 형태로 보이게 한다. (TableLayoutPanel 기본 CellBorderStyle은
-        // 진회색 클래식 선이라 쓰지 않는다.)
+        // 캡션 열(0,2,4)은 그리드 헤더처럼 옅은 톤(SurfaceAlt)으로 칠하고,
+        // 모든 셀에 BorderSubtle 괘선을 둘러 "표" 형태로 보이게 한다.
+        // (TableLayoutPanel 기본 CellBorderStyle은 진회색 클래식 선이라 쓰지 않는다.)
+        // 색은 하드코딩하지 않고 ModernTheme 팔레트에서 읽는다 — 커스텀 페인트는
+        // ModernThemeWinForms.Apply의 속성 치환이 닿지 않으므로 이렇게 해야
+        // 라이트/다크 모두에서 맞는 색이 나온다.
         private void OnDetailCellPaint(object sender, TableLayoutCellPaintEventArgs e)
         {
             bool captionColumn = e.Column == 0 || e.Column == 2 || e.Column == 4;
 
             if (captionColumn)
             {
-                using (SolidBrush headerBrush = new SolidBrush(Color.FromArgb(247, 248, 250)))
+                using (SolidBrush headerBrush = new SolidBrush(Modern.Lab.Theming.ModernTheme.SurfaceAlt))
                 {
                     e.Graphics.FillRectangle(headerBrush, e.CellBounds);
                 }
             }
 
-            using (Pen linePen = new Pen(Color.FromArgb(229, 231, 235)))
+            using (Pen linePen = new Pen(Modern.Lab.Theming.ModernTheme.BorderSubtle))
             {
                 Rectangle cell = e.CellBounds;
 
