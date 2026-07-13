@@ -42,6 +42,16 @@ namespace Modern.Lab.Controls.Wpf.Display
             this.InitializeComponent();
         }
 
+        /// <summary>
+        /// 카드 바깥 여백(루트 그리드) 배경을 지정한다. 래퍼가 표시 직전에 부모
+        /// BackColor를 넘겨, 팝업 카드 주변 사각 영역이 어떤 배경(라이트 흰 그리드 /
+        /// 다크 폼 배경) 위에서도 박스로 드러나지 않고 묻히게 한다.
+        /// </summary>
+        public void SetOuterBackground(System.Windows.Media.Color color)
+        {
+            this.OuterGrid.Background = new System.Windows.Media.SolidColorBrush(color);
+        }
+
         /// <summary>스피너 아래 표시되는 안내 메시지.</summary>
         public string Message
         {

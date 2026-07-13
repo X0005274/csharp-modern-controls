@@ -21,12 +21,11 @@
 
     <!-- 조회/처리 중 표시하는 컴팩트 로딩 팝업.
          대상 영역을 통째로 가리지 않고, 가운데 작은 카드만 띄운다(래퍼가 부모
-         중앙에 배치). ElementHost는 불투명이므로 카드 바깥 여백은 래퍼의 BackColor
-         (흰색)로 채워지며, 그 위에 그림자가 얹혀 "떠 있는 카드"처럼 보인다.
-         루트 배경을 흰색으로 두어(ElementHost.BackColor 의존 없이) 카드 바깥
-         여백을 결정적으로 흰색으로 채운다. 그리드 표면도 흰색이라 사각 모서리가
-         자연스럽게 묻힌다. -->
-    <Grid Background="{StaticResource Brush.Surface}">
+         중앙에 배치). ElementHost는 불투명이므로 카드 바깥 여백(OuterGrid 배경)이
+         그대로 보인다 — 기본은 Surface지만, 래퍼가 표시 시점에 부모 BackColor로
+         덮어써서(SetOuterBackground) 어떤 배경 위에서도 사각 여백이 묻히게 한다.
+         (고정 Surface만 쓰면 다크 테마의 Background 위에서 밝은 박스로 드러난다.) -->
+    <Grid x:Name="OuterGrid" Background="{StaticResource Brush.Surface}">
         <Border HorizontalAlignment="Center"
                 VerticalAlignment="Center"
                 Margin="14"

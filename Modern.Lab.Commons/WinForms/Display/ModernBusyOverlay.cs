@@ -33,8 +33,9 @@ namespace Modern.Lab.WinForms.Controls.Display
             this.fallbackSubMessage = string.Empty;
             this.busy = false;
 
-            // 카드 바깥 여백/사각 모서리가 흰색 그리드 표면에 묻히도록 배경을 흰색으로.
-            base.BackColor = Color.White;
+            // 카드 바깥 여백/사각 모서리가 주변에 묻히도록 테마 표면색을 기본값으로.
+            // (표시 시점에 부모 BackColor로 다시 맞춘다 — Busy setter 참고.)
+            base.BackColor = Modern.Lab.Theming.ModernTheme.Surface;
 
             // 오버레이는 필요할 때만 나타난다. 디자인 타임에는 배치를 위해
             // 보이는 상태를 유지한다.
@@ -70,6 +71,7 @@ namespace Modern.Lab.WinForms.Controls.Display
 
                 if (value)
                 {
+                    this.MatchOuterToParent();
                     this.CenterInParent();
                     this.Visible = true;
                     this.BringToFront();
@@ -78,6 +80,29 @@ namespace Modern.Lab.WinForms.Controls.Display
                 {
                     this.Visible = false;
                 }
+            }
+        }
+
+        /// <summary>
+        /// 표시 직전 카드 바깥 여백(외곽 배경)을 부모 BackColor에 맞춘다.
+        /// 고정 색(흰색/Surface)만 쓰면 라이트 흰 그리드에서는 묻히지만
+        /// 다크 테마의 Background 위에서는 밝은 박스로 드러나기 때문에,
+        /// 실제로 덮고 있는 배경색을 그대로 따라간다 (WPF 루트 + 호스트 양쪽).
+        /// </summary>
+        private void MatchOuterToParent()
+        {
+            if (this.Parent == null)
+            {
+                return;
+            }
+
+            Color parentColor = this.Parent.BackColor;
+            base.BackColor = parentColor;
+
+            if (this.Wpf != null)
+            {
+                this.Wpf.SetOuterBackground(System.Windows.Media.Color.FromArgb(
+                        parentColor.A, parentColor.R, parentColor.G, parentColor.B));
             }
         }
 
