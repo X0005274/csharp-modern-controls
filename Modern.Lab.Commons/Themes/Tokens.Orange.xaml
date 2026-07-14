@@ -2,33 +2,33 @@
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
     <!-- ============================================================= -->
-    <!-- Orange 테마 오버라이드 — 피치 파스텔 (라이트 기반).              -->
-    <!-- 흰 카드가 뚜렷한 파스텔 배경/테두리 위에 떠 보이도록 배경·테두리· -->
-    <!-- 선택 강조를 틴트한다. 텍스트/시맨틱 색은 라이트 값을 공유한다.   -->
+    <!-- Orange 테마 오버라이드 — Fluent 공식 오렌지(#CA5010,             -->
+    <!-- sharedOrange20) 램프의 파스텔. 흰 카드 + 웜 파스텔 배경/테두리.  -->
+    <!-- 텍스트/시맨틱 색은 라이트 값을 공유한다.                        -->
     <!-- SharedResourceDictionary가 ModernTheme.Mode == Orange일 때 병합. -->
     <!-- ============================================================= -->
 
-    <!-- Primary (액센트) — 오렌지 -->
-    <SolidColorBrush x:Key="Brush.Accent" Color="#FFEA580C" />
-    <SolidColorBrush x:Key="Brush.AccentHover" Color="#FFF97316" />
-    <SolidColorBrush x:Key="Brush.AccentPressed" Color="#FFC2410C" />
+    <!-- Primary (액센트) — Fluent #CA5010 램프 -->
+    <SolidColorBrush x:Key="Brush.Accent" Color="#FFCA5010" />
+    <SolidColorBrush x:Key="Brush.AccentHover" Color="#FFD96A2A" />
+    <SolidColorBrush x:Key="Brush.AccentPressed" Color="#FFA64009" />
     <SolidColorBrush x:Key="Brush.OnAccent" Color="#FFFFFFFF" />
-    <SolidColorBrush x:Key="Brush.SelectedBackground" Color="#FFFCE0C0" />
-    <SolidColorBrush x:Key="Brush.SelectedText" Color="#FF9A3412" />
-    <SolidColorBrush x:Key="Brush.FocusBorder" Color="#FFEA580C" />
-    <SolidColorBrush x:Key="Brush.FocusRing" Color="#55EA580C" />
+    <SolidColorBrush x:Key="Brush.SelectedBackground" Color="#FFF6D9BC" />
+    <SolidColorBrush x:Key="Brush.SelectedText" Color="#FF7A3005" />
+    <SolidColorBrush x:Key="Brush.FocusBorder" Color="#FFCA5010" />
+    <SolidColorBrush x:Key="Brush.FocusRing" Color="#33CA5010" />
 
-    <!-- Neutral — 피치 파스텔 배경·테두리 (카드 표면은 흰색 유지) -->
-    <SolidColorBrush x:Key="Brush.Background" Color="#FFFAE7D3" />
-    <SolidColorBrush x:Key="Brush.SurfaceAlt" Color="#FFFDF2E6" />
-    <SolidColorBrush x:Key="Brush.HeaderBackground" Color="#FFFDF2E6" />
-    <SolidColorBrush x:Key="Brush.GridHeaderBackground" Color="#FFF7E3CC" />
-    <SolidColorBrush x:Key="Brush.GridRowAlt" Color="#FFFDF5EB" />
-    <SolidColorBrush x:Key="Brush.Border" Color="#FFF0D9BE" />
-    <SolidColorBrush x:Key="Brush.BorderSubtle" Color="#FFF7E5D0" />
-    <SolidColorBrush x:Key="Brush.BorderHover" Color="#FFE3B98C" />
-    <SolidColorBrush x:Key="Brush.HoverBackground" Color="#FFFCF0E2" />
+    <!-- Neutral — Fluent 오렌지 램프의 파스텔 배경·테두리 (카드 표면 흰색 유지) -->
+    <SolidColorBrush x:Key="Brush.Background" Color="#FFFAEADC" />
+    <SolidColorBrush x:Key="Brush.SurfaceAlt" Color="#FFFDF5EC" />
+    <SolidColorBrush x:Key="Brush.HeaderBackground" Color="#FFFDF5EC" />
+    <SolidColorBrush x:Key="Brush.GridHeaderBackground" Color="#FFF4DCC4" />
+    <SolidColorBrush x:Key="Brush.GridRowAlt" Color="#FFFCF6EE" />
+    <SolidColorBrush x:Key="Brush.Border" Color="#FFEFD0B2" />
+    <SolidColorBrush x:Key="Brush.BorderSubtle" Color="#FFF6E2CD" />
+    <SolidColorBrush x:Key="Brush.BorderHover" Color="#FFE0A671" />
+    <SolidColorBrush x:Key="Brush.HoverBackground" Color="#FFFBF0E4" />
 
-    <Color x:Key="Color.Accent">#FFEA580C</Color>
+    <Color x:Key="Color.Accent">#FFCA5010</Color>
 
 </ResourceDictionary>

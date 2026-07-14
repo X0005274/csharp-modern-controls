@@ -85,8 +85,11 @@ namespace Modern.Lab.WinForms.Controls.Layout
 
             e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
 
+            // Win11 카드 엘리베이션: 카드 본체를 2px 위로 올리고 아래 여백에
+            // 옅은 그림자 라인 두 줄을 깐다 (알파 블랙 — 어떤 배경에서도 자연스럽고,
+            // DropShadowEffect 같은 비용 없이 스텝당 그리기 비용이 사실상 0이다).
             using (GraphicsPath cardPath = CreateRoundedPath(
-                new Rectangle(0, 0, this.Width - 1, this.Height - 1), CardCornerRadius))
+                new Rectangle(0, 0, this.Width - 1, this.Height - 3), CardCornerRadius))
             {
                 // 둥근 사각형 바깥 영역을 부모 배경색으로 다시 칠해
                 // 모서리가 흰 사각형으로 보이지 않게 한다.
@@ -105,6 +108,22 @@ namespace Modern.Lab.WinForms.Controls.Layout
                 using (Pen borderPen = new Pen(BorderColor))
                 {
                     e.Graphics.DrawPath(borderPen, cardPath);
+                }
+
+                // 하단 그림자: 카드 바로 아래 1px(진하게) + 그 아래 1px(옅게).
+                // 모서리 반경만큼 안쪽에서 시작해 둥근 모서리와 자연스럽게 만난다.
+                using (Pen shadowNear = new Pen(Color.FromArgb(26, 0, 0, 0)))
+                {
+                    e.Graphics.DrawLine(shadowNear,
+                            CardCornerRadius, this.Height - 2,
+                            this.Width - 1 - CardCornerRadius, this.Height - 2);
+                }
+
+                using (Pen shadowFar = new Pen(Color.FromArgb(10, 0, 0, 0)))
+                {
+                    e.Graphics.DrawLine(shadowFar,
+                            CardCornerRadius + 2, this.Height - 1,
+                            this.Width - 3 - CardCornerRadius, this.Height - 1);
                 }
             }
         }
