@@ -20,6 +20,7 @@
 | `Text` | 체크된 항목 표시 텍스트를 ", "로 연결한 값 (읽기 전용) |
 | `Required` | 필수 입력 표시 — 체크가 없는 동안 필드 오른쪽에 빨간 점, 체크하면 사라짐 (입력 컨트롤 공통 속성) |
 | `Enabled` | 전파됨 |
+| `ConfigureDropDownColumns(...)` | **체크 그리드 콤보** — 드롭다운을 멀티컬럼(코드+명칭+상태 등) 행으로 구성. 그리드와 같은 `ModernDataGridColumn` 정의를 재사용하고 팝업 상단에 헤더 행이 표시된다. 필드 텍스트는 계속 `DisplayMember`. `DataSource` 할당 전에 호출 |
 
 ## 동작
 
@@ -51,6 +52,20 @@ if (rankCodes != null && rankCodes.Length > 0)
 
 // 초기화
 this.cboRank.CheckedValues = null;
+```
+
+## 사용 예시 — 체크 그리드 콤보 (멀티컬럼 드롭다운)
+
+```csharp
+using Modern.Lab.Controls.Wpf.Data;   // ModernDataGridColumn
+
+this.cboEqp.DisplayMember = "EQP_NAME";
+this.cboEqp.ValueMember = "EQP_ID";
+this.cboEqp.ConfigureDropDownColumns(
+    new ModernDataGridColumn("EQP_ID", "Code", 90),
+    new ModernDataGridColumn("EQP_NAME", "Equipment", 160),
+    new ModernDataGridColumn("STATE", "State", 70));
+this.cboEqp.DataSource = eqpTable;     // (EQP_ID, EQP_NAME, STATE)
 ```
 
 ## 미지원 / 주의

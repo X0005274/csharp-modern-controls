@@ -246,6 +246,13 @@
                                   Content="Select all"
                                   Click="SelectAllCheck_Click" />
                     </Border>
+                    <!-- 멀티컬럼 헤더 행 — ApplyDropDownColumns가 캡션을 채우고 보이게 한다 -->
+                    <Border x:Name="DropDownHeaderHost"
+                            DockPanel.Dock="Top"
+                            Visibility="Collapsed"
+                            Background="{StaticResource Brush.GridHeaderBackground}"
+                            BorderBrush="{StaticResource Brush.BorderSubtle}"
+                            BorderThickness="0,0,0,1" />
                     <ScrollViewer VerticalScrollBarVisibility="Auto">
                         <ItemsControl x:Name="CheckItemsControl" />
                     </ScrollViewer>

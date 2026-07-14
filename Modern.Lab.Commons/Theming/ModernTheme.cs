@@ -259,6 +259,57 @@ namespace Modern.Lab.Theming
             }
         }
 
+        /// <summary>그리드 열 헤더 배경 (Brush.GridHeaderBackground)</summary>
+        public static Color GridHeaderBackground
+        {
+            get
+            {
+                switch (Mode)
+                {
+                    case ThemeMode.Dark: return Rgb(54, 54, 54);
+                    case ThemeMode.Gray: return Rgb(110, 110, 110);
+                    case ThemeMode.Purple: return Rgb(227, 216, 244);
+                    case ThemeMode.Orange: return Rgb(244, 220, 196);
+                    case ThemeMode.Tomato: return Rgb(246, 216, 218);
+                    default: return Rgb(240, 240, 240);
+                }
+            }
+        }
+
+        /// <summary>그리드 교차 행 배경 (Brush.GridRowAlt)</summary>
+        public static Color GridRowAlt
+        {
+            get
+            {
+                switch (Mode)
+                {
+                    case ThemeMode.Dark: return Rgb(48, 48, 48);
+                    case ThemeMode.Gray: return Rgb(102, 102, 102);
+                    case ThemeMode.Purple: return Rgb(248, 245, 252);
+                    case ThemeMode.Orange: return Rgb(252, 246, 238);
+                    case ThemeMode.Tomato: return Rgb(252, 243, 243);
+                    default: return Rgb(246, 246, 246);
+                }
+            }
+        }
+
+        /// <summary>선택 강조 텍스트 (Brush.SelectedText) — SelectionBackground 위 글자색.</summary>
+        public static Color SelectedText
+        {
+            get
+            {
+                switch (Mode)
+                {
+                    case ThemeMode.Dark: return Rgb(183, 227, 255);
+                    case ThemeMode.Gray: return Rgb(250, 250, 250);
+                    case ThemeMode.Purple: return Rgb(70, 34, 110);
+                    case ThemeMode.Orange: return Rgb(122, 48, 5);
+                    case ThemeMode.Tomato: return Rgb(124, 19, 22);
+                    default: return Rgb(0, 61, 117);
+                }
+            }
+        }
+
         private static Color Rgb(int r, int g, int b)
         {
             return Color.FromArgb(255, r, g, b);

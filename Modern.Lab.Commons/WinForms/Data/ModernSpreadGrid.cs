@@ -5,6 +5,7 @@ using System.Data;
 using System.Drawing;
 using System.Windows.Forms;
 using Modern.Lab.Controls.Wpf.Data;
+using Modern.Lab.Theming;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ※ 중요 — 이 파일은 의도적으로 솔루션 빌드(.csproj Compile 목록)에서 제외되어 있다.
@@ -27,8 +28,8 @@ using Modern.Lab.Controls.Wpf.Data;
 //
 //   [확인 필요 지점]  Spread 8 COM API는 버전/빌드에 따라 멤버명이 조금씩 다르다.
 //   "// ※확인" 주석이 붙은 줄이 회사 Spread 버전에서 검증이 필요한 부분이다.
-//   반대로 색상/폰트/치수 상수는 현재 디자인 토큰(Themes/Tokens.xaml)에서 그대로
-//   가져온 확정 값이다.
+//   반대로 색상은 ModernTheme 팔레트(디자인 토큰의 GDI+ 미러)에서 읽으므로
+//   6종 테마가 전부 적용되고, 폰트/치수 상수는 토큰 확정 값이다.
 // ─────────────────────────────────────────────────────────────────────────────
 
 namespace Modern.Lab.WinForms.Controls.Data
@@ -41,22 +42,26 @@ namespace Modern.Lab.WinForms.Controls.Data
     /// 호환 멤버(ModernDataGrid와 동일): DataSource(DataTable/DataView),
     /// ConfigureColumns(...), RowCount, SelectedItem, SelectedIndex, SelectionChanged.
     ///
-    /// 스타일: 헤더 SemiBold + 옅은 파랑 배경, 짝수행 교차색, 액센트 선택색,
-    /// Segoe UI 9pt, 행 높이 32 / 헤더 36 — 전부 Themes/Tokens.xaml 값과 일치.
+    /// 스타일: 헤더 SemiBold, 짝수행 교차색, 액센트 선택색, Segoe UI 9pt,
+    /// 행 높이 32 / 헤더 36 — 색은 전부 ModernTheme 팔레트에서 읽으므로
+    /// 6종 테마(Light/Dark/Gray/Purple/Orange/Tomato)가 그대로 적용된다
+    /// (다른 컨트롤처럼 앱 시작 시 ModernTheme.Mode를 설정하면 끝).
     /// </summary>
     [ToolboxItem(true)]
     [DefaultEvent("SelectionChanged")]
     public class ModernSpreadGrid : AxFPSpread.AxfpSpread   // ※확인: 실제 interop 클래스명으로 교체
     {
-        // ===== 디자인 토큰 (Themes/Tokens.xaml에서 그대로 가져온 확정 값) =====
-        private static readonly Color HeaderBackColor = Color.FromArgb(0xEF, 0xF3, 0xFA); // Brush.GridHeaderBackground
-        private static readonly Color HeaderForeColor = Color.FromArgb(0x11, 0x18, 0x27); // Brush.TextPrimary
-        private static readonly Color GridLineColor = Color.FromArgb(0xE5, 0xE7, 0xEB);   // Brush.BorderSubtle
-        private static readonly Color RowBackColor = Color.FromArgb(0xFF, 0xFF, 0xFF);    // Brush.Surface
-        private static readonly Color RowAltBackColor = Color.FromArgb(0xF9, 0xFA, 0xFB); // Brush.SurfaceAlt
-        private static readonly Color CellForeColor = Color.FromArgb(0x11, 0x18, 0x27);   // Brush.TextPrimary
-        private static readonly Color SelectBackColor = Color.FromArgb(0xCF, 0xE4, 0xF7); // Brush.SelectedBackground
-        private static readonly Color SelectForeColor = Color.FromArgb(0x00, 0x5A, 0x9E); // Brush.SelectedText
+        // ===== 디자인 토큰 (ModernTheme 팔레트 = Themes/Tokens.<테마>.xaml 미러) =====
+        // static readonly가 아니라 속성인 이유: ModernTheme.Mode가 앱 시작 시
+        // 설정된 뒤에 읽혀야 테마 색이 잡힌다 (필드는 타입 로드 시점에 고정됨).
+        private static Color HeaderBackColor { get { return ModernTheme.GridHeaderBackground; } }
+        private static Color HeaderForeColor { get { return ModernTheme.TextPrimary; } }
+        private static Color GridLineColor { get { return ModernTheme.BorderSubtle; } }
+        private static Color RowBackColor { get { return ModernTheme.Surface; } }
+        private static Color RowAltBackColor { get { return ModernTheme.GridRowAlt; } }
+        private static Color CellForeColor { get { return ModernTheme.TextPrimary; } }
+        private static Color SelectBackColor { get { return ModernTheme.SelectionBackground; } }
+        private static Color SelectForeColor { get { return ModernTheme.SelectedText; } }
 
         private const string FontName = "Segoe UI";   // Font.Family (한글 폴백은 OS가 처리)
         private const float FontSize = 9f;             // Font.Size.Body 12 DIU = 9pt

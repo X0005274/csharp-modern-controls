@@ -6,8 +6,10 @@ using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Data;
 using System.Windows.Input;
 using Modern.Lab.Controls.Wpf.Common;
+using Modern.Lab.Controls.Wpf.Data;
 
 namespace Modern.Lab.Controls.Wpf.Selection
 {
@@ -18,6 +20,8 @@ namespace Modern.Lab.Controls.Wpf.Selection
     /// - ItemStyle: 항목 표시 스타일 (모던 체크박스 / 온오프 스위치)
     /// - Placeholder: 체크된 항목이 없을 때 표시할 힌트
     /// - CheckedChanged: 체크 상태가 바뀔 때 발생
+    /// - ApplyDropDownColumns: 드롭다운을 멀티컬럼(코드+명칭 등) 행으로 구성
+    ///   ("체크 그리드 콤보" — 헤더 행 표시, 필드 텍스트는 계속 DisplayMemberPath)
     /// 필드에는 체크된 항목들의 표시 텍스트가 ", "로 연결되어 나타나고,
     /// 드롭다운 상단의 "전체 선택" 헤더로 일괄 체크/해제할 수 있다.
     /// </summary>
@@ -74,6 +78,9 @@ namespace Modern.Lab.Controls.Wpf.Selection
         private readonly ObservableCollection<CheckComboItem> checkItems;
         private bool suppressCheckedChanged;
         private bool suppressReopen;
+
+        // 멀티컬럼 드롭다운 구성. null이면 기존 단일 텍스트(DisplayMemberPath) 모드.
+        private List<ModernDataGridColumn> dropDownColumns;
 
         /// <summary>어느 항목이든 체크 상태가 바뀔 때 발생.</summary>
         public event EventHandler CheckedChanged;
@@ -268,11 +275,126 @@ namespace Modern.Lab.Controls.Wpf.Selection
             ((ModernCheckComboBoxControl)d).ApplyItemTemplate();
         }
 
-        // ItemStyle에 해당하는 항목 템플릿을 적용한다.
+        // ItemStyle에 해당하는 항목 템플릿을 적용한다. 멀티컬럼 구성이 있으면
+        // 코드 생성 템플릿(체크 + 고정 폭 셀 나열)으로 대체한다.
         private void ApplyItemTemplate()
         {
+            if (this.dropDownColumns != null)
+            {
+                this.CheckItemsControl.ItemTemplate = this.BuildMultiColumnItemTemplate();
+                return;
+            }
+
             string key = this.ItemStyle == CheckItemStyle.Switch ? "SwitchItemTemplate" : "CheckBoxItemTemplate";
             this.CheckItemsControl.ItemTemplate = (DataTemplate)this.Resources[key];
+        }
+
+        /// <summary>
+        /// 드롭다운을 멀티컬럼 행(코드+명칭 등)으로 구성한다 ("체크 그리드 콤보").
+        /// 그리드와 같은 ModernDataGridColumn 정의를 재사용하며, 팝업 상단에
+        /// 헤더 행이 표시된다. 필드의 표시 텍스트는 계속 DisplayMemberPath를
+        /// 따른다. null/빈 목록이면 아무것도 하지 않는다
+        /// (구성 후 단일 컬럼으로 되돌리는 것은 미지원).
+        /// </summary>
+        public void ApplyDropDownColumns(IList<ModernDataGridColumn> columns)
+        {
+            if (columns == null || columns.Count == 0)
+            {
+                return;
+            }
+
+            this.dropDownColumns = new List<ModernDataGridColumn>(columns);
+            this.ApplyItemTemplate();
+            this.BuildDropDownHeader();
+        }
+
+        private static double EffectiveColumnWidth(ModernDataGridColumn column)
+        {
+            return column.Width > 0d ? column.Width : 120d;
+        }
+
+        private static void ApplyTextAlignment(TextBlock caption, GridTextAlignment alignment)
+        {
+            if (alignment == GridTextAlignment.Center)
+            {
+                caption.TextAlignment = TextAlignment.Center;
+            }
+            else if (alignment == GridTextAlignment.Right)
+            {
+                caption.TextAlignment = TextAlignment.Right;
+            }
+        }
+
+        // 멀티컬럼 항목 템플릿: 체크박스(ItemStyle의 스타일 유지) 콘텐츠로
+        // 고정 폭 셀들을 가로로 나열한다. 셀 바인딩은 래퍼 항목(CheckComboItem)의
+        // Item(원본 행)을 경유한다 — "Item.<컬럼명>".
+        private DataTemplate BuildMultiColumnItemTemplate()
+        {
+            string styleKey = this.ItemStyle == CheckItemStyle.Switch ? "ModernSwitchStyle" : "ModernCheckBoxStyle";
+
+            FrameworkElementFactory check = new FrameworkElementFactory(typeof(CheckBox));
+            check.SetValue(FrameworkElement.StyleProperty, this.Resources[styleKey]);
+            check.SetValue(FrameworkElement.MarginProperty, new Thickness(12d, 6d, 12d, 6d));
+
+            Binding checkedBinding = new Binding("IsChecked");
+            checkedBinding.Mode = BindingMode.TwoWay;
+            check.SetBinding(CheckBox.IsCheckedProperty, checkedBinding);
+
+            FrameworkElementFactory panel = new FrameworkElementFactory(typeof(StackPanel));
+            panel.SetValue(StackPanel.OrientationProperty, Orientation.Horizontal);
+
+            foreach (ModernDataGridColumn column in this.dropDownColumns)
+            {
+                FrameworkElementFactory cell = new FrameworkElementFactory(typeof(TextBlock));
+                cell.SetBinding(TextBlock.TextProperty, new Binding("Item." + column.DataPropertyName));
+                cell.SetValue(FrameworkElement.WidthProperty, EffectiveColumnWidth(column));
+                cell.SetValue(FrameworkElement.MarginProperty, new Thickness(0d, 0d, 12d, 0d));
+                cell.SetValue(FrameworkElement.VerticalAlignmentProperty, VerticalAlignment.Center);
+                cell.SetValue(TextBlock.TextTrimmingProperty, TextTrimming.CharacterEllipsis);
+
+                if (column.TextAlignment == GridTextAlignment.Center)
+                {
+                    cell.SetValue(TextBlock.TextAlignmentProperty, TextAlignment.Center);
+                }
+                else if (column.TextAlignment == GridTextAlignment.Right)
+                {
+                    cell.SetValue(TextBlock.TextAlignmentProperty, TextAlignment.Right);
+                }
+
+                panel.AppendChild(cell);
+            }
+
+            // ContentControl 팩터리에 자식을 붙이면 Content로 들어간다.
+            check.AppendChild(panel);
+
+            DataTemplate template = new DataTemplate();
+            template.VisualTree = check;
+            return template;
+        }
+
+        // 멀티컬럼 헤더 행: 체크박스 폭(18) + 콘텐츠 여백(8)만큼 들여쓰고
+        // 항목 셀과 같은 고정 폭으로 SemiBold 캡션을 나열한다.
+        private void BuildDropDownHeader()
+        {
+            StackPanel header = new StackPanel();
+            header.Orientation = Orientation.Horizontal;
+            header.Margin = new Thickness(12d + 18d + 8d, 6d, 12d, 6d);
+
+            foreach (ModernDataGridColumn column in this.dropDownColumns)
+            {
+                TextBlock caption = new TextBlock();
+                caption.Text = column.HeaderText;
+                caption.Width = EffectiveColumnWidth(column);
+                caption.Margin = new Thickness(0d, 0d, 12d, 0d);
+                caption.FontWeight = FontWeights.SemiBold;
+                caption.VerticalAlignment = VerticalAlignment.Center;
+                caption.TextTrimming = TextTrimming.CharacterEllipsis;
+                ApplyTextAlignment(caption, column.TextAlignment);
+                header.Children.Add(caption);
+            }
+
+            this.DropDownHeaderHost.Child = header;
+            this.DropDownHeaderHost.Visibility = Visibility.Visible;
         }
 
         // 원본 컬렉션의 변경을 관찰해(수동 컬렉션은 ObservableCollection, DataView는

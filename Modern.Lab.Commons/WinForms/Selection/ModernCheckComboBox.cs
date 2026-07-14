@@ -330,6 +330,20 @@ namespace Modern.Lab.WinForms.Controls.Selection
             }
         }
 
+        /// <summary>
+        /// 드롭다운을 멀티컬럼(코드+명칭 등) 행으로 구성한다 — "체크 그리드 콤보".
+        /// 그리드와 동일한 ModernDataGridColumn 정의를 재사용하며, 팝업 상단에
+        /// 헤더 행이 표시된다. 필드의 표시 텍스트는 계속 DisplayMember를 따른다.
+        /// DataSource 할당 전에 호출한다.
+        /// </summary>
+        public void ConfigureDropDownColumns(params Modern.Lab.Controls.Wpf.Data.ModernDataGridColumn[] columns)
+        {
+            if (this.Wpf != null)
+            {
+                this.Wpf.ApplyDropDownColumns(columns);
+            }
+        }
+
         private bool HasBoundItems()
         {
             return this.Wpf != null && this.Wpf.ItemsSource != null;

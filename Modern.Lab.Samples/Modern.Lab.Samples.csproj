@@ -110,6 +110,7 @@
     </Compile>
     <Compile Include="Services\JsonTableConverter.cs" />
     <Compile Include="Services\OracleDb.cs" />
+    <Compile Include="Services\SimpleXlsxWriter.cs" />
     <Compile Include="OracleQueryForm.cs">
       <SubType>Form</SubType>
     </Compile>

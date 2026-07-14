@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Data;
 using System.Drawing;
 using System.Globalization;
-using System.IO;
 using System.Net;
 using System.Text;
 using System.Threading;
@@ -35,14 +34,19 @@ namespace Modern.Lab.Samples
     /// - 하단 우측 실행 카드: Export Excel / Return / Logistics 버튼
     ///   (Return·Logistics는 체크된 행 대상, 물류처리는 미처리 건만)
     ///
-    /// 경과일 강조 규칙(회사 정책에 맞게 조정 지점):
-    ///   Days 배지색 0-2일 파랑 · 3-6일 호박 · 7-13일 주황 · 14일+ 빨강 틴트,
-    ///   Priority는 Normal/Watch/Warning/Critical. 화면 표기는 전부 영어.
+    /// 상태 규칙 (2026-07-15 확정):
+    ///   - 경과일 체크(Days 배지색 + Priority + 분포/Avg/Oldest 집계)는
+    ///     **물류처리 완료 건만** 대상 — 미처리 행은 무색 배지 + Priority "-".
+    ///   - 물류처리(행 Process 버튼·하단 Logistics 벌크)는 **미처리 건만** 가능.
+    ///   - 반송(Return)은 처리 여부와 무관하게 **어느 행이든** 가능.
+    ///   배지색: 0-2일 파랑 · 3-6일 호박 · 7-13일 주황 · 14일+ 빨강 틴트.
+    ///   화면 표기는 전부 영어.
     ///
     /// 서버 호출은 "서버 조회 (★ 회사 환경 교체 지점)" 영역의 private 메서드
     /// 2개(pending/units)에만 있다. Return/Logistics 동작(반송 전문, 물류 시스템
-    /// 인터페이스)도 회사 인터페이스로 교체하는 지점이다 — 데모는 알림만 띄우고
-    /// 화면 상태(LOGIS_YN)만 바꾼다.
+    /// 인터페이스)과 LOGIS_YN 데모 시뮬레이션도 회사 인터페이스로 교체하는
+    /// 지점이다 — 데모는 알림만 띄우고 화면 상태(LOGIS_YN)만 바꾼다.
+    /// Export Excel은 SimpleXlsxWriter로 진짜 .xlsx를 저장한다.
     /// </summary>
     public class PendingRequestForm : Form
     {
@@ -630,9 +634,8 @@ namespace Modern.Lab.Samples
             });
         }
 
-        // 파생 컬럼: PRIORITY(Normal/Watch/Warning/Critical), DAYS_COLOR(Days 배지
-        // 배경색 — 경과일 구간 틴트), CHK(벌크 대상 체크박스), LOGIS_CAN(행 단위
-        // 물류처리 버튼 활성 여부 = 아직 미처리)을 채운다.
+        // 파생 컬럼: PRIORITY/DAYS_COLOR(경과일 강조 — **물류처리 완료 건만**),
+        // CHK(벌크 대상 체크박스), LOGIS_CAN(행 단위 물류처리 버튼 활성 = 미처리).
         private static void ApplyDerivedColumns(DataTable pending)
         {
             if (!pending.Columns.Contains("PRIORITY"))
@@ -657,31 +660,16 @@ namespace Modern.Lab.Samples
 
             foreach (DataRow row in pending.Rows)
             {
-                int days = ParseDays(ToText(row, "ELAPSED_DAYS"));
-                int band;
-
-                if (days >= 14)
+                // ★ 회사 환경 교체 지점 — 홈 API는 LOGIS_YN을 내려주지 않으므로
+                // 데모용으로 결정적 시뮬레이션한다(경과일 3의 배수가 아니면 완료).
+                // 서버가 실제 물류처리 상태를 내려주면 이 블록을 제거한다.
+                if (ToText(row, "LOGIS_YN").Trim().Length == 0)
                 {
-                    row["PRIORITY"] = "Critical";
-                    band = 3;
-                }
-                else if (days >= 7)
-                {
-                    row["PRIORITY"] = "Warning";
-                    band = 2;
-                }
-                else if (days >= 3)
-                {
-                    row["PRIORITY"] = "Watch";
-                    band = 1;
-                }
-                else
-                {
-                    row["PRIORITY"] = "Normal";
-                    band = 0;
+                    int days = ParseDays(ToText(row, "ELAPSED_DAYS"));
+                    row["LOGIS_YN"] = days % 3 != 0 ? "Y" : "N";
                 }
 
-                row["DAYS_COLOR"] = agingBadgeColors[band];
+                ApplyAgingToRow(row);
 
                 // 기존 컬럼에 행이 이미 있던 경우 DBNull로 남으므로 명시적으로 채운다.
                 if (row.IsNull("CHK"))
@@ -691,6 +679,45 @@ namespace Modern.Lab.Samples
 
                 row["LOGIS_CAN"] = !IsLogisticsDone(row);
             }
+        }
+
+        // 경과일 강조(PRIORITY + Days 배지색)를 한 행에 적용한다.
+        // 경과일 체크는 **물류처리가 완료된 건만** 대상 — 미처리 행은
+        // 무색 배지 + Priority "-" 로 표시한다.
+        private static void ApplyAgingToRow(DataRow row)
+        {
+            if (!IsLogisticsDone(row))
+            {
+                row["PRIORITY"] = "-";
+                row["DAYS_COLOR"] = string.Empty;
+                return;
+            }
+
+            int days = ParseDays(ToText(row, "ELAPSED_DAYS"));
+            int band;
+
+            if (days >= 14)
+            {
+                row["PRIORITY"] = "Critical";
+                band = 3;
+            }
+            else if (days >= 7)
+            {
+                row["PRIORITY"] = "Warning";
+                band = 2;
+            }
+            else if (days >= 3)
+            {
+                row["PRIORITY"] = "Watch";
+                band = 1;
+            }
+            else
+            {
+                row["PRIORITY"] = "Normal";
+                band = 0;
+            }
+
+            row["DAYS_COLOR"] = agingBadgeColors[band];
         }
 
         // 물류처리 완료 여부 — LOGIS_YN이 "Y"면 완료로 본다.
@@ -801,12 +828,21 @@ namespace Modern.Lab.Samples
         {
             int itemCount = this.resultData.Rows.Count;
             int unitTotal = 0;
+            int agedCount = 0;
             int daysSum = 0;
             int daysMax = 0;
 
             foreach (DataRow row in this.resultData.Rows)
             {
                 unitTotal += ParseDays(ToText(row, "UNIT_CNT"));
+
+                // 경과일 통계(Avg/Oldest)는 물류처리 완료 건만 집계한다.
+                if (!IsLogisticsDone(row))
+                {
+                    continue;
+                }
+
+                agedCount = agedCount + 1;
 
                 int days = ParseDays(ToText(row, "ELAPSED_DAYS"));
                 daysSum += days;
@@ -819,13 +855,14 @@ namespace Modern.Lab.Samples
 
             this.badgePending.Text = "Pending " + itemCount.ToString("N0");
             this.badgeUnits.Text = "Units " + unitTotal.ToString("N0");
-            this.badgeAvg.Text = itemCount > 0
-                    ? "Avg " + ((double)daysSum / itemCount).ToString("0.0", CultureInfo.InvariantCulture) + " d"
+            this.badgeAvg.Text = agedCount > 0
+                    ? "Avg " + ((double)daysSum / agedCount).ToString("0.0", CultureInfo.InvariantCulture) + " d"
                     : "Avg -";
-            this.badgeOldest.Text = itemCount > 0 ? "Oldest " + daysMax.ToString("N0") + " d" : "Oldest -";
+            this.badgeOldest.Text = agedCount > 0 ? "Oldest " + daysMax.ToString("N0") + " d" : "Oldest -";
         }
 
         // 경과일 구간(0-2 / 3-6 / 7-13 / 14+)별 건수를 집계해 분포 배지에 표기한다.
+        // 경과일 체크 대상인 물류처리 완료 건만 센다.
         private void UpdateAgingCounts()
         {
             for (int index = 0; index < this.agingCounts.Length; index++)
@@ -835,6 +872,11 @@ namespace Modern.Lab.Samples
 
             foreach (DataRow row in this.resultData.Rows)
             {
+                if (!IsLogisticsDone(row))
+                {
+                    continue;
+                }
+
                 int days = ParseDays(ToText(row, "ELAPSED_DAYS"));
 
                 if (days >= 14)
@@ -917,8 +959,8 @@ namespace Modern.Lab.Samples
 
         // ===== 실행 패널 =====
 
-        // Export Excel: 조회 결과 전체(현재 페이지가 아니라)를 CSV(Excel 호환)로 저장.
-        // UTF-8 BOM을 붙여 Excel이 인코딩을 바로 인식하게 한다.
+        // Export Excel: 조회 결과 전체(현재 페이지가 아니라)를 진짜 Excel 파일
+        // (.xlsx, Open XML)로 저장한다 — SimpleXlsxWriter(외부 라이브러리 없음).
         private void OnExportClick(object sender, EventArgs e)
         {
             if (this.resultData == null || this.resultData.Rows.Count == 0)
@@ -929,8 +971,8 @@ namespace Modern.Lab.Samples
 
             using (SaveFileDialog dialog = new SaveFileDialog())
             {
-                dialog.Filter = "CSV (Excel compatible)|*.csv";
-                dialog.FileName = "PendingRequests_" + DateTime.Now.ToString("yyyyMMdd_HHmmss") + ".csv";
+                dialog.Filter = "Excel Workbook|*.xlsx";
+                dialog.FileName = "PendingRequests_" + DateTime.Now.ToString("yyyyMMdd_HHmmss") + ".xlsx";
 
                 if (dialog.ShowDialog(this) != DialogResult.OK)
                 {
@@ -939,7 +981,7 @@ namespace Modern.Lab.Samples
 
                 try
                 {
-                    this.WriteCsv(dialog.FileName);
+                    this.WriteExcel(dialog.FileName);
                     this.toastMain.Show(
                             this.resultData.Rows.Count.ToString("N0") + " items exported.", ToastKind.Success);
                 }
@@ -963,10 +1005,9 @@ namespace Modern.Lab.Samples
             "Product", "Type", "Org Item", "Carrier", "Stocker", "Description"
         };
 
-        private void WriteCsv(string path)
+        private void WriteExcel(string path)
         {
-            StringBuilder csv = new StringBuilder();
-            csv.AppendLine(string.Join(",", exportHeaders));
+            List<string[]> rows = new List<string[]>();
 
             foreach (DataRow row in this.resultData.Rows)
             {
@@ -974,24 +1015,13 @@ namespace Modern.Lab.Samples
 
                 for (int index = 0; index < exportColumns.Length; index++)
                 {
-                    cells[index] = EscapeCsv(ToText(row, exportColumns[index]));
+                    cells[index] = ToText(row, exportColumns[index]);
                 }
 
-                csv.AppendLine(string.Join(",", cells));
+                rows.Add(cells);
             }
 
-            // BOM 포함 UTF-8 — Excel이 더블클릭만으로 인코딩을 인식한다.
-            File.WriteAllText(path, csv.ToString(), new UTF8Encoding(true));
-        }
-
-        private static string EscapeCsv(string value)
-        {
-            if (value.IndexOfAny(new char[] { ',', '"', '\n', '\r' }) < 0)
-            {
-                return value;
-            }
-
-            return "\"" + value.Replace("\"", "\"\"") + "\"";
+            SimpleXlsxWriter.Write(path, "Pending Requests", exportHeaders, rows);
         }
 
         // 체크된 행 목록 (조회 결과 원본 기준 — 페이지를 오가며 체크한 것 전부).
@@ -1108,10 +1138,12 @@ namespace Modern.Lab.Samples
         }
 
         // 물류처리 완료 상태로 표시한다 (LOGIS_YN=Y, 행 버튼 비활성).
+        // 완료되는 순간부터 경과일 체크 대상이므로 Days 배지/Priority도 함께 채운다.
         private static void MarkLogisticsDone(DataRow row)
         {
             row["LOGIS_YN"] = "Y";
             row["LOGIS_CAN"] = false;
+            ApplyAgingToRow(row);
         }
 
         // ===== 공통 헬퍼 =====

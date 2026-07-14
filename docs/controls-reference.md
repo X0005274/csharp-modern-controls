@@ -416,6 +416,23 @@ this.cboDept.DataSource = deptTable;        // 구성 후에 DataSource 할당
 | `Text` | string | 체크 항목을 ", "로 연결한 표시 텍스트 (읽기 전용) |
 | `CheckedChanged` | 이벤트 | 체크 상태 변경 시 (일괄 변경은 1회) |
 | `CheckAll()` / `UncheckAll()` | 메서드 | 전체 체크/해제 — 드롭다운 헤더와 동일 동작. 헤더 라벨은 상태에 따라 "Select all" ↔ "Deselect all"(전부 체크 시)로 바뀜 |
+| `ConfigureDropDownColumns(...)` | 메서드 | **체크 그리드 콤보** — 드롭다운을 멀티컬럼(코드+명칭 등) 행으로 구성. 그리드와 같은 `ModernDataGridColumn` 정의 재사용, 팝업 상단에 헤더 행 표시. 필드 텍스트는 계속 `DisplayMember`. `DataSource` 할당 전에 호출 |
+
+### 예제 — 체크 그리드 콤보 (멀티컬럼 드롭다운)
+
+```csharp
+using Modern.Lab.Controls.Wpf.Data;   // ModernDataGridColumn
+
+this.cboEqp.DisplayMember = "EQP_NAME";
+this.cboEqp.ValueMember = "EQP_ID";
+this.cboEqp.ConfigureDropDownColumns(
+    new ModernDataGridColumn("EQP_ID", "Code", 90),
+    new ModernDataGridColumn("EQP_NAME", "Equipment", 160),
+    new ModernDataGridColumn("STATE", "State", 70));
+this.cboEqp.DataSource = eqpTable;     // (EQP_ID, EQP_NAME, STATE)
+
+object[] eqpIds = this.cboEqp.CheckedValues;   // 체크된 설비 코드들
+```
 
 ### 예제 — 직급 다중 필터 (서버에 코드 전송)
 
@@ -933,5 +950,6 @@ Form이 아니면 타이틀바는 건드리지 않으므로, 최상위 폼에서
   `ModernTheme` 팔레트 색으로 그리도록 고친다 (예: 샘플
   `ItemHistoryForm.OnDetailCellPaint` — 캡션 `SurfaceAlt`, 괘선 `BorderSubtle`).
 - 타이틀바만 필요하면 `ModernThemeWinForms.ApplyDarkTitleBar(form)` 개별 사용 가능.
-- 알려진 한계: `ModernSpreadGrid`(FarPoint COM)는 내부 셀 색이 라이트로 고정 —
-  다크 지원은 추후 과제.
+- `ModernSpreadGrid`(FarPoint COM)도 셀/헤더/선택/교차색을 `ModernTheme` 팔레트에서
+  읽으므로 6종 테마가 모두 적용된다 (앱 시작 시 `Mode` 설정 기준 — 회사 PC에서
+  interop 연결 후 동작 확인 필요).
