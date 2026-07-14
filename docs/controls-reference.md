@@ -41,6 +41,7 @@
 21. [ModernCardPanel](#moderncardpanel) — 카드 판넬
 22. [ModernGroupBox](#moderngroupbox) — 타이틀 있는 카드(그룹박스)
 22-1. [ModernSplitContainer](#modernsplitcontainer) — 크기 조절 스플리터
+22-2. [ModernTabControl](#moderntabcontrol) — 언더라인 탭
 23. [ModernDataGridColumn](#moderndatagridcolumn) — 컬럼 정의 (그리드/콤보 공용)
 24. [테마 (ModernTheme)](#테마-moderntheme--라이트다크--틴트-4종) — 라이트/다크/그레이/퍼플/오렌지/토마토
 
@@ -759,6 +760,23 @@ this.splitMain.SplitterDistance = 340;
 주의: 코드로 직접 배치할 때는 디자이너처럼 **`ISupportInitialize.BeginInit()/EndInit()`로
 감싸야 한다** — 초기 크기보다 큰 `MinSize`/`SplitterDistance`를 그냥 설정하면 예외.
 자세한 내용과 `.Designer.cs` 예시는 `migration/ModernSplitContainer.md`.
+
+---
+
+## ModernTabControl
+
+언더라인(피벗) 스타일 탭 컨테이너 — `TabControl`의 대체 (순수 WinForms, GDI+).
+선택 탭은 액센트색 SemiBold + 밑줄, 색은 팔레트를 읽어 6개 테마 자동 대응.
+`TabPage` 모델 대신 `AddTab(제목, 컨트롤)`로 페이지를 붙인다.
+
+```csharp
+this.tabHistory.AddTab("Item History", this.gridHistory);
+this.tabHistory.AddTab("Unit History", this.gridUnitHistory);
+this.tabHistory.SetTabTitle(1, "Unit History — " + unitId);  // 데이터만 갱신, 전환 없음
+this.tabHistory.SelectedIndexChanged += this.OnHistoryTabChanged;
+```
+
+자세한 멤버/주의는 `migration/ModernTabControl.md`.
 
 ---
 

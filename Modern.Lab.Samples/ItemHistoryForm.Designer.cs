@@ -41,6 +41,7 @@ namespace Modern.Lab.Samples
             this.rightZone = new System.Windows.Forms.Panel();
             this.busyMain = new Modern.Lab.WinForms.Controls.Display.ModernBusyOverlay();
             this.gridHistory = new Modern.Lab.WinForms.Controls.Data.ModernDataGrid();
+            this.tabHistory = new Modern.Lab.WinForms.Controls.Layout.ModernTabControl();
             this.spDetail = new System.Windows.Forms.Panel();
             this.detailCard = new Modern.Lab.WinForms.Controls.Layout.ModernGroupBox();
             this.tblDetail = new System.Windows.Forms.TableLayoutPanel();
@@ -235,7 +236,7 @@ namespace Modern.Lab.Samples
             // rightZone
             // 
             this.rightZone.Controls.Add(this.busyMain);
-            this.rightZone.Controls.Add(this.gridHistory);
+            this.rightZone.Controls.Add(this.tabHistory);
             this.rightZone.Controls.Add(this.spDetail);
             this.rightZone.Controls.Add(this.detailCard);
             this.rightZone.Controls.Add(this.spStep);
@@ -257,6 +258,15 @@ namespace Modern.Lab.Samples
             this.busyMain.Visible = false;
             this.busyMain.Child = null;
             // 
+            // tabHistory — 하단 이력 영역 탭 (Item History / Unit History).
+            // 페이지 구성은 코드 비하인드 OnFormLoad에서 AddTab으로 한다.
+            //
+            this.tabHistory.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.tabHistory.Location = new System.Drawing.Point(0, 246);
+            this.tabHistory.Name = "tabHistory";
+            this.tabHistory.Size = new System.Drawing.Size(1164, 430);
+            this.tabHistory.TabIndex = 5;
+            //
             // gridHistory
             // 
             this.gridHistory.AutoFitColumns = true;
@@ -707,6 +717,7 @@ namespace Modern.Lab.Samples
         private System.Windows.Forms.Panel rightZone;
         private Modern.Lab.WinForms.Controls.Display.ModernBusyOverlay busyMain;
         private Modern.Lab.WinForms.Controls.Data.ModernDataGrid gridHistory;
+        private Modern.Lab.WinForms.Controls.Layout.ModernTabControl tabHistory;
         private System.Windows.Forms.Panel spDetail;
         private Modern.Lab.WinForms.Controls.Layout.ModernGroupBox detailCard;
         private System.Windows.Forms.TableLayoutPanel tblDetail;

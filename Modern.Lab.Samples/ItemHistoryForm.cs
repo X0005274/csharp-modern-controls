@@ -54,12 +54,28 @@ namespace Modern.Lab.Samples
         // 트리 선택(이력/웨이퍼 조회) 버전 — 빠른 재선택 시 오래된 응답을 버린다.
         private int selectionVersion;
 
-        // Scrap 상태 노드의 트리 텍스트 색.
-        private const string scrapForeColor = "#DC2626";
+        // Unit 이력 조회 버전 — 빠른 재선택 시 오래된 응답을 버린다.
+        private int unitHistoryVersion;
 
-        // 그리드 행 배경색 (상태 배지 팔레트와 동일 계열).
-        private const string scrapRowColor = "#FEE2E2";   // Scrap 행/웨이퍼
-        private const string doneRowColor = "#DCFCE7";     // JobEnd(완료) 이력 행
+        // Unit History 탭의 이력 그리드 (탭 구성과 함께 코드에서 생성).
+        private Modern.Lab.WinForms.Controls.Data.ModernDataGrid gridUnitHistory;
+
+        // Scrap 상태 노드의 트리 텍스트 색 — 어두운 테마에서는 밝은 빨강이어야 보인다.
+        private static string ScrapForeColor
+        {
+            get { return Modern.Lab.Theming.ModernTheme.IsDarkBased ? "#FF99A4" : "#C42B1C"; }
+        }
+
+        // 그리드 행 배경색 (Win11 시맨틱 면 색과 동일 계열) — 어두운 테마는 어두운 톤.
+        private static string ScrapRowColor
+        {
+            get { return Modern.Lab.Theming.ModernTheme.IsDarkBased ? "#4C2B2C" : "#FDE7E9"; }
+        }
+
+        private static string DoneRowColor
+        {
+            get { return Modern.Lab.Theming.ModernTheme.IsDarkBased ? "#39412A" : "#DFF6DD"; }
+        }
 
         // 노드 종류/상태 배지 색.
         private static readonly Dictionary<string, string> typeBadgeColors = new Dictionary<string, string>
@@ -160,6 +176,13 @@ namespace Modern.Lab.Samples
             return this.DownloadTable(query);
         }
 
+        // 선택 Unit의 이력 (UNIT_HIS 전체 컬럼, 최신순).
+        private DataTable RequestUnitHistory(string unitId)
+        {
+            string query = "/api/items/unit-history?unitId=" + Uri.EscapeDataString(unitId ?? string.Empty);
+            return this.DownloadTable(query);
+        }
+
         // REST 공통: JSON 배열 응답을 DataTable로 변환한다 (홈 환경 전용 헬퍼).
         private DataTable DownloadTable(string pathAndQuery)
         {
@@ -237,6 +260,36 @@ namespace Modern.Lab.Samples
 
             // 이력 행 상태별 색: Scrapped 빨강, JobEnd(완료) 초록.
             this.gridHistory.RowColorMember = "ROW_COLOR";
+
+            // 하단 이력 영역을 탭으로 구성: Item History(기존 그리드) + Unit History.
+            // Units 목록에서 Unit을 클릭하면 Unit History 탭의 "데이터만" 갱신한다 —
+            // 탭 자동 전환은 하지 않는다 (사용자가 보던 탭 유지).
+            this.gridUnitHistory = new Modern.Lab.WinForms.Controls.Data.ModernDataGrid();
+            this.gridUnitHistory.AutoFitColumns = true;
+            this.gridUnitHistory.ShowStatusBar = true;
+            this.gridUnitHistory.StatusCountFormat = "{0:N0} events";
+            this.gridUnitHistory.ConfigureColumns(
+                new ModernDataGridColumn("EVENT_TM", "Event Time", 150) { TextAlignment = GridTextAlignment.Center },
+                new ModernDataGridColumn("DURATION", "Duration", 84) { TextAlignment = GridTextAlignment.Center },
+                new ModernDataGridColumn("EVENT_CD", "Event", 96) { TextAlignment = GridTextAlignment.Center },
+                new ModernDataGridColumn("STAT_TYP", "Status", 84) { TextAlignment = GridTextAlignment.Center },
+                new ModernDataGridColumn("OPER_ID", "Operation", 96) { TextAlignment = GridTextAlignment.Center },
+                new ModernDataGridColumn("STATION_ID", "Equipment", 96) { TextAlignment = GridTextAlignment.Center },
+                new ModernDataGridColumn("BOX_ID", "Carrier", 92) { TextAlignment = GridTextAlignment.Center },
+                new ModernDataGridColumn("STORE_ID", "Stocker", 92) { TextAlignment = GridTextAlignment.Center },
+                new ModernDataGridColumn("FLOW_ID", "Flow", 130),
+                new ModernDataGridColumn("MODEL_ID", "Product", 150),
+                new ModernDataGridColumn("SUB_TYP", "Sub Type", 90) { TextAlignment = GridTextAlignment.Center },
+                new ModernDataGridColumn("ORG_UNIT_ID", "Org Unit", 130),
+                new ModernDataGridColumn("PARENT_UNIT_ID", "Parent Unit", 130),
+                new ModernDataGridColumn("UNIT_ID", "Unit", 130),
+                new ModernDataGridColumn("ITEM_ID", "Item", 120),
+                new ModernDataGridColumn("TIMEKEY", "Time Key", 150));
+            this.gridUnitHistory.RowColorMember = "ROW_COLOR";
+
+            this.tabHistory.AddTab("Item History", this.gridHistory);
+            this.tabHistory.AddTab("Unit History", this.gridUnitHistory);
+            this.gridUnits.SelectionChanged += this.OnUnitSelectionChanged;
 
             // 화면 오픈 시 자동 조회 없음 — Item ID(필수) 입력 후 Search로 조회한다.
             this.ClearSelection();
@@ -359,7 +412,7 @@ namespace Modern.Lab.Samples
             {
                 if (ToText(row, "STAT_TYP") == "Scrap")
                 {
-                    row["NODE_COLOR"] = scrapForeColor;   // 트리 텍스트 빨강
+                    row["NODE_COLOR"] = ScrapForeColor;   // 트리 텍스트 빨강
                 }
             }
         }
@@ -573,6 +626,67 @@ namespace Modern.Lab.Samples
             });
         }
 
+        // ===== Unit 이력 (하단 탭) =====
+
+        // Units 목록에서 Unit 선택 → Unit History 탭 데이터를 갱신한다.
+        // 탭을 자동으로 전환하지는 않는다 (사용자가 보던 탭 유지).
+        private void OnUnitSelectionChanged(object sender, EventArgs e)
+        {
+            DataRowView row = this.gridUnits.SelectedItem as DataRowView;
+            if (row == null)
+            {
+                return;
+            }
+
+            string unitId = ToText(row.Row, "UNIT_ID");
+            if (string.IsNullOrEmpty(unitId))
+            {
+                return;
+            }
+
+            this.LoadUnitHistory(unitId);
+        }
+
+        // 선택 Unit의 이력을 백그라운드에서 불러와 Unit History 탭 그리드에 채운다.
+        private void LoadUnitHistory(string unitId)
+        {
+            this.unitHistoryVersion = this.unitHistoryVersion + 1;
+            int version = this.unitHistoryVersion;
+
+            ThreadPool.QueueUserWorkItem(delegate(object state)
+            {
+                try
+                {
+                    DataTable history = this.RequestUnitHistory(unitId);
+
+                    this.Invoke(new MethodInvoker(delegate
+                    {
+                        // 그 사이 다른 Unit이 선택됐으면 이 응답은 버린다.
+                        if (version != this.unitHistoryVersion)
+                        {
+                            return;
+                        }
+
+                        EnsureColumns(history, "TIMEKEY", "UNIT_ID", "ITEM_ID", "EVENT_CD", "EVENT_TM",
+                            "MODEL_ID", "ITEM_TYP", "SUB_TYP", "ORG_UNIT_ID", "PARENT_UNIT_ID",
+                            "BOX_ID", "FLOW_ID", "OPER_ID", "STATION_ID", "STORE_ID", "STAT_TYP");
+                        AddDurationColumn(history);
+                        AddRowColor(history);
+                        this.gridUnitHistory.DataSource = history;
+                        this.gridUnitHistory.StatusText = unitId + CycleTimeSuffix(history);
+                        this.tabHistory.SetTabTitle(1, "Unit History — " + unitId);
+                    }));
+                }
+                catch (Exception ex)
+                {
+                    this.Invoke(new MethodInvoker(delegate
+                    {
+                        this.toastMain.Show("Server call failed: " + ex.Message, ToastKind.Error);
+                    }));
+                }
+            });
+        }
+
         // 웨이퍼 목록의 Scrap 행 배경(옅은 빨강) 컬럼을 채운다.
         private static void AddUnitRowColor(DataTable units)
         {
@@ -590,7 +704,7 @@ namespace Modern.Lab.Samples
             {
                 if (ToText(row, "STAT_TYP") == "Scrap")
                 {
-                    row["ROW_COLOR"] = scrapRowColor;
+                    row["ROW_COLOR"] = ScrapRowColor;
                 }
             }
         }
@@ -656,6 +770,15 @@ namespace Modern.Lab.Samples
             this.gridHistory.DataSource = null;
             this.gridHistory.StatusText = string.Empty;
             this.stepIndicator.DataSource = null;
+
+            // Unit History 탭도 함께 비운다 (탭이 아직 구성 전이면 건너뜀).
+            if (this.gridUnitHistory != null)
+            {
+                this.unitHistoryVersion = this.unitHistoryVersion + 1;
+                this.gridUnitHistory.DataSource = null;
+                this.gridUnitHistory.StatusText = string.Empty;
+                this.tabHistory.SetTabTitle(1, "Unit History");
+            }
         }
 
         // ===== 이력 파생 계산 (소요시간 · 사이클타임 · 진행 단계) =====
@@ -714,11 +837,11 @@ namespace Modern.Lab.Samples
 
                 if (eventCd == "Scrapped")
                 {
-                    row["ROW_COLOR"] = scrapRowColor;
+                    row["ROW_COLOR"] = ScrapRowColor;
                 }
                 else if (eventCd == "JobEnd")
                 {
-                    row["ROW_COLOR"] = doneRowColor;
+                    row["ROW_COLOR"] = DoneRowColor;
                 }
             }
         }

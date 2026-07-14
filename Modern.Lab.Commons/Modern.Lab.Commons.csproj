@@ -268,6 +268,7 @@
     <Compile Include="Theming\ModernTheme.cs" />
     <Compile Include="Theming\ModernThemeWinForms.cs" />
     <Compile Include="WinForms\Layout\ModernSplitContainer.cs" />
+    <Compile Include="WinForms\Layout\ModernTabControl.cs" />
     <Compile Include="WinForms\Display\ModernLabel.cs" />
     <Compile Include="WinForms\Display\ModernKpiCard.cs" />
     <Compile Include="WinForms\Display\ModernSummaryList.cs" />
