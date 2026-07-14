@@ -49,6 +49,8 @@ namespace Modern.Lab.Samples
             this.badgeStat = new Modern.Lab.WinForms.Controls.Display.ModernStatusBadge();
             this.capProduct = new Modern.Lab.WinForms.Controls.Display.ModernLabel();
             this.valProduct = new Modern.Lab.WinForms.Controls.Display.ModernLabel();
+            this.capDescription = new Modern.Lab.WinForms.Controls.Display.ModernLabel();
+            this.valDescription = new Modern.Lab.WinForms.Controls.Display.ModernLabel();
             this.capFlow = new Modern.Lab.WinForms.Controls.Display.ModernLabel();
             this.valFlow = new Modern.Lab.WinForms.Controls.Display.ModernLabel();
             this.capOper = new Modern.Lab.WinForms.Controls.Display.ModernLabel();
@@ -307,31 +309,37 @@ namespace Modern.Lab.Samples
             //
             this.tblDetail.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left)
             | System.Windows.Forms.AnchorStyles.Right)));
-            this.tblDetail.ColumnCount = 6;
-            this.tblDetail.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Absolute, 110F));
-            this.tblDetail.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 33.33F));
-            this.tblDetail.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Absolute, 110F));
-            this.tblDetail.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 33.33F));
-            this.tblDetail.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Absolute, 110F));
-            this.tblDetail.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 33.34F));
-            this.tblDetail.Controls.Add(this.capProduct, 0, 0);
-            this.tblDetail.Controls.Add(this.valProduct, 1, 0);
-            this.tblDetail.Controls.Add(this.capProdTyp, 2, 0);
-            this.tblDetail.Controls.Add(this.valProdTyp, 3, 0);
-            this.tblDetail.Controls.Add(this.capEvent, 4, 0);
-            this.tblDetail.Controls.Add(this.valEvent, 5, 0);
-            this.tblDetail.Controls.Add(this.capFlow, 0, 1);
-            this.tblDetail.Controls.Add(this.valFlow, 1, 1);
-            this.tblDetail.Controls.Add(this.capOper, 2, 1);
-            this.tblDetail.Controls.Add(this.valOper, 3, 1);
-            this.tblDetail.Controls.Add(this.capEqp, 4, 1);
-            this.tblDetail.Controls.Add(this.valEqp, 5, 1);
-            this.tblDetail.Controls.Add(this.capCarrier, 0, 2);
-            this.tblDetail.Controls.Add(this.valCarrier, 1, 2);
-            this.tblDetail.Controls.Add(this.capStk, 2, 2);
-            this.tblDetail.Controls.Add(this.valStk, 3, 2);
-            this.tblDetail.Controls.Add(this.capEventTm, 4, 2);
-            this.tblDetail.Controls.Add(this.valEventTm, 5, 2);
+            this.tblDetail.ColumnCount = 8;
+            this.tblDetail.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Absolute, 100F));
+            this.tblDetail.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 25F));
+            this.tblDetail.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Absolute, 100F));
+            this.tblDetail.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 25F));
+            this.tblDetail.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Absolute, 100F));
+            this.tblDetail.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 25F));
+            this.tblDetail.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Absolute, 100F));
+            this.tblDetail.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 25F));
+            // 배치(3줄): 1행 Event·Event Time·Carrier·Stocker (4쌍),
+            //           2행 Product(값이 Prod Type 자리까지 3칸 span)·Flow·Operation,
+            //           3행 Description 전폭 한 줄 (값이 7칸 span).
+            // Prod Type은 별도 칸 대신 상단 타입 배지("Prod Type - Sub Type")로 표기.
+            this.tblDetail.Controls.Add(this.capEvent, 0, 0);
+            this.tblDetail.Controls.Add(this.valEvent, 1, 0);
+            this.tblDetail.Controls.Add(this.capEventTm, 2, 0);
+            this.tblDetail.Controls.Add(this.valEventTm, 3, 0);
+            this.tblDetail.Controls.Add(this.capCarrier, 4, 0);
+            this.tblDetail.Controls.Add(this.valCarrier, 5, 0);
+            this.tblDetail.Controls.Add(this.capStk, 6, 0);
+            this.tblDetail.Controls.Add(this.valStk, 7, 0);
+            this.tblDetail.Controls.Add(this.capProduct, 0, 1);
+            this.tblDetail.Controls.Add(this.valProduct, 1, 1);
+            this.tblDetail.SetColumnSpan(this.valProduct, 3);
+            this.tblDetail.Controls.Add(this.capFlow, 4, 1);
+            this.tblDetail.Controls.Add(this.valFlow, 5, 1);
+            this.tblDetail.Controls.Add(this.capOper, 6, 1);
+            this.tblDetail.Controls.Add(this.valOper, 7, 1);
+            this.tblDetail.Controls.Add(this.capDescription, 0, 2);
+            this.tblDetail.Controls.Add(this.valDescription, 1, 2);
+            this.tblDetail.SetColumnSpan(this.valDescription, 7);
             this.tblDetail.Location = new System.Drawing.Point(12, 76);
             this.tblDetail.Name = "tblDetail";
             this.tblDetail.RowCount = 3;
@@ -439,9 +447,28 @@ namespace Modern.Lab.Samples
             this.valProduct.TabIndex = 4;
             this.valProduct.Text = "-";
             this.valProduct.Child = null;
-            // 
+            //
+            // capDescription
+            //
+            this.capDescription.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.capDescription.Kind = Modern.Lab.Controls.Wpf.Display.LabelKind.Label;
+            this.capDescription.Margin = new System.Windows.Forms.Padding(10, 5, 3, 5);
+            this.capDescription.Name = "capDescription";
+            this.capDescription.TabIndex = 20;
+            this.capDescription.Text = "Description";
+            this.capDescription.Child = null;
+            //
+            // valDescription
+            //
+            this.valDescription.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.valDescription.Margin = new System.Windows.Forms.Padding(10, 5, 3, 5);
+            this.valDescription.Name = "valDescription";
+            this.valDescription.TabIndex = 21;
+            this.valDescription.Text = "-";
+            this.valDescription.Child = null;
+            //
             // capFlow
-            // 
+            //
             this.capFlow.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(247)))), ((int)(((byte)(248)))), ((int)(((byte)(250)))));
             this.capFlow.Dock = System.Windows.Forms.DockStyle.Fill;
             this.capFlow.Kind = Modern.Lab.Controls.Wpf.Display.LabelKind.Label;
@@ -727,6 +754,8 @@ namespace Modern.Lab.Samples
         private Modern.Lab.WinForms.Controls.Display.ModernStatusBadge badgeType;
         private Modern.Lab.WinForms.Controls.Display.ModernStatusBadge badgeStat;
         private Modern.Lab.WinForms.Controls.Display.ModernLabel capProduct;
+        private Modern.Lab.WinForms.Controls.Display.ModernLabel capDescription;
+        private Modern.Lab.WinForms.Controls.Display.ModernLabel valDescription;
         private Modern.Lab.WinForms.Controls.Display.ModernLabel capProdTyp;
         private Modern.Lab.WinForms.Controls.Display.ModernLabel valProdTyp;
         private Modern.Lab.WinForms.Controls.Display.ModernLabel capEvent;

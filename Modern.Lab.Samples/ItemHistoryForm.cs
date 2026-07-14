@@ -549,13 +549,19 @@ namespace Modern.Lab.Samples
 
         private void FillDetail(DataRowView row)
         {
+            string prodType = GetString(row, "ITEM_TYP");
             string subType = GetString(row, "SUB_TYP");
             string stat = GetString(row, "STAT_TYP");
 
             // 카드 제목에 선택 Item ID를 표시한다.
             string itemId = GetString(row, "ITEM_ID");
             this.detailCard.Text = itemId.Length > 0 ? itemId : "Selection";
-            this.badgeType.Text = subType.Length > 0 ? subType : "-";
+
+            // 타입 배지: "Prod Type - Sub Type" 결합 표기 (색은 Sub Type 기준).
+            string typeText = prodType.Length > 0 && subType.Length > 0
+                    ? prodType + " - " + subType
+                    : (subType.Length > 0 ? subType : prodType);
+            this.badgeType.Text = typeText.Length > 0 ? typeText : "-";
             this.badgeType.Color = typeBadgeColors.ContainsKey(subType) ? typeBadgeColors[subType] : string.Empty;
             this.badgeStat.Text = stat.Length > 0 ? stat : "-";
             this.badgeStat.Color = statBadgeColors.ContainsKey(stat) ? statBadgeColors[stat] : string.Empty;
@@ -570,6 +576,7 @@ namespace Modern.Lab.Samples
             this.valCarrier.Text = GetString(row, "BOX_ID");
             this.valStk.Text = GetString(row, "STORE_ID");
             this.valEventTm.Text = GetString(row, "EVENT_TM");
+            this.valDescription.Text = GetString(row, "DESCRIPTION");
         }
 
         // 선택 Item의 이력(MES_ITEM_HIS)과 웨이퍼 목록(MES_UNIT_MAS)을 백그라운드에서
@@ -718,7 +725,26 @@ namespace Modern.Lab.Samples
         // 라이트/다크 모두에서 맞는 색이 나온다.
         private void OnDetailCellPaint(object sender, TableLayoutCellPaintEventArgs e)
         {
-            bool captionColumn = e.Column == 0 || e.Column == 2 || e.Column == 4;
+            // 배치(3줄): 0행은 캡션/값 4쌍(짝수 열이 캡션), 1행은 Product 값이
+            // 1~3열 span이라 캡션이 0·4·6열, 2행(Description)은 캡션이 0열뿐이다.
+            bool captionColumn;
+            bool insideSpan;   // 값 span 내부(경계 세로선을 그리지 않을 셀)
+
+            if (e.Row == 2)
+            {
+                captionColumn = e.Column == 0;
+                insideSpan = e.Column >= 1 && e.Column <= 6;
+            }
+            else if (e.Row == 1)
+            {
+                captionColumn = e.Column == 0 || e.Column == 4 || e.Column == 6;
+                insideSpan = e.Column == 1 || e.Column == 2;
+            }
+            else
+            {
+                captionColumn = e.Column % 2 == 0;
+                insideSpan = false;
+            }
 
             if (captionColumn)
             {
@@ -732,9 +758,15 @@ namespace Modern.Lab.Samples
             {
                 Rectangle cell = e.CellBounds;
 
-                // 오른쪽·아래 선은 모든 셀에, 왼쪽·위 선은 가장자리 셀에만 그려
+                // 오른쪽 세로선: span된 값 영역 내부 셀에는 그리지 않는다
+                // (span 마지막 셀의 오른쪽 경계는 그림).
+                if (!insideSpan)
+                {
+                    e.Graphics.DrawLine(linePen, cell.Right - 1, cell.Top, cell.Right - 1, cell.Bottom - 1);
+                }
+
+                // 아래 가로선은 모든 셀에, 왼쪽·위 선은 가장자리 셀에만 그려
                 // 이웃 셀과 선이 겹치지 않게 한다.
-                e.Graphics.DrawLine(linePen, cell.Right - 1, cell.Top, cell.Right - 1, cell.Bottom - 1);
                 e.Graphics.DrawLine(linePen, cell.Left, cell.Bottom - 1, cell.Right - 1, cell.Bottom - 1);
 
                 if (e.Column == 0)
@@ -765,6 +797,7 @@ namespace Modern.Lab.Samples
             this.valCarrier.Text = "-";
             this.valStk.Text = "-";
             this.valEventTm.Text = "-";
+            this.valDescription.Text = "-";
             this.gridUnits.DataSource = null;
             this.unitCard.Text = "Units";
             this.gridHistory.DataSource = null;
