@@ -242,6 +242,8 @@
     </Compile>
     <!-- Data code-behind -->
     <Compile Include="Controls\Wpf\Data\GridTextAlignment.cs" />
+    <Compile Include="Controls\Wpf\Data\GridColumnKind.cs" />
+    <Compile Include="Controls\Wpf\Data\GridButtonClickEventArgs.cs" />
     <Compile Include="Controls\Wpf\Data\ModernDataGridColumn.cs" />
     <Compile Include="Controls\Wpf\Data\ModernDataGridControl.xaml.cs">
       <DependentUpon>ModernDataGridControl.xaml</DependentUpon>

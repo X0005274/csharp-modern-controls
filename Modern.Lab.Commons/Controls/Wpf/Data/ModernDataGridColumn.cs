@@ -7,7 +7,7 @@ namespace Modern.Lab.Controls.Wpf.Data
     /// </summary>
     public class ModernDataGridColumn
     {
-        /// <summary>빈 정의를 만든다(스타 너비, 왼쪽 정렬, 형식 없음).</summary>
+        /// <summary>빈 정의를 만든다(스타 너비, 왼쪽 정렬, 형식 없음, 텍스트 셀).</summary>
         public ModernDataGridColumn()
         {
             this.DataPropertyName = string.Empty;
@@ -15,6 +15,10 @@ namespace Modern.Lab.Controls.Wpf.Data
             this.Width = -1d;
             this.TextAlignment = GridTextAlignment.Left;
             this.Format = string.Empty;
+            this.Kind = GridColumnKind.Text;
+            this.BadgeColorMember = string.Empty;
+            this.ButtonText = string.Empty;
+            this.ButtonEnabledMember = string.Empty;
         }
 
         /// <summary>지정한 컬럼/속성에 바인딩되는 스타 너비 컬럼을 만든다.</summary>
@@ -51,5 +55,24 @@ namespace Modern.Lab.Controls.Wpf.Data
         /// 원본 타입 값 기준으로 동작한다.
         /// </summary>
         public string Format { get; set; }
+
+        /// <summary>셀 표시 종류 (기본 Text). CheckBox/Badge/Button 셀로 전환한다.</summary>
+        public GridColumnKind Kind { get; set; }
+
+        /// <summary>
+        /// Badge 전용: 배지 배경색으로 쓸 컬럼/속성 이름. 값은 "#FEE2E2" 같은
+        /// 색 문자열. 비었거나 해석 불가한 행은 배경 없는 일반 텍스트로 표시된다.
+        /// </summary>
+        public string BadgeColorMember { get; set; }
+
+        /// <summary>Button 전용: 버튼 캡션.</summary>
+        public string ButtonText { get; set; }
+
+        /// <summary>
+        /// Button 전용: 행별 버튼 활성화 여부로 쓸 컬럼/속성 이름 (선택 사항).
+        /// bool 컬럼 또는 "Y"/"true"/"1" 계열 문자열을 참으로 해석한다.
+        /// 비워 두면 모든 행에서 버튼이 활성화된다.
+        /// </summary>
+        public string ButtonEnabledMember { get; set; }
     }
 }

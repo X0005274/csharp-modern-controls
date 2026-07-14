@@ -5,6 +5,7 @@ using System.Collections.Specialized;
 using System.Globalization;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Data;
 using System.Windows.Media;
 using Modern.Lab.Controls.Wpf.Common;
@@ -98,6 +99,9 @@ namespace Modern.Lab.Controls.Wpf.Data
         /// <summary>행 선택이 바뀔 때 발생한다.</summary>
         public event EventHandler SelectionChanged;
 
+        /// <summary>버튼 컬럼(GridColumnKind.Button) 셀을 클릭할 때 발생한다.</summary>
+        public event EventHandler<GridButtonClickEventArgs> CellButtonClick;
+
         /// <summary>높이 변화로 표시 가능 행 수(VisibleRowCapacity)가 바뀔 때 발생한다.</summary>
         public event EventHandler VisibleRowCapacityChanged;
 
@@ -118,6 +122,10 @@ namespace Modern.Lab.Controls.Wpf.Data
         private const double autoFitCellPadding = 28d;
         // 헤더 전용 추가 여유: 오른쪽 고정 정렬 글리프(여백 6 + 글리프 폭).
         private const double autoFitSortGlyphReserve = 18d;
+        // 배지 셀 추가 여유: 알약 좌우 패딩(8+8) + 곡률 여유.
+        private const double autoFitBadgeReserve = 18d;
+        // 버튼 셀 추가 여유: 버튼 좌우 패딩(10+10) + 테두리(1+1).
+        private const double autoFitButtonChromeReserve = 22d;
 
         public ModernDataGridControl()
         {
@@ -267,14 +275,30 @@ namespace Modern.Lab.Controls.Wpf.Data
 
             foreach (ModernDataGridColumn definition in columns)
             {
-                this.InnerDataGrid.Columns.Add(CreateColumn(definition));
+                this.InnerDataGrid.Columns.Add(this.CreateColumn(definition));
             }
 
             // 데이터가 이미 할당돼 있으면(할당 순서 내성) 즉시 자동 맞춤을 적용한다.
             this.AutoFitColumnWidths();
         }
 
-        private static DataGridTextColumn CreateColumn(ModernDataGridColumn definition)
+        // 컬럼 정의의 Kind에 따라 텍스트/체크박스/배지/버튼 컬럼을 만든다.
+        private DataGridColumn CreateColumn(ModernDataGridColumn definition)
+        {
+            switch (definition.Kind)
+            {
+                case GridColumnKind.CheckBox:
+                    return this.CreateCheckBoxColumn(definition);
+                case GridColumnKind.Badge:
+                    return this.CreateBadgeColumn(definition);
+                case GridColumnKind.Button:
+                    return this.CreateButtonColumn(definition);
+                default:
+                    return CreateTextColumn(definition);
+            }
+        }
+
+        private static DataGridTextColumn CreateTextColumn(ModernDataGridColumn definition)
         {
             DataGridTextColumn column = new DataGridTextColumn();
             column.Header = definition.HeaderText;
@@ -289,15 +313,7 @@ namespace Modern.Lab.Controls.Wpf.Data
             }
 
             column.Binding = binding;
-
-            if (definition.Width > 0d)
-            {
-                column.Width = new DataGridLength(definition.Width);
-            }
-            else
-            {
-                column.Width = new DataGridLength(1d, DataGridLengthUnitType.Star);
-            }
+            ApplyColumnWidth(column, definition);
 
             if (definition.TextAlignment != GridTextAlignment.Left)
             {
@@ -311,6 +327,284 @@ namespace Modern.Lab.Controls.Wpf.Data
             }
 
             return column;
+        }
+
+        // 체크박스 컬럼: bool 컬럼에 양방향 바인딩. 그리드가 읽기 전용이어도
+        // CellTemplate 안의 체크박스는 살아 있으므로 한 번의 클릭으로 토글되고,
+        // UpdateSourceTrigger=PropertyChanged로 원본 행 값이 즉시 갱신된다.
+        private DataGridColumn CreateCheckBoxColumn(ModernDataGridColumn definition)
+        {
+            DataGridTemplateColumn column = new DataGridTemplateColumn();
+            column.Header = definition.HeaderText;
+            column.CanUserSort = false;
+
+            Binding binding = new Binding(definition.DataPropertyName);
+            binding.Mode = BindingMode.TwoWay;
+            binding.UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged;
+
+            FrameworkElementFactory check = new FrameworkElementFactory(typeof(CheckBox));
+            check.SetBinding(CheckBox.IsCheckedProperty, binding);
+            check.SetValue(FrameworkElement.HorizontalAlignmentProperty, HorizontalAlignment.Center);
+            check.SetValue(FrameworkElement.VerticalAlignmentProperty, VerticalAlignment.Center);
+
+            DataTemplate template = new DataTemplate();
+            template.VisualTree = check;
+            column.CellTemplate = template;
+
+            ApplyColumnWidth(column, definition);
+            return column;
+        }
+
+        // 배지 컬럼: 값 텍스트를 BadgeColorMember 색의 알약(Border)으로 감싼다.
+        // 글자색은 배경색에서 자동 유도(ChipColorHelper.DeriveForeground)한다.
+        private DataGridColumn CreateBadgeColumn(ModernDataGridColumn definition)
+        {
+            DataGridTemplateColumn column = new DataGridTemplateColumn();
+            column.Header = definition.HeaderText;
+            column.SortMemberPath = definition.DataPropertyName;
+
+            FrameworkElementFactory border = new FrameworkElementFactory(typeof(Border));
+            border.SetValue(Border.CornerRadiusProperty, this.FindResource("Radius.Pill"));
+            border.SetValue(Border.PaddingProperty, new Thickness(8d, 1d, 8d, 1d));
+            border.SetValue(FrameworkElement.HorizontalAlignmentProperty, ToHorizontalAlignment(definition.TextAlignment));
+            border.SetValue(FrameworkElement.VerticalAlignmentProperty, VerticalAlignment.Center);
+
+            if (!string.IsNullOrEmpty(definition.BadgeColorMember))
+            {
+                Binding backgroundBinding = new Binding(definition.BadgeColorMember);
+                backgroundBinding.Converter = badgeBackgroundConverter;
+                border.SetBinding(Border.BackgroundProperty, backgroundBinding);
+            }
+
+            Binding textBinding = new Binding(definition.DataPropertyName);
+
+            if (!string.IsNullOrEmpty(definition.Format))
+            {
+                textBinding.StringFormat = definition.Format;
+            }
+
+            FrameworkElementFactory text = new FrameworkElementFactory(typeof(TextBlock));
+            text.SetBinding(TextBlock.TextProperty, textBinding);
+            text.SetValue(TextBlock.FontSizeProperty, this.FindResource("Font.Size.Label"));
+            text.SetValue(TextBlock.FontWeightProperty, FontWeights.SemiBold);
+
+            if (!string.IsNullOrEmpty(definition.BadgeColorMember))
+            {
+                Binding foregroundBinding = new Binding(definition.BadgeColorMember);
+                foregroundBinding.Converter = badgeForegroundConverter;
+                text.SetBinding(TextBlock.ForegroundProperty, foregroundBinding);
+            }
+
+            border.AppendChild(text);
+
+            DataTemplate template = new DataTemplate();
+            template.VisualTree = border;
+            column.CellTemplate = template;
+
+            ApplyColumnWidth(column, definition);
+            return column;
+        }
+
+        // 버튼 컬럼: 행 단위 액션 버튼. 클릭은 CellButtonClick 이벤트로 전달되고,
+        // ButtonEnabledMember 컬럼 값(bool/Y/N)이 행별 활성화를 제어한다.
+        private DataGridColumn CreateButtonColumn(ModernDataGridColumn definition)
+        {
+            DataGridTemplateColumn column = new DataGridTemplateColumn();
+            column.Header = definition.HeaderText;
+            column.CanUserSort = false;
+
+            FrameworkElementFactory button = new FrameworkElementFactory(typeof(Button));
+            button.SetValue(ContentControl.ContentProperty, definition.ButtonText);
+            button.SetValue(FrameworkElement.TagProperty, definition.DataPropertyName);
+            button.SetValue(FrameworkElement.HorizontalAlignmentProperty, ToHorizontalAlignment(definition.TextAlignment));
+            button.SetValue(FrameworkElement.VerticalAlignmentProperty, VerticalAlignment.Center);
+            button.SetValue(FrameworkElement.StyleProperty, this.BuildCellButtonStyle());
+
+            if (!string.IsNullOrEmpty(definition.ButtonEnabledMember))
+            {
+                Binding enabledBinding = new Binding(definition.ButtonEnabledMember);
+                enabledBinding.Converter = truthyConverter;
+                button.SetBinding(UIElement.IsEnabledProperty, enabledBinding);
+            }
+
+            button.AddHandler(ButtonBase.ClickEvent, new RoutedEventHandler(this.OnCellButtonClick));
+
+            DataTemplate template = new DataTemplate();
+            template.VisualTree = button;
+            column.CellTemplate = template;
+
+            ApplyColumnWidth(column, definition);
+            return column;
+        }
+
+        // 셀 안 버튼의 아웃라인 스타일: 액센트 텍스트/테두리의 작은 버튼.
+        // 비활성 행은 회색 텍스트/테두리로 눌 수 없음을 드러낸다.
+        private Style BuildCellButtonStyle()
+        {
+            Style style = new Style(typeof(Button));
+            style.Setters.Add(new Setter(Control.ForegroundProperty, this.FindResource("Brush.Accent")));
+            style.Setters.Add(new Setter(Control.BackgroundProperty, Brushes.Transparent));
+            style.Setters.Add(new Setter(Control.BorderBrushProperty, this.FindResource("Brush.Accent")));
+            style.Setters.Add(new Setter(Control.FontSizeProperty, this.FindResource("Font.Size.Label")));
+            style.Setters.Add(new Setter(Control.PaddingProperty, new Thickness(10d, 1d, 10d, 1d)));
+            style.Setters.Add(new Setter(FrameworkElement.CursorProperty, System.Windows.Input.Cursors.Hand));
+
+            ControlTemplate template = new ControlTemplate(typeof(Button));
+            FrameworkElementFactory border = new FrameworkElementFactory(typeof(Border));
+            border.SetValue(Border.CornerRadiusProperty, this.FindResource("Radius.Sm"));
+            border.SetValue(Border.BorderThicknessProperty, new Thickness(1d));
+            border.SetBinding(Border.BackgroundProperty, TemplateBinding(Control.BackgroundProperty));
+            border.SetBinding(Border.BorderBrushProperty, TemplateBinding(Control.BorderBrushProperty));
+            border.SetBinding(Border.PaddingProperty, TemplateBinding(Control.PaddingProperty));
+
+            FrameworkElementFactory presenter = new FrameworkElementFactory(typeof(ContentPresenter));
+            presenter.SetValue(FrameworkElement.HorizontalAlignmentProperty, HorizontalAlignment.Center);
+            presenter.SetValue(FrameworkElement.VerticalAlignmentProperty, VerticalAlignment.Center);
+            border.AppendChild(presenter);
+            template.VisualTree = border;
+            style.Setters.Add(new Setter(Control.TemplateProperty, template));
+
+            Trigger hover = new Trigger();
+            hover.Property = UIElement.IsMouseOverProperty;
+            hover.Value = true;
+            hover.Setters.Add(new Setter(Control.BackgroundProperty, this.FindResource("Brush.HoverBackground")));
+            style.Triggers.Add(hover);
+
+            Trigger disabled = new Trigger();
+            disabled.Property = UIElement.IsEnabledProperty;
+            disabled.Value = false;
+            disabled.Setters.Add(new Setter(Control.ForegroundProperty, this.FindResource("Brush.DisabledText")));
+            disabled.Setters.Add(new Setter(Control.BorderBrushProperty, this.FindResource("Brush.BorderSubtle")));
+            style.Triggers.Add(disabled);
+
+            return style;
+        }
+
+        // 코드 생성 템플릿에서 TemplateBinding과 같은 효과를 내는 바인딩 헬퍼.
+        private static Binding TemplateBinding(DependencyProperty property)
+        {
+            Binding binding = new Binding(property.Name);
+            binding.RelativeSource = RelativeSource.TemplatedParent;
+            return binding;
+        }
+
+        private void OnCellButtonClick(object sender, RoutedEventArgs e)
+        {
+            e.Handled = true;
+            FrameworkElement element = (FrameworkElement)sender;
+
+            if (this.CellButtonClick != null)
+            {
+                this.CellButtonClick(this, new GridButtonClickEventArgs(element.DataContext, element.Tag as string));
+            }
+        }
+
+        private static void ApplyColumnWidth(DataGridColumn column, ModernDataGridColumn definition)
+        {
+            if (definition.Width > 0d)
+            {
+                column.Width = new DataGridLength(definition.Width);
+            }
+            else
+            {
+                column.Width = new DataGridLength(1d, DataGridLengthUnitType.Star);
+            }
+        }
+
+        private static HorizontalAlignment ToHorizontalAlignment(GridTextAlignment alignment)
+        {
+            if (alignment == GridTextAlignment.Center)
+            {
+                return HorizontalAlignment.Center;
+            }
+
+            if (alignment == GridTextAlignment.Right)
+            {
+                return HorizontalAlignment.Right;
+            }
+
+            return HorizontalAlignment.Left;
+        }
+
+        // ===== 배지/버튼 셀이 쓰는 값 변환기 =====
+
+        private static readonly IValueConverter badgeBackgroundConverter = new BadgeBackgroundConverter();
+        private static readonly IValueConverter badgeForegroundConverter = new BadgeForegroundConverter();
+        private static readonly IValueConverter truthyConverter = new TruthyToBooleanConverter();
+
+        // 색 문자열("#FEE2E2") → 배경 브러시. 해석 불가면 투명(일반 텍스트처럼 보임).
+        private sealed class BadgeBackgroundConverter : IValueConverter
+        {
+            public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+            {
+                Color color;
+
+                if (ChipColorHelper.TryParseColor(value == null ? null : value.ToString(), out color))
+                {
+                    SolidColorBrush brush = new SolidColorBrush(color);
+                    brush.Freeze();
+                    return brush;
+                }
+
+                return Brushes.Transparent;
+            }
+
+            public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+            {
+                throw new NotSupportedException();
+            }
+        }
+
+        // 색 문자열 → 배경에서 유도한 글자색 브러시. 해석 불가면 기본 글자색 상속.
+        private sealed class BadgeForegroundConverter : IValueConverter
+        {
+            public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+            {
+                Color color;
+
+                if (ChipColorHelper.TryParseColor(value == null ? null : value.ToString(), out color))
+                {
+                    SolidColorBrush brush = new SolidColorBrush(ChipColorHelper.DeriveForeground(color));
+                    brush.Freeze();
+                    return brush;
+                }
+
+                return DependencyProperty.UnsetValue;
+            }
+
+            public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+            {
+                throw new NotSupportedException();
+            }
+        }
+
+        // bool 또는 "Y"/"YES"/"TRUE"/"1" 계열 문자열을 참으로 해석한다.
+        private sealed class TruthyToBooleanConverter : IValueConverter
+        {
+            public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+            {
+                if (value is bool)
+                {
+                    return (bool)value;
+                }
+
+                if (value == null || value == DBNull.Value)
+                {
+                    return false;
+                }
+
+                string text = value.ToString().Trim();
+
+                return text.Equals("Y", StringComparison.OrdinalIgnoreCase)
+                    || text.Equals("YES", StringComparison.OrdinalIgnoreCase)
+                    || text.Equals("TRUE", StringComparison.OrdinalIgnoreCase)
+                    || text == "1";
+            }
+
+            public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+            {
+                throw new NotSupportedException();
+            }
         }
 
         private static void OnStatusBarAppearanceChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
@@ -352,17 +646,42 @@ namespace Modern.Lab.Controls.Wpf.Data
             {
                 ModernDataGridColumn definition = this.columnDefinitions[index];
 
+                // 체크박스 컬럼은 내용 측정 대상이 아니다 — 정의 폭(없으면 최소 폭)을 유지한다.
+                if (definition.Kind == GridColumnKind.CheckBox)
+                {
+                    this.InnerDataGrid.Columns[index].Width =
+                        new DataGridLength(definition.Width > 0d ? definition.Width : autoFitMinWidth);
+                    continue;
+                }
+
                 double width = MeasureText(definition.HeaderText, headerTypeface, headerFontSize, pixelsPerDip)
                     + autoFitCellPadding + autoFitSortGlyphReserve;
 
-                foreach (string candidate in CollectLongestCellTexts(this.ItemsSource, definition))
+                if (definition.Kind == GridColumnKind.Button)
                 {
-                    double cellWidth = MeasureText(candidate, bodyTypeface, bodyFontSize, pixelsPerDip)
-                        + autoFitCellPadding;
+                    // 버튼 컬럼은 캡션 폭 기준 — 데이터 내용은 측정하지 않는다.
+                    double captionWidth = MeasureText(definition.ButtonText, bodyTypeface, bodyFontSize, pixelsPerDip)
+                        + autoFitCellPadding + autoFitButtonChromeReserve;
 
-                    if (cellWidth > width)
+                    if (captionWidth > width)
                     {
-                        width = cellWidth;
+                        width = captionWidth;
+                    }
+                }
+                else
+                {
+                    // 배지 셀은 알약 좌우 패딩만큼 여유를 더한다.
+                    double reserve = definition.Kind == GridColumnKind.Badge ? autoFitBadgeReserve : 0d;
+
+                    foreach (string candidate in CollectLongestCellTexts(this.ItemsSource, definition))
+                    {
+                        double cellWidth = MeasureText(candidate, bodyTypeface, bodyFontSize, pixelsPerDip)
+                            + autoFitCellPadding + reserve;
+
+                        if (cellWidth > width)
+                        {
+                            width = cellWidth;
+                        }
                     }
                 }
 

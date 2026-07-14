@@ -38,6 +38,13 @@ namespace Modern.Lab.WinForms.Controls.Data
         /// <summary>행 선택이 바뀔 때 발생한다(WinForms 호환 이름).</summary>
         public event EventHandler SelectionChanged;
 
+        /// <summary>
+        /// 버튼 컬럼(GridColumnKind.Button) 셀을 클릭할 때 발생한다.
+        /// e.Item이 클릭된 행(DataTable 소스면 DataRowView), e.DataPropertyName이
+        /// 버튼 컬럼의 DataPropertyName이다.
+        /// </summary>
+        public event EventHandler<GridButtonClickEventArgs> CellButtonClick;
+
         /// <summary>높이 변화로 표시 가능 행 수(VisibleRowCapacity)가 바뀔 때 발생한다.</summary>
         public event EventHandler VisibleRowCapacityChanged;
 
@@ -56,6 +63,7 @@ namespace Modern.Lab.WinForms.Controls.Data
             {
                 this.Wpf.SelectionChanged += this.OnWpfSelectionChanged;
                 this.Wpf.VisibleRowCapacityChanged += this.OnWpfVisibleRowCapacityChanged;
+                this.Wpf.CellButtonClick += this.OnWpfCellButtonClick;
             }
         }
 
@@ -377,6 +385,14 @@ namespace Modern.Lab.WinForms.Controls.Data
             if (this.Wpf != null)
             {
                 this.Wpf.ApplyColumns(columns);
+            }
+        }
+
+        private void OnWpfCellButtonClick(object sender, GridButtonClickEventArgs e)
+        {
+            if (this.CellButtonClick != null)
+            {
+                this.CellButtonClick(this, e);
             }
         }
 

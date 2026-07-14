@@ -516,6 +516,7 @@ this.treeOrg.SelectedValueChanged += this.OnOrgTreeSelectionChanged;
 | `StatusCountFormat` | string | 상태바 행 수 형식. 기본 `"{0:N0} rows"` — `{0}`에 현재 행 수 |
 | `StatusText` | string | 상태바 오른쪽 자유 텍스트 (선택 대상·조회 조건 등) |
 | `RowColorMember` | string | 행 배경색 컬럼 (선택). 값은 `"#FEE2E2"` 같은 색 문자열 — 비었거나 해석 불가한 행은 기본 교차색 유지. 상태별 행 강조(예: Scrap 빨강)용. 트리 `ForeColorMember`와 짝 |
+| `CellButtonClick` | 이벤트 | 버튼 컬럼(`Kind = Button`) 셀 클릭 시. `e.Item`이 클릭 행(`DataRowView`), `e.DataPropertyName`이 버튼 컬럼 이름 |
 
 ### 예제 — 컬럼 정의와 선택 행 사용
 
@@ -791,12 +792,29 @@ this.tabHistory.SelectedIndexChanged += this.OnHistoryTabChanged;
 | `new ModernDataGridColumn(컬럼명, 헤더, 폭)` | 픽셀 고정 폭 |
 | `TextAlignment` | `Left`(기본) / `Center` / `Right` |
 | `Format` | 표시 형식 — 숫자 `"N0"`/`"N2"`, 날짜 `"yyyy-MM-dd"` 등. **원본이 타입 컬럼(int/decimal/DateTime)일 때만 적용**되고, 정렬은 형식과 무관하게 원본 값 기준 |
+| `Kind` | 셀 표시 종류 — `Text`(기본) / `CheckBox` / `Badge` / `Button` (그리드 전용; 아래 표) |
+
+### 컬럼 종류 (Kind) — 그리드 전용
+
+| Kind | 설명 | 함께 쓰는 속성 |
+|---|---|---|
+| `CheckBox` | bool 컬럼 양방향 체크박스 — 벌크 작업 대상 지정용. 읽기 전용 그리드에서도 클릭 한 번으로 토글되고 원본 행 값이 즉시 갱신된다 | — |
+| `Badge` | 값을 색 알약(배지)으로 표시. 글자색은 배경색에서 자동 유도 | `BadgeColorMember` — 배경색(`"#FEE2E2"` 등) 컬럼 이름. 색이 비면 일반 텍스트 |
+| `Button` | 행 단위 액션 버튼(액센트 아웃라인). 클릭 시 그리드의 `CellButtonClick` 발생 | `ButtonText` — 캡션. `ButtonEnabledMember` — 행별 활성 여부 컬럼(bool 또는 `"Y"`/`"true"`/`"1"`; 비우면 항상 활성) |
+
+주의: 페이지 슬라이스처럼 **복사본 DataTable**을 바인딩하는 화면은 체크 변경을
+원본에 되돌리는 동기화가 필요하다 (`ColumnChanged` 구독 — Samples의
+PendingRequestForm 참고).
 
 ```csharp
 // 원하는 개수만큼 나열
+new ModernDataGridColumn("CHK", "", 44) { Kind = GridColumnKind.CheckBox },
 new ModernDataGridColumn("EMP_NO", "사번", 90),
-new ModernDataGridColumn("EMP_NAME", "이름", 110),
 new ModernDataGridColumn("SALARY", "급여", 100) { TextAlignment = GridTextAlignment.Right, Format = "N0" },
+new ModernDataGridColumn("ELAPSED_DAYS", "Days", 70)
+    { Kind = GridColumnKind.Badge, BadgeColorMember = "DAYS_COLOR", TextAlignment = GridTextAlignment.Center },
+new ModernDataGridColumn("LOGIS_YN", "Logistics", 100)
+    { Kind = GridColumnKind.Button, ButtonText = "Process", ButtonEnabledMember = "LOGIS_CAN" },
 new ModernDataGridColumn("NOTE", "비고")   // 마지막은 폭 생략으로 채움
 ```
 

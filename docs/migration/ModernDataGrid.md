@@ -27,8 +27,10 @@
 | 멤버 | 설명 |
 |---|---|
 | `ConfigureColumns(params ModernDataGridColumn[])` | 명시적 컬럼 정의. `DataSource` 할당 전에 호출. `ModernDataGridColumn(dataPropertyName, headerText[, width])` — width 생략/음수는 남은 폭 채움(star). `TextAlignment`(Left/Center/Right) 지정 가능 |
+| `ModernDataGridColumn.Kind` | 셀 표시 종류 — `Text`(기본) / `CheckBox`(bool 양방향 체크박스, 벌크 대상 지정) / `Badge`(`BadgeColorMember` 색 알약) / `Button`(`ButtonText` 캡션, `ButtonEnabledMember`로 행별 활성 제어) |
+| `CellButtonClick` | 버튼 컬럼 셀 클릭 이벤트 — `e.Item`(클릭 행 `DataRowView`) + `e.DataPropertyName`(버튼 컬럼 이름). `DataGridView`의 `CellContentClick` + 버튼 컬럼 대체 |
 | `SelectedItem` | 선택 행 (`DataTable` 소스일 때 `DataRowView`) — 기존 `CurrentRow.DataBoundItem` 대체 |
-| `AutoFitColumns` | true면 각 컬럼 너비를 **헤더 캡션과 데이터 내용 중 더 넓은 쪽**에 맞춰 자동 계산 (`ConfigureColumns` 컬럼에만 적용, 컬럼 정의의 `Width`는 무시). `DataSource`가 바뀔 때마다 재계산되며 하한 48px / 상한 600px. 사용자의 마우스 폭 조절은 그대로 가능 |
+| `AutoFitColumns` | true면 각 컬럼 너비를 **헤더 캡션과 데이터 내용 중 더 넓은 쪽**에 맞춰 자동 계산 (`ConfigureColumns` 컬럼에만 적용, 컬럼 정의의 `Width`는 무시 — 단 CheckBox/Button/Badge 컬럼은 정의 폭·캡션 기준). `DataSource`가 바뀔 때마다 재계산되며 하한 48px / 상한 600px. 사용자의 마우스 폭 조절은 그대로 가능 |
 
 정렬 글리프(▲/▼)는 헤더 텍스트 옆이 아니라 **헤더 셀 오른쪽 끝에 고정** 표시된다 —
 컬럼 너비와 무관하게 위치가 일정해 정렬 상태를 훑어보기 쉽다.
@@ -39,9 +41,11 @@
 |---|---|
 | `CurrentRow`, `SelectedRows`, `Rows[i].Cells[...]` | `SelectedItem`(`DataRowView`)으로 값 접근: `((DataRowView)grid.SelectedItem)["EMP_NO"]` |
 | `Columns` 컬렉션 (디자이너 정의 포함) | `ConfigureColumns(...)` 코드 정의 |
-| 셀 편집 (`ReadOnly = false`, `CellValueChanged`) | v1은 읽기 전용 조회 전용 — 편집 그리드가 필요하면 별도 요청 |
+| 셀 편집 (`ReadOnly = false`, `CellValueChanged`) | 일반 셀 편집은 미지원(읽기 전용 조회 전용). 단 **체크박스 컬럼**(`Kind = CheckBox`)은 예외로 양방향 토글된다 |
+| `DataGridViewCheckBoxColumn` | `ConfigureColumns`에 `Kind = GridColumnKind.CheckBox` 컬럼 (bool 컬럼 바인딩) |
+| `DataGridViewButtonColumn` + `CellContentClick` | `Kind = GridColumnKind.Button` 컬럼 + `CellButtonClick` 이벤트 |
 | `CellClick`/`CellDoubleClick` | `SelectionChanged`로 선택 처리. 더블클릭 이벤트가 필요하면 별도 요청 |
-| `MultiSelect` | 단일 행 선택만 지원 (v1) |
+| `MultiSelect` | 단일 행 선택만 지원 — 벌크 작업 대상은 체크박스 컬럼으로 지정 |
 | `DefaultCellStyle`, `Font`, 색상 계열 | 없음 — 토큰이 결정 |
 
 ## .Designer.cs 교체 예시
