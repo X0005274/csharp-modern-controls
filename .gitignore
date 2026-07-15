@@ -20,6 +20,3 @@ packages/
 
 # 로컬 전용 DB 스크립트 (사내 MES 도메인 — 공개 저장소에 포함하지 않음)
 db/
-
-# 로컬 전용 DB 접속 설정 (비밀번호 포함 — App.config.example을 복사해 작성)
-Modern.Lab.Samples/App.config

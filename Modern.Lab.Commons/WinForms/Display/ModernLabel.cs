@@ -3,6 +3,7 @@ using System.ComponentModel;
 using System.Drawing;
 using System.Windows.Forms;
 using Modern.Lab.Controls.Wpf.Display;
+using Modern.Lab.WinForms.Rendering;
 
 namespace Modern.Lab.WinForms.Controls.Display
 {
@@ -49,6 +50,7 @@ namespace Modern.Lab.WinForms.Controls.Display
         private LabelKind kind;
         private bool required;
         private bool titleBar;
+        private double fontWidthRatio;
 
         /// <summary>적절한 기본 크기로 컨트롤을 생성한다.</summary>
         public ModernLabel()
@@ -129,6 +131,23 @@ namespace Modern.Lab.WinForms.Controls.Display
             set { base.Text = value; }
         }
 
+        /// <summary>장평(글자 가로 비율) 재정의. 0 = 전역(ModernTheme.FontWidthRatio) 사용.</summary>
+        [Category("모던 컨트롤")]
+        [Description("장평(글자 가로 비율) 재정의 — 0 = 전역(ModernTheme.FontWidthRatio) 사용, 허용 0.8~1.2")]
+        [DefaultValue(0d)]
+        public double FontWidthRatio
+        {
+            get
+            {
+                return this.fontWidthRatio;
+            }
+            set
+            {
+                this.fontWidthRatio = value;
+                this.Invalidate();
+            }
+        }
+
         /// <summary>타이포그래피 역할 (Body/Title/Label/Helper).</summary>
         [Category("모던 컨트롤")]
         [Description("타이포그래피 역할(Body/Title/Label/Helper)")]
@@ -167,6 +186,7 @@ namespace Modern.Lab.WinForms.Controls.Display
 
             Font font = this.GetKindFont();
             Color color = this.Enabled ? this.GetKindColor() : DisabledTextColor;
+            double widthRatio = Modern.Lab.Theming.ModernTheme.ResolveFontWidthRatio(this.fontWidthRatio);
             int left = 0;
 
             // 세로 타이틀 바: Kind=Title이면서 TitleBar=true일 때만.
@@ -188,25 +208,28 @@ namespace Modern.Lab.WinForms.Controls.Display
 
             if (this.required)
             {
-                starSize = TextRenderer.MeasureText(e.Graphics, "*", LabelFont, Size.Empty, textFlags);
+                starSize = ScaledTextRenderer.MeasureText(
+                    e.Graphics, "*", LabelFont, Size.Empty, textFlags, widthRatio);
             }
 
             Rectangle textBounds = new Rectangle(
                 left, 0, this.Width - left - starSize.Width - (this.required ? requiredGap : 0), this.Height);
 
-            TextRenderer.DrawText(
-                e.Graphics, this.Text, font, textBounds, color, textFlags | TextFormatFlags.EndEllipsis);
+            ScaledTextRenderer.DrawText(
+                e.Graphics, this.Text, font, textBounds, color,
+                textFlags | TextFormatFlags.EndEllipsis, widthRatio);
 
             // 필수 별표: 실제 그려진 텍스트 폭 바로 뒤 (텍스트가 잘리면 영역 끝).
             if (this.required)
             {
-                Size textSize = TextRenderer.MeasureText(e.Graphics, this.Text, font, textBounds.Size, textFlags);
+                Size textSize = ScaledTextRenderer.MeasureText(
+                    e.Graphics, this.Text, font, textBounds.Size, textFlags, widthRatio);
                 int starLeft = left + Math.Min(textSize.Width, textBounds.Width) + requiredGap;
 
-                TextRenderer.DrawText(
+                ScaledTextRenderer.DrawText(
                     e.Graphics, "*", LabelFont,
                     new Rectangle(starLeft, 0, starSize.Width + 2, this.Height),
-                    RequiredColor, textFlags);
+                    RequiredColor, textFlags, widthRatio);
             }
         }
 

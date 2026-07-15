@@ -75,7 +75,8 @@
                        Margin="10,0,0,0"
                        VerticalAlignment="Center"
                        FontSize="{StaticResource Font.Size.Body}"
-                       Foreground="{StaticResource Brush.TextPrimary}" />
+                       Foreground="{StaticResource Brush.TextPrimary}"
+                       LayoutTransform="{Binding Path=(common:FontWidthScaling.TextWidthTransform), RelativeSource={RelativeSource Self}}" />
         </StackPanel>
     </Border>
 </UserControl>

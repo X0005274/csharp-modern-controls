@@ -40,12 +40,14 @@
         </Border.Style>
         <StackPanel VerticalAlignment="Center">
             <TextBlock Text="{Binding Title, ElementName=RootControl}"
-                       Style="{StaticResource Text.Label}" />
+                       Style="{StaticResource Text.Label}"
+                       LayoutTransform="{Binding Path=(common:FontWidthScaling.TextWidthTransform), RelativeSource={RelativeSource Self}}" />
             <TextBlock Text="{Binding Value, ElementName=RootControl}"
                        FontSize="{StaticResource Font.Size.Heading}"
                        FontWeight="SemiBold"
                        Foreground="{StaticResource Brush.TextPrimary}"
-                       Margin="0,2,0,0" />
+                       Margin="0,2,0,0"
+                       LayoutTransform="{Binding Path=(common:FontWidthScaling.TextWidthTransform), RelativeSource={RelativeSource Self}}" />
         </StackPanel>
     </Border>
 </UserControl>

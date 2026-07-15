@@ -57,6 +57,7 @@
 | 순서 내성 | `SelectedValue`(또는 `CheckedValues`)를 `DataSource`보다 **먼저** 설정해도 됨 — 보류했다가 데이터 도착 시 적용 |
 | 재할당 리셋 | `DataSource`를 다시 할당하면 선택/체크가 깨끗하게 초기화되고 변경 이벤트는 정확히 1회 발생 |
 | null 안전 | null/빈 데이터는 빈 목록으로 표시, 예외 없음 |
+| 누락 컬럼 자동 보장 | `DataTable`/`DataView` 소스에서 컨트롤이 참조하는 컬럼(그리드의 `ConfigureColumns` 정의·`RowColorMember`, 트리의 `IdMember` 등)이 없으면 빈 문자열 컬럼으로 자동 추가 — JSON→DataTable 변환이 전부-null 컬럼을 생략해도 폼에서 컬럼 목록을 다시 나열할 필요 없음 |
 | 스레드 | 백그라운드 조회 후 `this.Invoke(...)`로 UI 스레드에서 할당하는 기존 패턴 그대로 동작 |
 | 수동 데이터 | 폼이 데이터를 조회해서 할당한다 — 컨트롤은 서버를 모른다 |
 
@@ -68,6 +69,30 @@ private void OnSearchClick(object sender, EventArgs e)
     this.gridEmployee.DataSource = reply;                                // 할당만 하면 끝
 }
 ```
+
+---
+
+## 공통 장평 (FontWidthRatio)
+
+글자 가로 비율(장평)을 전역 토큰 + 컨트롤별 재정의로 조절한다.
+허용 범위는 **0.8~1.2**이며 범위 밖 값은 경계로 잘린다.
+
+```csharp
+// 전역: Program.cs에서 첫 컨트롤 생성 전에 한 번 (테마 Mode와 같은 규칙)
+Modern.Lab.Theming.ModernTheme.FontWidthRatio = 0.9;   // 90% 축소 장평
+
+// 컨트롤별 재정의: 0(기본) = 전역 사용, 양수 = 이 컨트롤만 해당 비율
+this.gridHistory.FontWidthRatio = 1.1;
+```
+
+| 항목 | 내용 |
+|---|---|
+| 전역 토큰 | `ModernTheme.FontWidthRatio` — 앱 시작 시 한 번 설정 (WPF 쪽은 컬럼/템플릿 구성 시점에 확정) |
+| 재정의 지원 | **모든 모던 컨트롤** — ElementHost 래퍼는 `WpfElementHostBase.FontWidthRatio` 공통 속성, GDI+ 컨트롤(`ModernLabel`/`ModernStatusBadge`/`ModernGroupBox`/`ModernTabControl`)은 개별 속성. 이름은 모두 `FontWidthRatio`, 0 = 전역 |
+| 적용 범위 | 입력류 내부 텍스트·플레이스홀더(TextBox/Numeric/DatePicker/MonthPicker/ComboBox/CheckCombo), 콤보·라디오·체크·토글 항목 라벨, 트리 노드, 그리드 셀/헤더/배지/버튼 캡션/상태바(+AutoFit 측정), 페이지네이션, 스텝 라벨, 버튼/드롭다운 캡션, 토스트/로딩 메시지, KPI/요약 텍스트, GDI 라벨/배지/그룹 타이틀/탭 헤더 |
+| 제외 | 아이콘 글리프(Segoe MDL2), 달력 팝업 내부(표준 Calendar) — 글자가 아니라 스케일하지 않는다 |
+| 구현 방식 | WPF = `FontWidthScaling` 첨부 속성(상속되는 가로 ScaleTransform을 텍스트 요소가 `LayoutTransform`으로 바인딩), GDI+ = `ScaledTextRenderer`(DrawString + 가로 스케일, ClearTypeGridFit). GDI `lfWidth` 방식은 한글 폰트 링크가 깨져 쓰지 않는다 |
+| 샘플 확인 | `Modern.Lab.Samples.exe --fontwidth=0.9` (또는 1.1, 1.2) |
 
 ---
 
@@ -785,11 +810,17 @@ this.splitMain.SplitterDistance = 340;
 
 언더라인(피벗) 스타일 탭 컨테이너 — `TabControl`의 대체 (순수 WinForms, GDI+).
 선택 탭은 액센트색 SemiBold + 밑줄, 색은 팔레트를 읽어 7개 테마 자동 대응.
-`TabPage` 모델 대신 `AddTab(제목, 컨트롤)`로 페이지를 붙인다.
+페이지는 `ModernTabPage`(=`TabPage` 대응, `Text`가 탭 제목)로 구성하며, 폼
+디자이너에서 "탭 추가/선택 탭 제거" 동사와 헤더 클릭 전환을 지원한다.
+런타임 코드에서는 `AddTab(제목, 컨트롤)`도 그대로 쓸 수 있다.
 
 ```csharp
-this.tabHistory.AddTab("Item History", this.gridHistory);
-this.tabHistory.AddTab("Unit History", this.gridUnitHistory);
+// .Designer.cs (디자이너 직렬화 — 권장):
+this.tabHistory.Controls.Add(this.pageItemHistory);   // ModernTabPage, Text="Item History"
+this.tabHistory.Controls.Add(this.pageUnitHistory);   // ModernTabPage, Text="Unit History"
+this.pageItemHistory.Controls.Add(this.gridHistory);  // 그리드는 페이지의 자식
+
+// 코드 비하인드:
 this.tabHistory.SetTabTitle(1, "Unit History — " + unitId);  // 데이터만 갱신, 전환 없음
 this.tabHistory.SelectedIndexChanged += this.OnHistoryTabChanged;
 ```

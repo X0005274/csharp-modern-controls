@@ -110,7 +110,8 @@
             <HierarchicalDataTemplate DataType="{x:Type local:TreeNodeItem}" ItemsSource="{Binding Children}">
                 <!-- 기본은 항목 스타일의 색을 상속하고(선택 시 SelectedText 포함),
                      ForeColorMemberPath로 지정된 노드만 자기 색을 우선한다. -->
-                <TextBlock Text="{Binding DisplayText}" Margin="2,0,4,0" VerticalAlignment="Center">
+                <TextBlock Text="{Binding DisplayText}" Margin="2,0,4,0" VerticalAlignment="Center"
+                           LayoutTransform="{Binding Path=(common:FontWidthScaling.TextWidthTransform), RelativeSource={RelativeSource Self}}">
                     <TextBlock.Style>
                         <Style TargetType="TextBlock">
                             <Style.Triggers>

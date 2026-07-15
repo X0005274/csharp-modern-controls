@@ -37,6 +37,19 @@ namespace Modern.Lab.Samples
                         Modern.Lab.Theming.ModernTheme.Mode = mode;
                     }
                 }
+                else if (arg.StartsWith("--fontwidth=", StringComparison.OrdinalIgnoreCase))
+                {
+                    // 장평 확인용: "--fontwidth=0.9"처럼 실행하면 전역 장평이
+                    // 적용된다 (허용 0.8~1.2로 클램프). 테마와 마찬가지로 첫 컨트롤
+                    // 생성 전에 설정해야 한다.
+                    string ratioText = arg.Substring("--fontwidth=".Length);
+                    double ratio;
+                    if (double.TryParse(ratioText, System.Globalization.NumberStyles.Float,
+                            System.Globalization.CultureInfo.InvariantCulture, out ratio))
+                    {
+                        Modern.Lab.Theming.ModernTheme.FontWidthRatio = ratio;
+                    }
+                }
             }
 
             // 셸이 모든 샘플 화면을 호스팅한다; 새 화면은

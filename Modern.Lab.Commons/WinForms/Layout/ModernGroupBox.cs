@@ -26,6 +26,7 @@ namespace Modern.Lab.WinForms.Controls.Layout
         private string titleText;
         private FontStyle titleFontStyle;
         private bool titleAccent;
+        private double fontWidthRatio;
 
         /// <summary>헤더 높이를 확보한 기본 패딩으로 그룹박스를 생성한다.</summary>
         public ModernGroupBox()
@@ -48,6 +49,23 @@ namespace Modern.Lab.WinForms.Controls.Layout
             set
             {
                 this.titleFontStyle = value;
+                this.Invalidate();
+            }
+        }
+
+        /// <summary>장평(글자 가로 비율) 재정의. 0 = 전역(ModernTheme.FontWidthRatio) 사용.</summary>
+        [Category("모던 컨트롤")]
+        [Description("헤더 타이틀 장평(글자 가로 비율) 재정의 — 0 = 전역(ModernTheme.FontWidthRatio) 사용, 허용 0.8~1.2")]
+        [DefaultValue(0d)]
+        public double FontWidthRatio
+        {
+            get
+            {
+                return this.fontWidthRatio;
+            }
+            set
+            {
+                this.fontWidthRatio = value;
                 this.Invalidate();
             }
         }
@@ -106,7 +124,22 @@ namespace Modern.Lab.WinForms.Controls.Layout
             {
                 SizeF textSize = e.Graphics.MeasureString(this.titleText, titleFont);
                 float textY = (HeaderHeight - textSize.Height) / 2f + 1f;
-                e.Graphics.DrawString(this.titleText, titleFont, titleBrush, 12f, textY);
+
+                // 장평: DrawString(GDI+)은 변환을 따르므로 가로만 스케일해 그린다
+                // (x 좌표는 변환 전 좌표계로 환산해 시작 위치 12px을 유지).
+                double widthRatio = Modern.Lab.Theming.ModernTheme.ResolveFontWidthRatio(this.fontWidthRatio);
+
+                if (System.Math.Abs(widthRatio - 1d) < 0.001)
+                {
+                    e.Graphics.DrawString(this.titleText, titleFont, titleBrush, 12f, textY);
+                }
+                else
+                {
+                    System.Drawing.Drawing2D.GraphicsState state = e.Graphics.Save();
+                    e.Graphics.ScaleTransform((float)widthRatio, 1f);
+                    e.Graphics.DrawString(this.titleText, titleFont, titleBrush, 12f / (float)widthRatio, textY);
+                    e.Graphics.Restore(state);
+                }
             }
 
             // 헤더 아래 은은한 구분선 (테두리 안쪽 1px 여백)

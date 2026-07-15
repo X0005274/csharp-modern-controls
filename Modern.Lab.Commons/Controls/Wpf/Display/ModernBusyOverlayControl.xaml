@@ -111,7 +111,8 @@
                            HorizontalAlignment="Center"
                            FontSize="{StaticResource Font.Size.Body}"
                            FontWeight="SemiBold"
-                           Foreground="{StaticResource Brush.TextPrimary}">
+                           Foreground="{StaticResource Brush.TextPrimary}"
+                           LayoutTransform="{Binding Path=(common:FontWidthScaling.TextWidthTransform), RelativeSource={RelativeSource Self}}">
                     <TextBlock.Style>
                         <Style TargetType="TextBlock">
                             <Style.Triggers>
@@ -128,7 +129,8 @@
                            Margin="0,5,0,0"
                            HorizontalAlignment="Center"
                            FontSize="{StaticResource Font.Size.Helper}"
-                           Foreground="{StaticResource Brush.TextSecondary}">
+                           Foreground="{StaticResource Brush.TextSecondary}"
+                           LayoutTransform="{Binding Path=(common:FontWidthScaling.TextWidthTransform), RelativeSource={RelativeSource Self}}">
                     <TextBlock.Style>
                         <Style TargetType="TextBlock">
                             <Style.Triggers>

@@ -32,7 +32,8 @@
                                     Margin="2,0"
                                     CornerRadius="{StaticResource Radius.Sm}"
                                     Background="Transparent">
-                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                  LayoutTransform="{Binding Path=(common:FontWidthScaling.TextWidthTransform), RelativeSource={RelativeSource Self}}" />
                             </Border>
                             <ControlTemplate.Triggers>
                                 <Trigger Property="IsMouseOver" Value="True">
@@ -89,7 +90,8 @@
                    DockPanel.Dock="Left"
                    VerticalAlignment="Center"
                    FontSize="{StaticResource Font.Size.Body}"
-                   Foreground="{StaticResource Brush.TextSecondary}" />
+                   Foreground="{StaticResource Brush.TextSecondary}"
+                   LayoutTransform="{Binding Path=(common:FontWidthScaling.TextWidthTransform), RelativeSource={RelativeSource Self}}" />
 
         <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
             <Button x:Name="PrevButton" Style="{StaticResource NavButtonStyle}"

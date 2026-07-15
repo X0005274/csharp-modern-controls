@@ -82,6 +82,7 @@
                                MaxWidth="112"
                                TextAlignment="Center"
                                TextTrimming="CharacterEllipsis"
+                               LayoutTransform="{Binding Path=(common:FontWidthScaling.TextWidthTransform), RelativeSource={RelativeSource Self}}"
                                FontSize="{StaticResource Font.Size.Label}"
                                FontWeight="{Binding LabelWeight}"
                                Foreground="{Binding LabelForeground}" />

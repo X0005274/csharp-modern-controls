@@ -59,6 +59,7 @@
                        VerticalAlignment="Center"
                        FontSize="{StaticResource Font.Size.Body}"
                        Foreground="{StaticResource Brush.TextPlaceholder}"
+                       LayoutTransform="{Binding Path=(common:FontWidthScaling.TextWidthTransform), RelativeSource={RelativeSource Self}}"
                        IsHitTestVisible="False">
                 <TextBlock.Style>
                     <Style TargetType="TextBlock">
@@ -79,6 +80,7 @@
                      BorderThickness="0"
                      Padding="{StaticResource Pad.Field}"
                      VerticalContentAlignment="Center"
+                     LayoutTransform="{Binding Path=(common:FontWidthScaling.TextWidthTransform), RelativeSource={RelativeSource Self}}"
                      FontSize="{StaticResource Font.Size.Body}"
                      Foreground="{StaticResource Brush.TextPrimary}"
                      MaxLength="7"

@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Data;
-using System.Drawing;
 using System.Globalization;
 using System.Net;
 using System.Text;
@@ -9,14 +8,8 @@ using System.Threading;
 using System.Windows.Forms;
 using Modern.Lab.Controls.Wpf.Data;
 using Modern.Lab.Controls.Wpf.Display;
-using Modern.Lab.Controls.Wpf.Input;
 using Modern.Lab.Samples.Services;
-using Modern.Lab.Theming;
-using Modern.Lab.WinForms.Controls.Data;
 using Modern.Lab.WinForms.Controls.Display;
-using Modern.Lab.WinForms.Controls.Input;
-using Modern.Lab.WinForms.Controls.Layout;
-using Modern.Lab.WinForms.Controls.Selection;
 
 namespace Modern.Lab.Samples
 {
@@ -26,7 +19,7 @@ namespace Modern.Lab.Samples
     /// 강조하고(행 배경색은 쓰지 않는다), 체크박스로 고른 행을 반송(Return)/
     /// 물류처리(Logistics)한다.
     ///
-    /// 영역 구성 (계약 룰 5 — 레이아웃은 WinForms 담당):
+    /// 영역 구성 (계약 룰 5 — 레이아웃은 WinForms 담당, 배치는 .Designer.cs):
     /// - 상단: 조회 카드 (Item ID 부분일치 + 경과일 필터 + 물류처리 라디오)
     /// - 중단: 미의뢰 Item 리스트 (체크박스 · Days 배지 · 행 단위 물류처리 버튼 ·
     ///         페이지 바) + 우측 선택 Item의 Unit 리스트
@@ -48,7 +41,7 @@ namespace Modern.Lab.Samples
     /// 지점이다 — 데모는 알림만 띄우고 화면 상태(LOGIS_YN)만 바꾼다.
     /// Export Excel은 SimpleXlsxWriter로 진짜 .xlsx를 저장한다.
     /// </summary>
-    public class PendingRequestForm : Form
+    public partial class PendingRequestForm : Form
     {
         // ===== 홈 환경 API (★ 회사 환경 교체 지점) =====
 
@@ -58,43 +51,19 @@ namespace Modern.Lab.Samples
         /// <summary>API 호출 제한 시간(ms).</summary>
         private const int apiTimeoutMs = 5000;
 
-        /// <summary>Item 리스트 페이지당 건수.</summary>
+        /// <summary>Item 리스트 페이지당 건수 (디자이너의 pagination.PageSize와 동일 값).</summary>
         private const int pageSize = 15;
 
-        // ===== 레이아웃 필드 =====
-
-        private ModernComboBox cboItemId;
-        private ModernComboBox cboElapsed;
-        private ModernRadioGroup rdoLogistics;
-        private ModernButton btnSearch;
-        private ModernButton btnReset;
-
-        private ModernGroupBox itemCard;
-        private ModernDataGrid gridItems;
-        private ModernPagination pagination;
-        private ModernGroupBox unitCard;
-        private ModernDataGrid gridUnits;
-
-        // 하단 슬림 스트립 — KPI/경과일 분포 모두 배지 스타일로 표기한다.
-        private ModernStatusBadge badgePending;
-        private ModernStatusBadge badgeUnits;
-        private ModernStatusBadge badgeAvg;
-        private ModernStatusBadge badgeOldest;
-        private ModernStatusBadge[] badgeAging;
-
-        private ModernButton btnExport;
-        private ModernButton btnReturn;
-        private ModernButton btnLogistics;
-
-        private ModernBusyOverlay busyMain;
-        private ModernToast toastMain;
-
         // ===== 상태 필드 =====
+
+        // 경과일 분포 배지 4개를 구간 인덱스로 접근하기 위한 배열 뷰
+        // (.Designer.cs의 badgeAging0~3 — 디자이너는 배열을 직렬화하지 못한다).
+        private readonly ModernStatusBadge[] badgeAging;
 
         // 마지막 조회 결과 전체 (페이지 슬라이스/KPI/분포/엑셀의 원천).
         private DataTable resultData;
 
-        // 경과일 구간별 건수 (0-2 / 3-6 / 7-13 / 14+) — 하단 중앙 분포 막대의 원천.
+        // 경과일 구간별 건수 (0-2 / 3-6 / 7-13 / 14+) — 하단 중앙 분포 배지의 원천.
         private readonly int[] agingCounts = new int[4];
 
         // 코드로 CurrentPage를 되돌릴 때 PageChanged 재진입을 막는다.
@@ -110,13 +79,17 @@ namespace Modern.Lab.Samples
         private static readonly string[] agingLabels = { "0-2 d", "3-6 d", "7-13 d", "14+ d" };
 
         // 경과일 구간별 배지 배경색 (구간이 심해질수록 파랑 → 호박 → 주황 → 빨강 틴트).
-        // 하단 분포 배지와 그리드 Days 배지가 같은 색을 쓴다.
+        // 하단 분포 배지(.Designer.cs의 Color)와 그리드 Days 배지가 같은 색을 쓴다.
         private static readonly string[] agingBadgeColors = { "#DBEAFE", "#FEF3C7", "#FFE0CC", "#FEE2E2" };
 
         public PendingRequestForm()
         {
-            this.InitializeLayout();
-            this.Load += this.OnFormLoad;
+            this.InitializeComponent();
+
+            this.badgeAging = new ModernStatusBadge[]
+            {
+                this.badgeAging0, this.badgeAging1, this.badgeAging2, this.badgeAging3
+            };
         }
 
         /// <summary>제한 시간을 적용한 WebClient (홈 환경 전용 헬퍼).</summary>
@@ -128,282 +101,6 @@ namespace Modern.Lab.Samples
                 request.Timeout = apiTimeoutMs;
                 return request;
             }
-        }
-
-        // ===== 레이아웃 구성 =====
-
-        private void InitializeLayout()
-        {
-            this.Text = "Pending Requests";
-            this.ClientSize = new Size(1540, 800);
-            this.MinimumSize = new Size(1240, 660);
-            this.StartPosition = FormStartPosition.CenterScreen;
-            this.Font = new Font("Segoe UI", 9f);
-            this.Padding = new Padding(12);
-            this.BackColor = ModernTheme.Background;
-
-            // Dock은 마지막에 추가한 것이 바깥쪽 — Fill(중단)을 먼저,
-            // Bottom(하단 밴드) → Top(조회/타이틀) 순으로 추가한다.
-            Panel midPanel = new Panel();
-            midPanel.Dock = DockStyle.Fill;
-            midPanel.BackColor = ModernTheme.Background;
-            this.BuildMidZone(midPanel);
-
-            Panel gapBottom = new Panel();
-            gapBottom.Dock = DockStyle.Bottom;
-            gapBottom.Height = 8;
-            gapBottom.BackColor = ModernTheme.Background;
-
-            Panel bottomPanel = new Panel();
-            bottomPanel.Dock = DockStyle.Bottom;
-            bottomPanel.Height = 56;
-            bottomPanel.BackColor = ModernTheme.Background;
-            this.BuildBottomStrip(bottomPanel);
-
-            Panel gapSearch = new Panel();
-            gapSearch.Dock = DockStyle.Top;
-            gapSearch.Height = 8;
-            gapSearch.BackColor = ModernTheme.Background;
-
-            ModernCardPanel searchCard = this.BuildSearchCard();
-
-            Panel spTitle = new Panel();
-            spTitle.Dock = DockStyle.Top;
-            spTitle.Height = 8;
-            spTitle.BackColor = ModernTheme.Background;
-
-            Panel titlePanel = new Panel();
-            titlePanel.Dock = DockStyle.Top;
-            titlePanel.Height = 28;
-            titlePanel.BackColor = ModernTheme.Background;
-
-            ModernLabel lblTitle = new ModernLabel();
-            lblTitle.Kind = LabelKind.Title;
-            lblTitle.TitleBar = true;
-            lblTitle.Text = "Pending Requests";
-            lblTitle.Dock = DockStyle.Fill;
-            titlePanel.Controls.Add(lblTitle);
-
-            ModernStatusBadge badgeEnv = new ModernStatusBadge();
-            badgeEnv.Color = "#DBEAFE";
-            badgeEnv.Dock = DockStyle.Right;
-            badgeEnv.Width = 60;
-            badgeEnv.Text = "MES";
-            titlePanel.Controls.Add(badgeEnv);
-
-            this.toastMain = new ModernToast();
-            this.busyMain = new ModernBusyOverlay();
-            this.busyMain.Message = "Loading...";
-            this.busyMain.SubMessage = "Fetching pending items";
-
-            this.Controls.Add(this.toastMain);
-            this.Controls.Add(this.busyMain);
-            this.Controls.Add(midPanel);
-            this.Controls.Add(gapBottom);
-            this.Controls.Add(bottomPanel);
-            this.Controls.Add(gapSearch);
-            this.Controls.Add(searchCard);
-            this.Controls.Add(spTitle);
-            this.Controls.Add(titlePanel);
-        }
-
-        /// <summary>상단 조회 카드: Item ID(부분일치) + 경과일 필터 + 물류처리 라디오 + Search/Reset.</summary>
-        private ModernCardPanel BuildSearchCard()
-        {
-            ModernCardPanel searchCard = new ModernCardPanel();
-            searchCard.BackColor = ModernTheme.Surface;
-            searchCard.Dock = DockStyle.Top;
-            searchCard.Size = new Size(1516, 56);
-            searchCard.Padding = new Padding(12, 8, 12, 8);
-
-            ModernLabel lblItemId = new ModernLabel();
-            lblItemId.Kind = LabelKind.Label;
-            lblItemId.Text = "Item ID";
-            lblItemId.SetBounds(12, 12, 56, 32);
-            searchCard.Controls.Add(lblItemId);
-
-            // 검색형 콤보(기본 DropDown = 편집 가능): 입력하면 후보 목록이 필터링된다.
-            // 후보는 전체 조회 결과의 Item ID로 채운다 (ExecuteSearch 참고).
-            this.cboItemId = new ModernComboBox();
-            this.cboItemId.PlaceholderText = "All / type to filter";
-            this.cboItemId.SetBounds(72, 12, 200, 32);
-            searchCard.Controls.Add(this.cboItemId);
-
-            ModernLabel lblElapsed = new ModernLabel();
-            lblElapsed.Kind = LabelKind.Label;
-            lblElapsed.Text = "Elapsed";
-            lblElapsed.SetBounds(296, 12, 56, 32);
-            searchCard.Controls.Add(lblElapsed);
-
-            this.cboElapsed = new ModernComboBox();
-            this.cboElapsed.SetBounds(356, 12, 140, 32);
-            searchCard.Controls.Add(this.cboElapsed);
-
-            ModernLabel lblLogistics = new ModernLabel();
-            lblLogistics.Kind = LabelKind.Label;
-            lblLogistics.Text = "Logistics";
-            lblLogistics.SetBounds(520, 12, 64, 32);
-            searchCard.Controls.Add(lblLogistics);
-
-            // 물류처리 필터: All / Pending(미처리) / Done(처리 완료).
-            this.rdoLogistics = new ModernRadioGroup();
-            this.rdoLogistics.SetBounds(588, 12, 280, 32);
-            searchCard.Controls.Add(this.rdoLogistics);
-
-            this.btnSearch = new ModernButton();
-            this.btnSearch.Kind = ButtonKind.Primary;
-            this.btnSearch.Text = "Search";
-            this.btnSearch.SetBounds(1336, 12, 80, 32);
-            this.btnSearch.Anchor = AnchorStyles.Top | AnchorStyles.Right;
-            this.btnSearch.Click += this.OnSearchClick;
-            searchCard.Controls.Add(this.btnSearch);
-
-            this.btnReset = new ModernButton();
-            this.btnReset.Kind = ButtonKind.Subtle;
-            this.btnReset.Text = "Reset";
-            this.btnReset.SetBounds(1424, 12, 80, 32);
-            this.btnReset.Anchor = AnchorStyles.Top | AnchorStyles.Right;
-            this.btnReset.Click += this.OnResetClick;
-            searchCard.Controls.Add(this.btnReset);
-
-            return searchCard;
-        }
-
-        /// <summary>중단: 미의뢰 Item 리스트(페이지 바) + 우측 선택 Item의 Unit 리스트.</summary>
-        private void BuildMidZone(Panel host)
-        {
-            ModernSplitContainer splitMid = new ModernSplitContainer();
-            splitMid.Dock = DockStyle.Fill;
-            splitMid.Orientation = Orientation.Vertical;
-            splitMid.FixedPanel = FixedPanel.Panel2;
-            splitMid.Size = new Size(1516, 420);
-            splitMid.Panel1MinSize = 600;
-            splitMid.Panel2MinSize = 260;
-            splitMid.SplitterDistance = 1130;
-            host.Controls.Add(splitMid);
-
-            // Item 리스트 — 하단에 페이지 바 (전체 건수 + 페이지 이동).
-            this.itemCard = new ModernGroupBox();
-            this.itemCard.BackColor = ModernTheme.Surface;
-            this.itemCard.Dock = DockStyle.Fill;
-            this.itemCard.Padding = new Padding(8, 40, 8, 8);
-            this.itemCard.Text = "Pending Items";
-            this.itemCard.TitleAccent = true;
-            splitMid.Panel1.Controls.Add(this.itemCard);
-
-            // 행 배경색(RowColorMember)은 쓰지 않는다 — 경과일 강조는 Days 배지가 담당.
-            this.gridItems = new ModernDataGrid();
-            this.gridItems.AutoFitColumns = true;
-            this.gridItems.Dock = DockStyle.Fill;
-            this.gridItems.SelectionChanged += this.OnItemSelectionChanged;
-            this.gridItems.CellButtonClick += this.OnGridCellButtonClick;
-            this.itemCard.Controls.Add(this.gridItems);
-
-            this.pagination = new ModernPagination();
-            this.pagination.Dock = DockStyle.Bottom;
-            this.pagination.Height = 36;
-            this.pagination.PageSize = pageSize;
-            this.pagination.TotalCountFormat = "{0:N0} items";
-            this.pagination.PageChanged += this.OnPageChanged;
-            this.itemCard.Controls.Add(this.pagination);
-
-            // Unit 리스트 — 보통 3~4줄만 보이면 되는 보조 정보라 좁은 우측 패널.
-            splitMid.Panel2.Padding = new Padding(8, 0, 0, 0);
-
-            this.unitCard = new ModernGroupBox();
-            this.unitCard.BackColor = ModernTheme.Surface;
-            this.unitCard.Dock = DockStyle.Fill;
-            this.unitCard.Padding = new Padding(8, 40, 8, 8);
-            this.unitCard.Text = "Units";
-            splitMid.Panel2.Controls.Add(this.unitCard);
-
-            this.gridUnits = new ModernDataGrid();
-            this.gridUnits.AutoFitColumns = true;
-            this.gridUnits.Dock = DockStyle.Fill;
-            this.gridUnits.ShowStatusBar = true;
-            this.gridUnits.StatusCountFormat = "{0:N0} units";
-            this.unitCard.Controls.Add(this.gridUnits);
-        }
-
-        /// <summary>
-        /// 하단 밴드: 좌측 지표 카드(KPI 배지 4개 + 경과일 분포 배지 4개) ·
-        /// 우측 실행 카드(Export Excel / Return / Logistics).
-        /// Return·Logistics는 그리드에서 체크한 행을 대상으로 한다.
-        /// </summary>
-        private void BuildBottomStrip(Panel host)
-        {
-            ModernCardPanel strip = new ModernCardPanel();
-            strip.BackColor = ModernTheme.Surface;
-            strip.Dock = DockStyle.Fill;
-            strip.Size = new Size(1164, 56);
-
-            // KPI 배지 (무색) — 조회 결과 전체(페이지가 아니라)를 집계한다.
-            this.badgePending = AddBadge(strip, 12, 116, string.Empty);
-            this.badgeUnits = AddBadge(strip, 136, 100, string.Empty);
-            this.badgeAvg = AddBadge(strip, 244, 108, string.Empty);
-            this.badgeOldest = AddBadge(strip, 360, 116, string.Empty);
-
-            ModernLabel lblAging = new ModernLabel();
-            lblAging.Kind = LabelKind.Label;
-            lblAging.Text = "Aging";
-            lblAging.SetBounds(508, 16, 44, 24);
-            strip.Controls.Add(lblAging);
-
-            // 경과일 구간 배지 (구간별 틴트색) — 분포 통계.
-            this.badgeAging = new ModernStatusBadge[agingLabels.Length];
-
-            for (int index = 0; index < agingLabels.Length; index++)
-            {
-                this.badgeAging[index] = AddBadge(strip, 556 + index * 100, 92, agingBadgeColors[index]);
-            }
-
-            // 우측 실행 카드 — 체크된 행에 대한 벌크 액션 + 엑셀 내보내기.
-            ModernCardPanel actionCard = new ModernCardPanel();
-            actionCard.BackColor = ModernTheme.Surface;
-            actionCard.Dock = DockStyle.Right;
-            actionCard.Width = 344;
-
-            this.btnExport = new ModernButton();
-            this.btnExport.Kind = ButtonKind.Subtle;
-            this.btnExport.Text = "Export Excel";
-            this.btnExport.SetBounds(12, 12, 110, 32);
-            this.btnExport.Click += this.OnExportClick;
-            actionCard.Controls.Add(this.btnExport);
-
-            this.btnReturn = new ModernButton();
-            this.btnReturn.Kind = ButtonKind.Danger;
-            this.btnReturn.Text = "Return";
-            this.btnReturn.SetBounds(130, 12, 90, 32);
-            this.btnReturn.Click += this.OnReturnClick;
-            actionCard.Controls.Add(this.btnReturn);
-
-            this.btnLogistics = new ModernButton();
-            this.btnLogistics.Kind = ButtonKind.Execute;
-            this.btnLogistics.Text = "Logistics";
-            this.btnLogistics.SetBounds(228, 12, 104, 32);
-            this.btnLogistics.Click += this.OnLogisticsClick;
-            actionCard.Controls.Add(this.btnLogistics);
-
-            Panel gap = new Panel();
-            gap.Dock = DockStyle.Right;
-            gap.Width = 8;
-            gap.BackColor = ModernTheme.Background;
-
-            // Dock은 나중에 추가한 것이 먼저 배치된다 — Fill을 먼저 추가해야
-            // 우측 카드/간격이 자리를 잡은 뒤 남은 폭을 채운다.
-            host.Controls.Add(strip);
-            host.Controls.Add(gap);
-            host.Controls.Add(actionCard);
-        }
-
-        private static ModernStatusBadge AddBadge(Control parent, int x, int width, string color)
-        {
-            ModernStatusBadge badge = new ModernStatusBadge();
-            badge.Text = "-";
-            badge.Color = color;
-            badge.SetBounds(x, 16, width, 24);
-            parent.Controls.Add(badge);
-            return badge;
         }
 
         // ===== 서버 조회 (★ 회사 환경 교체 지점) =====
@@ -473,10 +170,13 @@ namespace Modern.Lab.Samples
             this.rdoLogistics.DataSource = logisticsTable;
             this.rdoLogistics.SelectedValue = "ALL";
 
-            // Item ID 자동완성 콤보: 후보 목록은 전체 조회 결과로 채운다.
+            // Item ID 자동완성 콤보(검색형): 후보 목록은 전체 조회 결과로 채운다.
             this.cboItemId.DisplayMember = "ITEM_ID";
             this.cboItemId.ValueMember = "ITEM_ID";
 
+            // 컬럼 정의만 코드에서 구성한다 (디자이너 직렬화 대상이 아님).
+            // 서버 응답에 없는 컬럼은 그리드가 DataSource 할당 시 자동 보장한다.
+            //
             // Item 리스트: 체크박스(벌크 대상) + 도착 정보 + Days 배지 + Priority +
             // 행 단위 물류처리 버튼(미처리 건만 활성). 실제 컬럼명 그대로 바인딩.
             this.gridItems.ConfigureColumns(
@@ -585,9 +285,8 @@ namespace Modern.Lab.Samples
                             return;
                         }
 
-                        EnsureColumns(pending, "ITEM_ID", "ORG_ITEM_ID", "MODEL_ID", "ITEM_TYP",
-                            "SUB_TYP", "EVENT_CD", "EVENT_TM", "BOX_ID", "STORE_ID",
-                            "STAT_TYP", "DESCRIPTION", "ELAPSED_DAYS", "UNIT_CNT", "LOGIS_YN");
+                        // 그리드 표시 컬럼은 그리드가 DataSource 할당 시 스스로
+                        // 보장한다 — 여기서는 파생 컬럼만 채운다.
                         ApplyDerivedColumns(pending);
                         this.resultData = ApplyLogisticsFilter(pending, logisticsFilter);
 
@@ -611,7 +310,9 @@ namespace Modern.Lab.Samples
                         // 전체 조회(조건 없음)일 때 그 결과로 Item ID 자동완성
                         // 후보를 갱신한다 — DataSource 할당의 첫 행 자동 선택은
                         // 텍스트를 비워 되돌린다 (조건이 채워진 채 남지 않게).
-                        if (keyword.Length == 0 && minDays == 0 && logisticsFilter.Length == 0)
+                        // (빈 결과는 ITEM_ID 컬럼 자체가 없을 수 있어 건너뛴다.)
+                        if (keyword.Length == 0 && minDays == 0 && logisticsFilter.Length == 0
+                                && pending.Columns.Contains("ITEM_ID"))
                         {
                             this.cboItemId.DataSource = pending.DefaultView.ToTable(false, "ITEM_ID");
                             this.cboItemId.Text = string.Empty;
@@ -638,6 +339,13 @@ namespace Modern.Lab.Samples
         // CHK(벌크 대상 체크박스), LOGIS_CAN(행 단위 물류처리 버튼 활성 = 미처리).
         private static void ApplyDerivedColumns(DataTable pending)
         {
+            // LOGIS_YN은 아래에서 값을 "쓰는" 컬럼이라 (서버가 안 내려주면 JSON
+            // 변환에서 생략됨) 여기서 직접 보장해야 한다.
+            if (!pending.Columns.Contains("LOGIS_YN"))
+            {
+                pending.Columns.Add("LOGIS_YN", typeof(string));
+            }
+
             if (!pending.Columns.Contains("PRIORITY"))
             {
                 pending.Columns.Add("PRIORITY", typeof(string));
@@ -942,7 +650,6 @@ namespace Modern.Lab.Samples
                             return;
                         }
 
-                        EnsureColumns(units, "UNIT_ID", "SUB_TYP", "STAT_TYP", "EVENT_TM");
                         this.gridUnits.DataSource = units;
                         this.unitCard.Text = "Units — " + itemId;
                     }));
@@ -1161,25 +868,8 @@ namespace Modern.Lab.Samples
             return 0;
         }
 
-        // 그리드/바인딩이 참조하는 컬럼이 DataTable에 없으면 문자열 빈 컬럼으로
-        // 추가한다. JsonTableConverter는 값이 전부 null인 컬럼을 만들지 않으므로
-        // (서버가 null 키를 생략), 바인딩 오류를 막으려면 표시 직전에 보장해야 한다.
-        private static void EnsureColumns(DataTable table, params string[] columnNames)
-        {
-            if (table == null)
-            {
-                return;
-            }
-
-            foreach (string name in columnNames)
-            {
-                if (!table.Columns.Contains(name))
-                {
-                    table.Columns.Add(name, typeof(string));
-                }
-            }
-        }
-
+        // 서버 응답에 컬럼 자체가 없거나(null 키 생략) DBNull인 경우를 모두
+        // 빈 문자열로 처리한다.
         private static string ToText(DataRow row, string columnName)
         {
             if (!row.Table.Columns.Contains(columnName))

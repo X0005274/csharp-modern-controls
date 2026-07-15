@@ -3,6 +3,7 @@ using System.ComponentModel;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Windows.Forms;
+using Modern.Lab.WinForms.Rendering;
 
 namespace Modern.Lab.WinForms.Controls.Display
 {
@@ -37,6 +38,7 @@ namespace Modern.Lab.WinForms.Controls.Display
         private string colorText;
         private Color pillBackground;
         private Color pillForeground;
+        private double fontWidthRatio;
 
         /// <summary>적절한 기본 크기로 컨트롤을 생성한다.</summary>
         public ModernStatusBadge()
@@ -104,6 +106,23 @@ namespace Modern.Lab.WinForms.Controls.Display
             }
         }
 
+        /// <summary>장평(글자 가로 비율) 재정의. 0 = 전역(ModernTheme.FontWidthRatio) 사용.</summary>
+        [Category("모던 컨트롤")]
+        [Description("장평(글자 가로 비율) 재정의 — 0 = 전역(ModernTheme.FontWidthRatio) 사용, 허용 0.8~1.2")]
+        [DefaultValue(0d)]
+        public double FontWidthRatio
+        {
+            get
+            {
+                return this.fontWidthRatio;
+            }
+            set
+            {
+                this.fontWidthRatio = value;
+                this.Invalidate();
+            }
+        }
+
         /// <summary>텍스트가 바뀌면 pill 폭이 달라지므로 다시 그린다.</summary>
         protected override void OnTextChanged(EventArgs e)
         {
@@ -116,9 +135,12 @@ namespace Modern.Lab.WinForms.Controls.Display
         {
             base.OnPaint(e);
 
-            Size textSize = TextRenderer.MeasureText(
+            double widthRatio = Modern.Lab.Theming.ModernTheme.ResolveFontWidthRatio(this.fontWidthRatio);
+
+            Size textSize = ScaledTextRenderer.MeasureText(
                 e.Graphics, this.Text, BadgeFont, Size.Empty,
-                TextFormatFlags.SingleLine | TextFormatFlags.NoPrefix | TextFormatFlags.NoPadding);
+                TextFormatFlags.SingleLine | TextFormatFlags.NoPrefix | TextFormatFlags.NoPadding,
+                widthRatio);
 
             int pillHeight = Math.Min(this.Height, textSize.Height + (pillPaddingY * 2));
             int pillWidth = Math.Min(this.Width, textSize.Width + (pillPaddingX * 2));
@@ -136,11 +158,12 @@ namespace Modern.Lab.WinForms.Controls.Display
 
             e.Graphics.SmoothingMode = originalMode;
 
-            TextRenderer.DrawText(
+            ScaledTextRenderer.DrawText(
                 e.Graphics, this.Text, BadgeFont, pill, this.pillForeground,
                 TextFormatFlags.SingleLine | TextFormatFlags.NoPrefix | TextFormatFlags.NoPadding
                 | TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter
-                | TextFormatFlags.EndEllipsis);
+                | TextFormatFlags.EndEllipsis,
+                widthRatio);
         }
 
         // Color 문자열을 파싱해 pill 배경/글자색을 확정한다.

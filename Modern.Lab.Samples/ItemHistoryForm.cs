@@ -57,9 +57,6 @@ namespace Modern.Lab.Samples
         // Unit 이력 조회 버전 — 빠른 재선택 시 오래된 응답을 버린다.
         private int unitHistoryVersion;
 
-        // Unit History 탭의 이력 그리드 (탭 구성과 함께 코드에서 생성).
-        private Modern.Lab.WinForms.Controls.Data.ModernDataGrid gridUnitHistory;
-
         // Scrap 상태 노드의 트리 텍스트 색 — 어두운 테마에서는 밝은 빨강이어야 보인다.
         private static string ScrapForeColor
         {
@@ -216,16 +213,10 @@ namespace Modern.Lab.Samples
             this.autoCompleteTimer.Interval = 300;
             this.autoCompleteTimer.Tick += this.OnAutoCompleteTimerTick;
 
-            // 트리: ITEM 계보만 표시한다(Unit 제외). ITEM_ID/PARENT_ITEM_ID로 계보 구성.
-            // Scrap Item은 클라이언트에서 채운 NODE_COLOR 컬럼으로 빨간 텍스트가 된다.
-            this.treeItemUnit.IdMember = "ITEM_ID";
-            this.treeItemUnit.ParentIdMember = "PARENT_ITEM_ID";
-            this.treeItemUnit.DisplayMember = "ITEM_ID";
-            this.treeItemUnit.ForeColorMember = "NODE_COLOR";
-
-            // 공정 진행 단계 표시: 이력 이벤트를 LABEL/STATE로 만들어 넘긴다.
-            this.stepIndicator.DisplayMember = "LABEL";
-            this.stepIndicator.StateMember = "STATE";
+            // 컬럼 정의만 코드에서 구성한다 (디자이너 직렬화 대상이 아님).
+            // 트리/그리드의 멤버 지정(IdMember, RowColorMember 등)과 탭 페이지 구성은
+            // 전부 .Designer.cs에 있다. 서버 응답에 없는 컬럼은 각 컨트롤이
+            // DataSource 할당 시 자기 컬럼 정의로 자동 보장한다.
 
             // 선택 Item에 속한 Unit 목록 (MES_UNIT_MAS 현재 상태).
             this.gridUnits.ConfigureColumns(
@@ -235,9 +226,6 @@ namespace Modern.Lab.Samples
                 new ModernDataGridColumn("EVENT_CD", "Event", 90),
                 new ModernDataGridColumn("OPER_ID", "Oper", 90),
                 new ModernDataGridColumn("STATION_ID", "Eqp", 90));
-
-            // Scrap 웨이퍼 행은 옅은 빨강 배경(트리 텍스트 빨강과 짝).
-            this.gridUnits.RowColorMember = "ROW_COLOR";
 
             // 이력 그리드: MES_ITEM_HIS 전체 컬럼 + 파생(DURATION). 실제 컬럼명 그대로 바인딩.
             this.gridHistory.ConfigureColumns(
@@ -258,16 +246,9 @@ namespace Modern.Lab.Samples
                 new ModernDataGridColumn("ITEM_ID", "Item", 120),
                 new ModernDataGridColumn("TIMEKEY", "Time Key", 150));
 
-            // 이력 행 상태별 색: Scrapped 빨강, JobEnd(완료) 초록.
-            this.gridHistory.RowColorMember = "ROW_COLOR";
-
-            // 하단 이력 영역을 탭으로 구성: Item History(기존 그리드) + Unit History.
-            // Units 목록에서 Unit을 클릭하면 Unit History 탭의 "데이터만" 갱신한다 —
-            // 탭 자동 전환은 하지 않는다 (사용자가 보던 탭 유지).
-            this.gridUnitHistory = new Modern.Lab.WinForms.Controls.Data.ModernDataGrid();
-            this.gridUnitHistory.AutoFitColumns = true;
-            this.gridUnitHistory.ShowStatusBar = true;
-            this.gridUnitHistory.StatusCountFormat = "{0:N0} events";
+            // Unit History 탭 그리드 (UNIT_HIS 전체 컬럼). Units 목록에서 Unit을
+            // 클릭하면 이 탭의 "데이터만" 갱신한다 — 탭 자동 전환은 하지 않는다
+            // (사용자가 보던 탭 유지).
             this.gridUnitHistory.ConfigureColumns(
                 new ModernDataGridColumn("EVENT_TM", "Event Time", 150) { TextAlignment = GridTextAlignment.Center },
                 new ModernDataGridColumn("DURATION", "Duration", 84) { TextAlignment = GridTextAlignment.Center },
@@ -285,11 +266,6 @@ namespace Modern.Lab.Samples
                 new ModernDataGridColumn("UNIT_ID", "Unit", 130),
                 new ModernDataGridColumn("ITEM_ID", "Item", 120),
                 new ModernDataGridColumn("TIMEKEY", "Time Key", 150));
-            this.gridUnitHistory.RowColorMember = "ROW_COLOR";
-
-            this.tabHistory.AddTab("Item History", this.gridHistory);
-            this.tabHistory.AddTab("Unit History", this.gridUnitHistory);
-            this.gridUnits.SelectionChanged += this.OnUnitSelectionChanged;
 
             // 화면 오픈 시 자동 조회 없음 — Item ID(필수) 입력 후 Search로 조회한다.
             this.ClearSelection();
@@ -364,12 +340,8 @@ namespace Modern.Lab.Samples
 
                     this.Invoke(new MethodInvoker(delegate
                     {
-                        // 트리가 참조하는 컬럼이 (해당 값이 전부 null이면 JSON에서 키가
-                        // 생략돼) 누락될 수 있으므로 미리 보장한다.
-                        EnsureColumns(tree, "ITEM_ID", "PARENT_ITEM_ID", "ORG_ITEM_ID",
-                            "SUB_TYP", "ITEM_TYP", "STAT_TYP", "EVENT_CD", "MODEL_ID",
-                            "FLOW_ID", "OPER_ID", "STATION_ID", "BOX_ID", "STORE_ID", "EVENT_TM");
-
+                        // 트리 멤버 컬럼(ITEM_ID 등)은 DataSource 할당 시 트리가 스스로
+                        // 보장하고, 상세 카드는 GetString이 누락 컬럼을 빈 값으로 읽는다.
                         ApplyScrapColor(tree);
                         this.treeData = tree;
 
@@ -603,9 +575,7 @@ namespace Modern.Lab.Samples
                         }
 
                         // ---- 이력 그리드 (ITEM_HIS 전체 컬럼) ----
-                        EnsureColumns(history, "TIMEKEY", "ITEM_ID", "EVENT_CD", "EVENT_TM",
-                            "MODEL_ID", "ITEM_TYP", "SUB_TYP", "ORG_ITEM_ID", "PARENT_ITEM_ID",
-                            "BOX_ID", "FLOW_ID", "OPER_ID", "STATION_ID", "STORE_ID", "STAT_TYP");
+                        // 서버 응답에 없는 컬럼은 그리드가 DataSource 할당 시 보장한다.
                         AddDurationColumn(history);
                         AddRowColor(history);
                         this.gridHistory.DataSource = history;
@@ -613,8 +583,6 @@ namespace Modern.Lab.Samples
                         this.stepIndicator.DataSource = BuildStepTable(history);
 
                         // ---- 웨이퍼 목록 ----
-                        EnsureColumns(units, "UNIT_ID", "SUB_TYP", "STAT_TYP",
-                            "EVENT_CD", "OPER_ID", "STATION_ID");
                         AddUnitRowColor(units);
                         this.gridUnits.DataSource = units;
                         this.unitCard.Text = "Units — " + itemId;
@@ -674,9 +642,6 @@ namespace Modern.Lab.Samples
                             return;
                         }
 
-                        EnsureColumns(history, "TIMEKEY", "UNIT_ID", "ITEM_ID", "EVENT_CD", "EVENT_TM",
-                            "MODEL_ID", "ITEM_TYP", "SUB_TYP", "ORG_UNIT_ID", "PARENT_UNIT_ID",
-                            "BOX_ID", "FLOW_ID", "OPER_ID", "STATION_ID", "STORE_ID", "STAT_TYP");
                         AddDurationColumn(history);
                         AddRowColor(history);
                         this.gridUnitHistory.DataSource = history;
@@ -804,14 +769,11 @@ namespace Modern.Lab.Samples
             this.gridHistory.StatusText = string.Empty;
             this.stepIndicator.DataSource = null;
 
-            // Unit History 탭도 함께 비운다 (탭이 아직 구성 전이면 건너뜀).
-            if (this.gridUnitHistory != null)
-            {
-                this.unitHistoryVersion = this.unitHistoryVersion + 1;
-                this.gridUnitHistory.DataSource = null;
-                this.gridUnitHistory.StatusText = string.Empty;
-                this.tabHistory.SetTabTitle(1, "Unit History");
-            }
+            // Unit History 탭도 함께 비운다.
+            this.unitHistoryVersion = this.unitHistoryVersion + 1;
+            this.gridUnitHistory.DataSource = null;
+            this.gridUnitHistory.StatusText = string.Empty;
+            this.tabHistory.SetTabTitle(1, "Unit History");
         }
 
         // ===== 이력 파생 계산 (소요시간 · 사이클타임 · 진행 단계) =====
@@ -980,25 +942,6 @@ namespace Modern.Lab.Samples
 
         // 서버 응답에 컬럼 자체가 없거나(null 키 생략) DBNull인 경우를 모두
         // 빈 문자열로 처리한다.
-        // 그리드/바인딩이 참조하는 컬럼이 DataTable에 없으면 문자열 빈 컬럼으로
-        // 추가한다. JsonTableConverter는 값이 전부 null인 컬럼을 만들지 않으므로
-        // (서버가 null 키를 생략), 바인딩 오류를 막으려면 표시 직전에 보장해야 한다.
-        private static void EnsureColumns(DataTable table, params string[] columnNames)
-        {
-            if (table == null)
-            {
-                return;
-            }
-
-            foreach (string name in columnNames)
-            {
-                if (!table.Columns.Contains(name))
-                {
-                    table.Columns.Add(name, typeof(string));
-                }
-            }
-        }
-
         private static string GetString(DataRowView row, string columnName)
         {
             if (!row.Row.Table.Columns.Contains(columnName))

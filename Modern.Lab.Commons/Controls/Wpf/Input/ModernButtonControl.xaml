@@ -205,7 +205,8 @@
                     </Style>
                 </TextBlock.Style>
             </TextBlock>
-            <TextBlock Text="{Binding Text, ElementName=RootControl}" VerticalAlignment="Center" />
+            <TextBlock Text="{Binding Text, ElementName=RootControl}" VerticalAlignment="Center"
+                       LayoutTransform="{Binding Path=(common:FontWidthScaling.TextWidthTransform), RelativeSource={RelativeSource Self}}" />
         </StackPanel>
     </Button>
 </UserControl>

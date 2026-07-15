@@ -51,6 +51,10 @@ namespace Modern.Lab.WinForms.Controls.Hosting
         // OnResize가 InvalidateDesignTimePreview로 되돌아와 무한 재귀하는 것을 막는다.
         private bool isNudgingBounds;
 
+        // 디자인 타임 WPF 생성 실패(Wpf == null) 시에도 속성 그리드가 동작하도록
+        // 하는 장평 재정의 폴백 저장소.
+        private double fallbackFontWidthRatio;
+
         /// <summary>
         /// 내부에 호스팅되는 실제 WPF 컨트롤. 래퍼 서브클래스가 이 컨트롤의
         /// 속성을 읽고 쓴다. 디자인 타임 생성이 실패한 경우에만 null일 수
@@ -91,6 +95,45 @@ namespace Modern.Lab.WinForms.Controls.Hosting
                 // 런타임 생성 실패는 정상적으로 전파되어야 한다.
                 this.Wpf = new TWpf();
                 this.Child = this.Wpf;
+            }
+
+            // 전역 장평(ModernTheme.FontWidthRatio)을 반영한 텍스트 가로 변환을
+            // 컨트롤 루트에 채운다 — 상속 속성이라 팝업/템플릿 내부까지 전파된다.
+            if (this.Wpf != null)
+            {
+                Modern.Lab.Controls.Wpf.Common.FontWidthScaling.Initialize(this.Wpf);
+            }
+        }
+
+        /// <summary>
+        /// 장평(글자 가로 비율) 재정의. 0 = 전역(ModernTheme.FontWidthRatio) 사용,
+        /// 양수는 0.8~1.2로 클램프. 모든 래퍼가 공통으로 상속하며, 내부 WPF
+        /// 컨트롤의 텍스트 요소들이 이 값으로 만든 가로 변환을 바인딩한다.
+        /// </summary>
+        [Category("모던 컨트롤")]
+        [Description("장평(글자 가로 비율) 재정의 — 0 = 전역(ModernTheme.FontWidthRatio) 사용, 허용 0.8~1.2")]
+        [DefaultValue(0d)]
+        public virtual double FontWidthRatio
+        {
+            get
+            {
+                if (this.Wpf != null)
+                {
+                    return Modern.Lab.Controls.Wpf.Common.FontWidthScaling.GetFontWidthRatio(this.Wpf);
+                }
+
+                return this.fallbackFontWidthRatio;
+            }
+            set
+            {
+                this.fallbackFontWidthRatio = value;
+
+                if (this.Wpf != null)
+                {
+                    Modern.Lab.Controls.Wpf.Common.FontWidthScaling.SetFontWidthRatio(this.Wpf, value);
+                }
+
+                this.InvalidateDesignTimePreview();
             }
         }
 

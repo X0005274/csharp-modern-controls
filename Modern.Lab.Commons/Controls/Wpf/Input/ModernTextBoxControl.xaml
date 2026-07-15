@@ -61,6 +61,7 @@
                        VerticalAlignment="Center"
                        FontSize="{StaticResource Font.Size.Body}"
                        Foreground="{StaticResource Brush.TextPlaceholder}"
+                       LayoutTransform="{Binding Path=(common:FontWidthScaling.TextWidthTransform), RelativeSource={RelativeSource Self}}"
                        IsHitTestVisible="False" />
 
             <!-- 실제 에디터: 테두리 없음, 투명 배경, 세로 중앙 정렬 -->
@@ -73,6 +74,7 @@
                      VerticalContentAlignment="Center"
                      FontSize="{StaticResource Font.Size.Body}"
                      Foreground="{StaticResource Brush.TextPrimary}"
+                     LayoutTransform="{Binding Path=(common:FontWidthScaling.TextWidthTransform), RelativeSource={RelativeSource Self}}"
                      KeyDown="InnerTextBox_KeyDown"
                      PreviewKeyDown="InnerTextBox_PreviewKeyDown"
                      TextChanged="InnerTextBox_TextChanged"
@@ -137,7 +139,8 @@
                                             <Border x:Name="ItemBorder"
                                                     Background="Transparent"
                                                     Padding="{TemplateBinding Padding}">
-                                                <ContentPresenter VerticalAlignment="Center" />
+                                                <ContentPresenter VerticalAlignment="Center"
+                                                                  LayoutTransform="{Binding Path=(common:FontWidthScaling.TextWidthTransform), RelativeSource={RelativeSource Self}}" />
                                             </Border>
                                             <ControlTemplate.Triggers>
                                                 <Trigger Property="IsMouseOver" Value="True">

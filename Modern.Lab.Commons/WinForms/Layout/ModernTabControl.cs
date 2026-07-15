@@ -17,40 +17,37 @@ namespace Modern.Lab.WinForms.Controls.Layout
     /// 액센트색 SemiBold + 아래 액센트 밑줄, 하단에 옅은 구분선. 색은 전부
     /// ModernTheme 팔레트를 그릴 때 읽으므로 6개 테마 전부 자동 대응한다.
     ///
-    /// 사용법: <see cref="AddTab"/>으로 페이지를 붙인다. 페이지는 본문에
-    /// Dock=Fill로 배치되고 선택 시에만 보인다. 탭 전환은 클릭 또는
-    /// <see cref="SelectedIndex"/> 설정.
+    /// 페이지 구성 (표준 TabControl/TabPage 대응 — 계약 룰 1):
+    /// - 폼 디자이너: <see cref="ModernTabPage"/>를 자식으로 직렬화한다.
+    ///   전용 디자이너(ModernTabControlDesigner)가 "탭 추가/선택 탭 제거" 동사와
+    ///   디자인 타임 헤더 클릭 전환을 제공한다.
+    /// - 런타임 코드: 기존 <see cref="AddTab"/>(제목, 컨트롤)도 그대로 동작한다 —
+    ///   내부에서 ModernTabPage를 만들어 감싼다.
+    ///
+    /// 페이지 배치는 Dock이 아니라 <see cref="DisplayRectangle"/>(헤더 제외 영역)로
+    /// 컨트롤이 직접 잡는다 — 표준 TabControl과 같은 방식이라 디자이너가 페이지를
+    /// 어떤 순서로 추가해도 레이아웃이 흔들리지 않는다.
     /// </summary>
     [ToolboxItem(true)]
+    [Designer(typeof(Modern.Lab.WinForms.Design.ModernTabControlDesigner))]
     public class ModernTabControl : Panel
     {
+        private const int HeaderHeight = 40;
+
         private readonly TabHeaderStrip header;
-        private readonly Panel body;
-        private readonly List<Control> pages = new List<Control>();
+        private readonly List<ModernTabPage> pages = new List<ModernTabPage>();
+        private double fontWidthRatio;
 
         /// <summary>선택 탭이 바뀔 때 발생.</summary>
         public event EventHandler SelectedIndexChanged;
 
-        /// <summary>헤더(Top) + 본문(Fill) 구조로 생성한다.</summary>
+        /// <summary>헤더 스트립(비직렬화 내부 자식)을 붙여 생성한다.</summary>
         public ModernTabControl()
         {
-            // 본문(Fill)을 먼저 추가하고 헤더(Top)를 나중에 추가한다 — 이 순서라야
-            // 헤더가 상단 띠를 차지하고 본문이 나머지를 채운다.
-            this.body = new Panel();
-            this.body.Dock = DockStyle.Fill;
-            this.Controls.Add(this.body);
-
+            // 헤더는 런타임 내부 자식이라 디자이너에 site되지 않으므로
+            // .Designer.cs로 직렬화되지 않는다. 배치는 OnLayout에서 직접 잡는다.
             this.header = new TabHeaderStrip();
-            this.header.Dock = DockStyle.Top;
-            this.header.Height = 40;
-            this.header.SelectedIndexChanged += (sender, args) =>
-            {
-                this.ShowPage(this.header.SelectedIndex);
-                if (this.SelectedIndexChanged != null)
-                {
-                    this.SelectedIndexChanged(this, EventArgs.Empty);
-                }
-            };
+            this.header.SelectedIndexChanged += this.OnHeaderSelectedIndexChanged;
             this.Controls.Add(this.header);
         }
 
@@ -70,33 +67,195 @@ namespace Modern.Lab.WinForms.Controls.Layout
             get { return this.pages.Count; }
         }
 
-        /// <summary>탭 추가. content는 본문에 Dock=Fill로 배치되고 선택 시에만 보인다.</summary>
+        /// <summary>장평(글자 가로 비율) 재정의. 0 = 전역(ModernTheme.FontWidthRatio) 사용.</summary>
+        [Category("모던 컨트롤")]
+        [Description("탭 헤더 장평(글자 가로 비율) 재정의 — 0 = 전역(ModernTheme.FontWidthRatio) 사용, 허용 0.8~1.2")]
+        [DefaultValue(0d)]
+        public double FontWidthRatio
+        {
+            get
+            {
+                return this.fontWidthRatio;
+            }
+            set
+            {
+                this.fontWidthRatio = value;
+                this.header.FontWidthRatioOverride = value;
+                this.header.Invalidate();
+            }
+        }
+
+        /// <summary>현재 선택된 페이지 (없으면 null).</summary>
+        [Browsable(false)]
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+        public ModernTabPage SelectedTab
+        {
+            get
+            {
+                int index = this.header.SelectedIndex;
+                return index >= 0 && index < this.pages.Count ? this.pages[index] : null;
+            }
+        }
+
+        /// <summary>헤더 스트립 영역(클라이언트 좌표) — 디자이너 히트테스트용.</summary>
+        internal Rectangle HeaderBounds
+        {
+            get { return new Rectangle(0, 0, this.ClientSize.Width, HeaderHeight); }
+        }
+
+        /// <summary>
+        /// 페이지가 차지하는 본문 영역: 헤더와 Padding을 제외한 나머지.
+        /// 표준 TabControl처럼 이 값으로 페이지를 직접 배치한다.
+        /// </summary>
+        public override Rectangle DisplayRectangle
+        {
+            get
+            {
+                int width = this.ClientSize.Width - this.Padding.Horizontal;
+                int height = this.ClientSize.Height - HeaderHeight - this.Padding.Vertical;
+                return new Rectangle(
+                        this.Padding.Left,
+                        HeaderHeight + this.Padding.Top,
+                        Math.Max(0, width),
+                        Math.Max(0, height));
+            }
+        }
+
+        /// <summary>
+        /// 탭 추가 (런타임 코드 경로). content를 Dock=Fill로 담은 ModernTabPage를
+        /// 만들어 붙인다. 첫 탭이 자동 선택되는 기존 동작을 유지한다.
+        /// </summary>
         public void AddTab(string title, Control content)
         {
-            content.Dock = DockStyle.Fill;
-            content.Visible = this.pages.Count == 0;
-            this.body.Controls.Add(content);
-            this.pages.Add(content);
-            this.header.AddTab(title);
+            ModernTabPage page = new ModernTabPage();
+            page.Text = title;
 
-            if (this.pages.Count == 1)
-            {
-                this.header.SelectedIndex = 0;
-            }
+            content.Dock = DockStyle.Fill;
+            page.Controls.Add(content);
+
+            this.Controls.Add(page);
         }
 
         /// <summary>탭 제목을 바꾼다 (예: "Unit History — IT10001.01"처럼 대상 표시).</summary>
         public void SetTabTitle(int index, string title)
         {
-            this.header.SetTitle(index, title);
+            if (index >= 0 && index < this.pages.Count)
+            {
+                this.pages[index].Text = title ?? string.Empty;
+            }
         }
 
-        private void ShowPage(int index)
+        /// <summary>ModernTabPage 자식이 붙으면 페이지로 등록한다 (디자이너/런타임 공통 경로).</summary>
+        protected override void OnControlAdded(ControlEventArgs e)
         {
-            for (int i = 0; i < this.pages.Count; i++)
+            base.OnControlAdded(e);
+
+            ModernTabPage page = e.Control as ModernTabPage;
+            if (page == null)
             {
-                this.pages[i].Visible = i == index;
+                return;
             }
+
+            page.TextChanged += this.OnPageTextChanged;
+            this.SyncPagesFromControls();
+
+            // 첫 페이지는 자동 선택 (기존 AddTab 동작 유지).
+            if (this.header.SelectedIndex < 0 && this.pages.Count > 0)
+            {
+                this.header.SelectedIndex = 0;
+            }
+
+            this.ApplyPageVisibility();
+            this.PerformLayout();
+        }
+
+        /// <summary>페이지가 빠지면 등록을 해제하고 선택을 유효 범위로 되돌린다.</summary>
+        protected override void OnControlRemoved(ControlEventArgs e)
+        {
+            base.OnControlRemoved(e);
+
+            ModernTabPage page = e.Control as ModernTabPage;
+            if (page == null)
+            {
+                return;
+            }
+
+            page.TextChanged -= this.OnPageTextChanged;
+            this.SyncPagesFromControls();
+            this.ApplyPageVisibility();
+        }
+
+        /// <summary>헤더를 상단 띠에, 모든 페이지를 본문 영역에 직접 배치한다.</summary>
+        protected override void OnLayout(LayoutEventArgs levent)
+        {
+            base.OnLayout(levent);
+
+            this.header.SetBounds(0, 0, this.ClientSize.Width, HeaderHeight);
+
+            Rectangle display = this.DisplayRectangle;
+            foreach (ModernTabPage page in this.pages)
+            {
+                page.Bounds = display;
+            }
+
+            // 직렬화/외부 코드가 페이지 Visible을 건드렸어도 선택 상태로 복원한다.
+            this.ApplyPageVisibility();
+        }
+
+        /// <summary>자식 컬렉션 순서 그대로 페이지 목록·헤더 제목을 다시 만든다.</summary>
+        private void SyncPagesFromControls()
+        {
+            this.pages.Clear();
+
+            foreach (Control child in this.Controls)
+            {
+                ModernTabPage page = child as ModernTabPage;
+                if (page != null)
+                {
+                    this.pages.Add(page);
+                }
+            }
+
+            List<string> titles = new List<string>(this.pages.Count);
+            foreach (ModernTabPage page in this.pages)
+            {
+                titles.Add(page.Text);
+            }
+
+            this.header.SetTitles(titles);
+        }
+
+        /// <summary>선택 탭만 보이게 한다 (헤더는 페이지가 아니므로 손대지 않는다).</summary>
+        private void ApplyPageVisibility()
+        {
+            int selected = this.header.SelectedIndex;
+
+            for (int index = 0; index < this.pages.Count; index++)
+            {
+                this.pages[index].Visible = index == selected;
+            }
+        }
+
+        private void OnHeaderSelectedIndexChanged(object sender, EventArgs e)
+        {
+            this.ApplyPageVisibility();
+
+            if (this.SelectedIndexChanged != null)
+            {
+                this.SelectedIndexChanged(this, EventArgs.Empty);
+            }
+        }
+
+        /// <summary>페이지 Text 변경 → 헤더 제목 동기화 (SetTabTitle도 이 경로를 탄다).</summary>
+        private void OnPageTextChanged(object sender, EventArgs e)
+        {
+            List<string> titles = new List<string>(this.pages.Count);
+            foreach (ModernTabPage page in this.pages)
+            {
+                titles.Add(page.Text);
+            }
+
+            this.header.SetTitles(titles);
         }
 
         /// <summary>언더라인 스타일 탭 헤더 (직접 그리기 + 클릭 히트테스트).</summary>
@@ -110,6 +269,9 @@ namespace Modern.Lab.WinForms.Controls.Layout
             private readonly List<Rectangle> rects = new List<Rectangle>();
             private int selectedIndex = -1;
             private int hoverIndex = -1;
+
+            // 부모 ModernTabControl의 장평 재정의 값 (0 = 전역 사용).
+            internal double FontWidthRatioOverride;
 
             public event EventHandler SelectedIndexChanged;
 
@@ -140,19 +302,24 @@ namespace Modern.Lab.WinForms.Controls.Layout
                 }
             }
 
-            public void AddTab(string title)
+            /// <summary>제목 목록을 통째로 교체한다. 선택이 범위를 벗어나면 마지막 탭으로 되돌린다.</summary>
+            public void SetTitles(List<string> newTitles)
             {
-                this.titles.Add(title);
-                this.Invalidate();
-            }
+                this.titles.Clear();
+                this.titles.AddRange(newTitles);
 
-            public void SetTitle(int index, string title)
-            {
-                if (index >= 0 && index < this.titles.Count)
+                if (this.selectedIndex >= this.titles.Count)
                 {
-                    this.titles[index] = title ?? string.Empty;
-                    this.Invalidate();
+                    // 마지막 페이지 제거 등 — 유효 범위로 조정 (빈 목록이면 -1).
+                    this.selectedIndex = this.titles.Count - 1;
+
+                    if (this.SelectedIndexChanged != null)
+                    {
+                        this.SelectedIndexChanged(this, EventArgs.Empty);
+                    }
                 }
+
+                this.Invalidate();
             }
 
             protected override void OnPaint(PaintEventArgs e)
@@ -180,20 +347,25 @@ namespace Modern.Lab.WinForms.Controls.Layout
 
                 // 선택 탭은 구조 요소 규칙(SemiBold)을 따른다. 폭은 항상 SemiBold
                 // 기준으로 재서 선택이 바뀌어도 탭 위치가 흔들리지 않게 한다.
+                double widthRatio = Modern.Lab.Theming.ModernTheme.ResolveFontWidthRatio(this.FontWidthRatioOverride);
+
                 using (Font normal = new Font("Segoe UI", 10f, FontStyle.Regular))
                 using (Font selectedFont = new Font("Segoe UI Semibold", 10f, FontStyle.Regular))
                 {
                     for (int i = 0; i < this.titles.Count; i++)
                     {
                         bool selected = i == this.selectedIndex;
-                        Size textSize = TextRenderer.MeasureText(this.titles[i], selectedFont);
+                        Size textSize = Modern.Lab.WinForms.Rendering.ScaledTextRenderer.MeasureText(
+                                this.titles[i], selectedFont,
+                                TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter, widthRatio);
                         int w = textSize.Width + PadX * 2;
                         Rectangle rect = new Rectangle(x, 0, w, this.Height);
                         this.rects.Add(rect);
 
                         Color fore = selected ? accent : (i == this.hoverIndex ? hoverInk : muted);
-                        TextRenderer.DrawText(g, this.titles[i], selected ? selectedFont : normal, rect, fore,
-                                TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
+                        Modern.Lab.WinForms.Rendering.ScaledTextRenderer.DrawText(
+                                g, this.titles[i], selected ? selectedFont : normal, rect, fore,
+                                TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter, widthRatio);
 
                         if (selected)
                         {

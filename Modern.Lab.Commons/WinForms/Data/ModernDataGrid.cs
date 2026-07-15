@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.Drawing;
 using Modern.Lab.Controls.Wpf.Data;
@@ -26,6 +27,10 @@ namespace Modern.Lab.WinForms.Controls.Data
         private object dataSource;
         private bool suppressSelectionChanged;
 
+        // ConfigureColumns로 선언한 컬럼 정의 사본 — DataSource 할당 시 누락 컬럼
+        // 자동 보장(EnsureDeclaredColumns)에 쓴다.
+        private ModernDataGridColumn[] configuredColumns;
+
         // 디자인 타임 WPF 생성이 실패한 경우(Wpf == null)에도 속성 그리드가
         // 동작하도록 하는 폴백 저장소.
         private bool fallbackAutoGenerateColumns;
@@ -34,6 +39,7 @@ namespace Modern.Lab.WinForms.Controls.Data
         private string fallbackStatusText;
         private string fallbackStatusCountFormat;
         private string fallbackRowColorMember;
+        private double fallbackFontWidthRatio;
 
         /// <summary>행 선택이 바뀔 때 발생한다(WinForms 호환 이름).</summary>
         public event EventHandler SelectionChanged;
@@ -98,6 +104,9 @@ namespace Modern.Lab.WinForms.Controls.Data
         /// 데이터 소스: DataTable, DataView, IList 또는 임의의 IEnumerable.
         /// 할당하면 선택이 초기화되고, 데이터가 있으면 첫 행이 선택되며,
         /// SelectionChanged가 한 번 발생한다. null을 할당하면 그리드를 비운다.
+        /// DataTable/DataView 소스는 ConfigureColumns로 선언한 컬럼과
+        /// RowColorMember가 없으면 빈 컬럼으로 자동 보장한다 — 폼에서 컬럼 목록을
+        /// 다시 나열할 필요가 없다.
         /// </summary>
         [Browsable(false)]
         [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
@@ -110,6 +119,7 @@ namespace Modern.Lab.WinForms.Controls.Data
             set
             {
                 this.dataSource = value;
+                this.EnsureDeclaredColumns(value);
 
                 if (this.Wpf == null)
                 {
@@ -312,6 +322,38 @@ namespace Modern.Lab.WinForms.Controls.Data
             }
         }
 
+        /// <summary>
+        /// 장평(글자 가로 비율) 재정의. 0 = 전역(ModernTheme.FontWidthRatio) 사용,
+        /// 양수는 0.8~1.2로 클램프. 셀/헤더/배지/버튼 캡션/상태바 텍스트와
+        /// AutoFitColumns 측정에 반영된다.
+        /// </summary>
+        [Category("모던 컨트롤")]
+        [Description("장평(글자 가로 비율) 재정의 — 0 = 전역(ModernTheme.FontWidthRatio) 사용, 허용 0.8~1.2")]
+        [DefaultValue(0d)]
+        public override double FontWidthRatio
+        {
+            get
+            {
+                if (this.Wpf != null)
+                {
+                    return this.Wpf.FontWidthRatio;
+                }
+
+                return this.fallbackFontWidthRatio;
+            }
+            set
+            {
+                this.fallbackFontWidthRatio = value;
+
+                if (this.Wpf != null)
+                {
+                    // 그리드는 자체 DP 경로를 쓴다 — 값이 바뀌면 컬럼을 새 비율로
+                    // 다시 만들고, 첨부 속성(상태바 등 XAML 텍스트)도 함께 갱신된다.
+                    this.Wpf.FontWidthRatio = value;
+                }
+            }
+        }
+
         /// <summary>현재 표시 중인 행 수(WinForms 호환 이름).</summary>
         [Browsable(false)]
         [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
@@ -381,11 +423,38 @@ namespace Modern.Lab.WinForms.Controls.Data
         public void ConfigureColumns(params ModernDataGridColumn[] columns)
         {
             this.fallbackAutoGenerateColumns = false;
+            this.configuredColumns = columns;
 
             if (this.Wpf != null)
             {
                 this.Wpf.ApplyColumns(columns);
             }
+        }
+
+        /// <summary>
+        /// 선언된 컬럼(DataPropertyName)과 RowColorMember를 DataTable/DataView 소스에
+        /// 빈 컬럼으로 보장한다. JSON→DataTable 변환은 값이 전부 null인 컬럼을 만들지
+        /// 않으므로(서버가 null 키 생략), 그리드가 자기 정의로 직접 보장해 폼별
+        /// EnsureColumns 하드코딩을 없앤다.
+        /// </summary>
+        private void EnsureDeclaredColumns(object value)
+        {
+            List<string> members = new List<string>();
+
+            if (this.configuredColumns != null)
+            {
+                foreach (ModernDataGridColumn column in this.configuredColumns)
+                {
+                    if (column != null)
+                    {
+                        members.Add(column.DataPropertyName);
+                    }
+                }
+            }
+
+            members.Add(this.RowColorMember);
+
+            DataSourceConverter.EnsureColumns(value, members);
         }
 
         private void OnWpfCellButtonClick(object sender, GridButtonClickEventArgs e)

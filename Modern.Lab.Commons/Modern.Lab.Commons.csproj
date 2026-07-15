@@ -45,6 +45,7 @@
     </Reference>
     <Reference Include="System.Windows.Forms" />
     <Reference Include="System.Drawing" />
+    <Reference Include="System.Design" />
     <Reference Include="WindowsFormsIntegration" />
   </ItemGroup>
   <ItemGroup>
@@ -258,6 +259,8 @@
     </Compile>
     <!-- WinForms wrapper hosting base (ElementHost) and wrappers -->
     <Compile Include="WinForms\Hosting\WpfElementHostBase.cs" />
+    <Compile Include="WinForms\Rendering\ScaledTextRenderer.cs" />
+    <Compile Include="Controls\Wpf\Common\FontWidthScaling.cs" />
     <Compile Include="WinForms\Hosting\WpfHostOptions.cs" />
     <Compile Include="WinForms\Hosting\WpfHostCursorGuard.cs" />
     <Compile Include="WinForms\Hosting\DataSourceConverter.cs" />
@@ -275,8 +278,16 @@
     <Compile Include="WinForms\Selection\ModernTreeView.cs" />
     <Compile Include="Theming\ModernTheme.cs" />
     <Compile Include="Theming\ModernThemeWinForms.cs" />
-    <Compile Include="WinForms\Layout\ModernSplitContainer.cs" />
-    <Compile Include="WinForms\Layout\ModernTabControl.cs" />
+    <Compile Include="WinForms\Layout\ModernSplitContainer.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="WinForms\Layout\ModernTabControl.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="WinForms\Layout\ModernTabPage.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="WinForms\Design\ModernTabControlDesigner.cs" />
     <Compile Include="WinForms\Display\ModernLabel.cs" />
     <Compile Include="WinForms\Display\ModernKpiCard.cs" />
     <Compile Include="WinForms\Display\ModernSummaryList.cs" />

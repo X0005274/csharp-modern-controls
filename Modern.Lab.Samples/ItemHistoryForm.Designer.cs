@@ -41,7 +41,10 @@ namespace Modern.Lab.Samples
             this.rightZone = new System.Windows.Forms.Panel();
             this.busyMain = new Modern.Lab.WinForms.Controls.Display.ModernBusyOverlay();
             this.gridHistory = new Modern.Lab.WinForms.Controls.Data.ModernDataGrid();
+            this.gridUnitHistory = new Modern.Lab.WinForms.Controls.Data.ModernDataGrid();
             this.tabHistory = new Modern.Lab.WinForms.Controls.Layout.ModernTabControl();
+            this.pageItemHistory = new Modern.Lab.WinForms.Controls.Layout.ModernTabPage();
+            this.pageUnitHistory = new Modern.Lab.WinForms.Controls.Layout.ModernTabPage();
             this.spDetail = new System.Windows.Forms.Panel();
             this.detailCard = new Modern.Lab.WinForms.Controls.Layout.ModernGroupBox();
             this.tblDetail = new System.Windows.Forms.TableLayoutPanel();
@@ -82,6 +85,9 @@ namespace Modern.Lab.Samples
             this.searchCard.SuspendLayout();
             this.mainZone.SuspendLayout();
             this.rightZone.SuspendLayout();
+            this.tabHistory.SuspendLayout();
+            this.pageItemHistory.SuspendLayout();
+            this.pageUnitHistory.SuspendLayout();
             this.detailCard.SuspendLayout();
             this.tblDetail.SuspendLayout();
             this.stepCard.SuspendLayout();
@@ -259,28 +265,61 @@ namespace Modern.Lab.Samples
             this.busyMain.TabIndex = 3;
             this.busyMain.Visible = false;
             this.busyMain.Child = null;
-            // 
-            // tabHistory — 하단 이력 영역 탭 (Item History / Unit History).
-            // 페이지 구성은 코드 비하인드 OnFormLoad에서 AddTab으로 한다.
             //
+            // tabHistory
+            //
+            this.tabHistory.Controls.Add(this.pageItemHistory);
+            this.tabHistory.Controls.Add(this.pageUnitHistory);
             this.tabHistory.Dock = System.Windows.Forms.DockStyle.Fill;
             this.tabHistory.Location = new System.Drawing.Point(0, 246);
             this.tabHistory.Name = "tabHistory";
             this.tabHistory.Size = new System.Drawing.Size(1164, 430);
             this.tabHistory.TabIndex = 5;
             //
+            // pageItemHistory
+            //
+            this.pageItemHistory.Controls.Add(this.gridHistory);
+            this.pageItemHistory.Location = new System.Drawing.Point(0, 40);
+            this.pageItemHistory.Name = "pageItemHistory";
+            this.pageItemHistory.Size = new System.Drawing.Size(1164, 390);
+            this.pageItemHistory.TabIndex = 0;
+            this.pageItemHistory.Text = "Item History";
+            //
             // gridHistory
-            // 
+            //
             this.gridHistory.AutoFitColumns = true;
             this.gridHistory.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.gridHistory.Location = new System.Drawing.Point(0, 246);
+            this.gridHistory.Location = new System.Drawing.Point(0, 0);
             this.gridHistory.Name = "gridHistory";
+            this.gridHistory.RowColorMember = "ROW_COLOR";
             this.gridHistory.ShowStatusBar = true;
-            this.gridHistory.Size = new System.Drawing.Size(1164, 430);
+            this.gridHistory.Size = new System.Drawing.Size(1164, 390);
             this.gridHistory.StatusCountFormat = "{0:N0} events";
-            this.gridHistory.TabIndex = 2;
+            this.gridHistory.TabIndex = 0;
             this.gridHistory.Child = null;
-            // 
+            //
+            // pageUnitHistory
+            //
+            this.pageUnitHistory.Controls.Add(this.gridUnitHistory);
+            this.pageUnitHistory.Location = new System.Drawing.Point(0, 40);
+            this.pageUnitHistory.Name = "pageUnitHistory";
+            this.pageUnitHistory.Size = new System.Drawing.Size(1164, 390);
+            this.pageUnitHistory.TabIndex = 1;
+            this.pageUnitHistory.Text = "Unit History";
+            //
+            // gridUnitHistory
+            //
+            this.gridUnitHistory.AutoFitColumns = true;
+            this.gridUnitHistory.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.gridUnitHistory.Location = new System.Drawing.Point(0, 0);
+            this.gridUnitHistory.Name = "gridUnitHistory";
+            this.gridUnitHistory.RowColorMember = "ROW_COLOR";
+            this.gridUnitHistory.ShowStatusBar = true;
+            this.gridUnitHistory.Size = new System.Drawing.Size(1164, 390);
+            this.gridUnitHistory.StatusCountFormat = "{0:N0} events";
+            this.gridUnitHistory.TabIndex = 0;
+            this.gridUnitHistory.Child = null;
+            //
             // spDetail
             // 
             this.spDetail.Dock = System.Windows.Forms.DockStyle.Top;
@@ -586,13 +625,15 @@ namespace Modern.Lab.Samples
             this.stepCard.Size = new System.Drawing.Size(1164, 98);
             this.stepCard.TabIndex = 0;
             this.stepCard.Text = "Lifecycle";
-            // 
+            //
             // stepIndicator
-            // 
+            //
+            this.stepIndicator.DisplayMember = "LABEL";
             this.stepIndicator.Dock = System.Windows.Forms.DockStyle.Fill;
             this.stepIndicator.Location = new System.Drawing.Point(12, 38);
             this.stepIndicator.Name = "stepIndicator";
             this.stepIndicator.Size = new System.Drawing.Size(1140, 52);
+            this.stepIndicator.StateMember = "STATE";
             this.stepIndicator.TabIndex = 0;
             this.stepIndicator.Child = null;
             //
@@ -632,12 +673,16 @@ namespace Modern.Lab.Samples
             this.treeCard.Size = new System.Drawing.Size(340, 428);
             this.treeCard.TabIndex = 0;
             this.treeCard.Text = "Item / Unit Tree";
-            // 
+            //
             // treeItemUnit
-            // 
+            //
+            this.treeItemUnit.DisplayMember = "ITEM_ID";
             this.treeItemUnit.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.treeItemUnit.ForeColorMember = "NODE_COLOR";
+            this.treeItemUnit.IdMember = "ITEM_ID";
             this.treeItemUnit.Location = new System.Drawing.Point(8, 40);
             this.treeItemUnit.Name = "treeItemUnit";
+            this.treeItemUnit.ParentIdMember = "PARENT_ITEM_ID";
             this.treeItemUnit.Size = new System.Drawing.Size(324, 380);
             this.treeItemUnit.TabIndex = 0;
             this.treeItemUnit.SelectedValueChanged += new System.EventHandler(this.OnTreeSelectionChanged);
@@ -662,15 +707,17 @@ namespace Modern.Lab.Samples
             this.unitCard.Size = new System.Drawing.Size(340, 240);
             this.unitCard.TabIndex = 2;
             this.unitCard.Text = "Units";
-            // 
+            //
             // gridUnits
-            // 
+            //
             this.gridUnits.AutoFitColumns = true;
             this.gridUnits.Dock = System.Windows.Forms.DockStyle.Fill;
             this.gridUnits.Location = new System.Drawing.Point(8, 40);
             this.gridUnits.Name = "gridUnits";
+            this.gridUnits.RowColorMember = "ROW_COLOR";
             this.gridUnits.Size = new System.Drawing.Size(324, 192);
             this.gridUnits.TabIndex = 0;
+            this.gridUnits.SelectionChanged += new System.EventHandler(this.OnUnitSelectionChanged);
             this.gridUnits.Child = null;
             // 
             // toastMain
@@ -705,6 +752,9 @@ namespace Modern.Lab.Samples
             this.searchCard.ResumeLayout(false);
             this.mainZone.ResumeLayout(false);
             this.rightZone.ResumeLayout(false);
+            this.tabHistory.ResumeLayout(false);
+            this.pageItemHistory.ResumeLayout(false);
+            this.pageUnitHistory.ResumeLayout(false);
             this.tblDetail.ResumeLayout(false);
             this.detailCard.ResumeLayout(false);
             this.stepCard.ResumeLayout(false);
@@ -744,7 +794,10 @@ namespace Modern.Lab.Samples
         private System.Windows.Forms.Panel rightZone;
         private Modern.Lab.WinForms.Controls.Display.ModernBusyOverlay busyMain;
         private Modern.Lab.WinForms.Controls.Data.ModernDataGrid gridHistory;
+        private Modern.Lab.WinForms.Controls.Data.ModernDataGrid gridUnitHistory;
         private Modern.Lab.WinForms.Controls.Layout.ModernTabControl tabHistory;
+        private Modern.Lab.WinForms.Controls.Layout.ModernTabPage pageItemHistory;
+        private Modern.Lab.WinForms.Controls.Layout.ModernTabPage pageUnitHistory;
         private System.Windows.Forms.Panel spDetail;
         private Modern.Lab.WinForms.Controls.Layout.ModernGroupBox detailCard;
         private System.Windows.Forms.TableLayoutPanel tblDetail;

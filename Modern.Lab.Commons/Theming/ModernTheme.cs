@@ -57,6 +57,56 @@ namespace Modern.Lab.Theming
         /// <summary>현재 테마. 앱 시작 시 한 번 설정한다.</summary>
         public static ThemeMode Mode { get; set; } = ThemeMode.Light;
 
+        // ---- 장평 (글자 가로 비율) ----
+
+        /// <summary>장평 허용 하한.</summary>
+        public const double MinFontWidthRatio = 0.8;
+
+        /// <summary>장평 허용 상한.</summary>
+        public const double MaxFontWidthRatio = 1.2;
+
+        private static double fontWidthRatio = 1.0;
+
+        /// <summary>
+        /// 전역 장평(글자 가로 비율). 1.0 = 원래 폭, 0.9 = 축소, 1.1 = 확대.
+        /// 허용 범위(0.8~1.2) 밖의 값은 경계로 잘린다.
+        ///
+        /// <see cref="Mode"/>와 마찬가지로 <b>앱 시작 시 첫 컨트롤 생성 전에 한 번</b>
+        /// 설정한다 — WPF 쪽(그리드 셀 등)은 컬럼/템플릿 구성 시점에 값이 굳는다.
+        /// 기본 1.0이므로 설정하지 않으면 기존 시스템은 영향받지 않는다.
+        /// 컨트롤별 FontWidthRatio 속성(0 = 전역 사용)으로 개별 재정의할 수 있다.
+        /// </summary>
+        public static double FontWidthRatio
+        {
+            get { return fontWidthRatio; }
+            set { fontWidthRatio = ClampFontWidthRatio(value); }
+        }
+
+        /// <summary>
+        /// 컨트롤별 재정의 값을 유효 장평으로 해석한다 —
+        /// 0 이하(기본)는 전역 <see cref="FontWidthRatio"/>, 양수는 클램프해 사용.
+        /// </summary>
+        public static double ResolveFontWidthRatio(double localOverride)
+        {
+            return localOverride > 0d ? ClampFontWidthRatio(localOverride) : fontWidthRatio;
+        }
+
+        /// <summary>장평 값을 허용 범위(0.8~1.2)로 자른다.</summary>
+        public static double ClampFontWidthRatio(double value)
+        {
+            if (value < MinFontWidthRatio)
+            {
+                return MinFontWidthRatio;
+            }
+
+            if (value > MaxFontWidthRatio)
+            {
+                return MaxFontWidthRatio;
+            }
+
+            return value;
+        }
+
         /// <summary>다크 테마 여부 (Dark 전용 플래그).</summary>
         public static bool IsDark
         {

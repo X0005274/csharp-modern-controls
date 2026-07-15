@@ -42,7 +42,8 @@
                                             VerticalAlignment="Center"
                                             Visibility="Collapsed" />
                                 </Border>
-                                <ContentPresenter Margin="6,0,0,0" VerticalAlignment="Center" />
+                                <ContentPresenter Margin="6,0,0,0" VerticalAlignment="Center"
+                                                  LayoutTransform="{Binding Path=(common:FontWidthScaling.TextWidthTransform), RelativeSource={RelativeSource Self}}" />
                             </StackPanel>
                             <ControlTemplate.Triggers>
                                 <Trigger Property="IsMouseOver" Value="True">

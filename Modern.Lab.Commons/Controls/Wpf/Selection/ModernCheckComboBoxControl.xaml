@@ -73,7 +73,8 @@
                                                VerticalAlignment="Center"
                                                Visibility="Collapsed" />
                                 </Border>
-                                <ContentPresenter Margin="8,0,0,0" VerticalAlignment="Center" />
+                                <ContentPresenter Margin="8,0,0,0" VerticalAlignment="Center"
+                                                  LayoutTransform="{Binding Path=(common:FontWidthScaling.TextWidthTransform), RelativeSource={RelativeSource Self}}" />
                             </StackPanel>
                             <ControlTemplate.Triggers>
                                 <Trigger Property="IsMouseOver" Value="True">
@@ -124,7 +125,8 @@
                                              HorizontalAlignment="Left"
                                              Margin="3,0,3,0" />
                                 </Border>
-                                <ContentPresenter Margin="8,0,0,0" VerticalAlignment="Center" />
+                                <ContentPresenter Margin="8,0,0,0" VerticalAlignment="Center"
+                                                  LayoutTransform="{Binding Path=(common:FontWidthScaling.TextWidthTransform), RelativeSource={RelativeSource Self}}" />
                             </StackPanel>
                             <ControlTemplate.Triggers>
                                 <Trigger Property="IsMouseOver" Value="True">
@@ -180,6 +182,7 @@
                    FontSize="{StaticResource Font.Size.Body}"
                    Foreground="{StaticResource Brush.TextPrimary}"
                    TextTrimming="CharacterEllipsis"
+                   LayoutTransform="{Binding Path=(common:FontWidthScaling.TextWidthTransform), RelativeSource={RelativeSource Self}}"
                    IsHitTestVisible="False" />
 
         <!-- 체크된 항목이 없을 때의 플레이스홀더 -->
@@ -189,6 +192,7 @@
                    VerticalAlignment="Center"
                    FontSize="{StaticResource Font.Size.Body}"
                    Foreground="{StaticResource Brush.TextPlaceholder}"
+                   LayoutTransform="{Binding Path=(common:FontWidthScaling.TextWidthTransform), RelativeSource={RelativeSource Self}}"
                    IsHitTestVisible="False" />
 
         <!-- 필수 미입력 점: Required이면서 체크된 항목이 없는 동안만 셰브런 왼쪽에 표시.

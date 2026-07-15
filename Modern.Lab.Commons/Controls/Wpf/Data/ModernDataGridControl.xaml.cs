@@ -96,6 +96,18 @@ namespace Modern.Lab.Controls.Wpf.Data
                 typeof(ModernDataGridControl),
                 new PropertyMetadata(string.Empty, OnRowColorMemberPathChanged));
 
+        /// <summary>
+        /// 장평(글자 가로 비율) 재정의 — 0(기본) = 전역(ModernTheme.FontWidthRatio)
+        /// 사용, 양수는 0.8~1.2로 클램프. 셀/헤더/배지/버튼 캡션/상태바 텍스트에
+        /// 가로 스케일이 적용되고 AutoFitColumns 측정에도 반영된다.
+        /// </summary>
+        public static readonly DependencyProperty FontWidthRatioProperty =
+            DependencyProperty.Register(
+                "FontWidthRatio",
+                typeof(double),
+                typeof(ModernDataGridControl),
+                new PropertyMetadata(0d, OnFontWidthRatioChanged));
+
         /// <summary>행 선택이 바뀔 때 발생한다.</summary>
         public event EventHandler SelectionChanged;
 
@@ -196,6 +208,13 @@ namespace Modern.Lab.Controls.Wpf.Data
             set { this.SetValue(RowColorMemberPathProperty, value); }
         }
 
+        /// <summary>장평(글자 가로 비율) 재정의. 0 = 전역(ModernTheme.FontWidthRatio) 사용.</summary>
+        public double FontWidthRatio
+        {
+            get { return (double)this.GetValue(FontWidthRatioProperty); }
+            set { this.SetValue(FontWidthRatioProperty, value); }
+        }
+
         /// <summary>현재 표시 중인 행 수.</summary>
         public int RowCount
         {
@@ -273,32 +292,75 @@ namespace Modern.Lab.Controls.Wpf.Data
 
             this.columnDefinitions = new List<ModernDataGridColumn>(columns);
 
+            // 장평은 컬럼 구성 시점에 확정된다 — 전역/재정의 값이 바뀌면
+            // OnFontWidthRatioChanged가 컬럼을 다시 만든다.
+            double widthRatio = this.ResolvedFontWidthRatio();
+
             foreach (ModernDataGridColumn definition in columns)
             {
-                this.InnerDataGrid.Columns.Add(this.CreateColumn(definition));
+                DataGridColumn column = this.CreateColumn(definition, widthRatio);
+
+                // 헤더 캡션도 같은 장평으로 — 문자열 대신 스케일된 TextBlock을 쓴다.
+                if (Math.Abs(widthRatio - 1d) >= 0.001)
+                {
+                    TextBlock headerText = new TextBlock();
+                    headerText.Text = definition.HeaderText;
+                    headerText.LayoutTransform = CreateWidthTransform(widthRatio);
+                    column.Header = headerText;
+                }
+
+                this.InnerDataGrid.Columns.Add(column);
             }
 
             // 데이터가 이미 할당돼 있으면(할당 순서 내성) 즉시 자동 맞춤을 적용한다.
             this.AutoFitColumnWidths();
         }
 
+        /// <summary>재정의 값(0 = 전역)을 유효 장평으로 해석한다.</summary>
+        private double ResolvedFontWidthRatio()
+        {
+            return Modern.Lab.Theming.ModernTheme.ResolveFontWidthRatio(this.FontWidthRatio);
+        }
+
+        // 장평 적용용 가로 ScaleTransform (Freeze해 컬럼/행 간 공유 가능).
+        private static ScaleTransform CreateWidthTransform(double widthRatio)
+        {
+            ScaleTransform transform = new ScaleTransform(widthRatio, 1d);
+            transform.Freeze();
+            return transform;
+        }
+
+        // 장평이 바뀌면 이미 구성된 컬럼을 새 비율로 다시 만들고,
+        // 공용 첨부 속성도 갱신해 상태바 등 XAML 텍스트 요소에도 반영한다.
+        private static void OnFontWidthRatioChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+        {
+            ModernDataGridControl control = (ModernDataGridControl)d;
+
+            Common.FontWidthScaling.SetFontWidthRatio(control, (double)e.NewValue);
+
+            if (control.columnDefinitions != null)
+            {
+                control.ApplyColumns(new List<ModernDataGridColumn>(control.columnDefinitions));
+            }
+        }
+
         // 컬럼 정의의 Kind에 따라 텍스트/체크박스/배지/버튼 컬럼을 만든다.
-        private DataGridColumn CreateColumn(ModernDataGridColumn definition)
+        private DataGridColumn CreateColumn(ModernDataGridColumn definition, double widthRatio)
         {
             switch (definition.Kind)
             {
                 case GridColumnKind.CheckBox:
                     return this.CreateCheckBoxColumn(definition);
                 case GridColumnKind.Badge:
-                    return this.CreateBadgeColumn(definition);
+                    return this.CreateBadgeColumn(definition, widthRatio);
                 case GridColumnKind.Button:
-                    return this.CreateButtonColumn(definition);
+                    return this.CreateButtonColumn(definition, widthRatio);
                 default:
-                    return CreateTextColumn(definition);
+                    return CreateTextColumn(definition, widthRatio);
             }
         }
 
-        private static DataGridTextColumn CreateTextColumn(ModernDataGridColumn definition)
+        private static DataGridTextColumn CreateTextColumn(ModernDataGridColumn definition, double widthRatio)
         {
             DataGridTextColumn column = new DataGridTextColumn();
             column.Header = definition.HeaderText;
@@ -315,14 +377,27 @@ namespace Modern.Lab.Controls.Wpf.Data
             column.Binding = binding;
             ApplyColumnWidth(column, definition);
 
+            Style elementStyle = new Style(typeof(TextBlock));
+
             if (definition.TextAlignment != GridTextAlignment.Left)
             {
                 TextAlignment alignment = definition.TextAlignment == GridTextAlignment.Center
                     ? TextAlignment.Center
                     : TextAlignment.Right;
 
-                Style elementStyle = new Style(typeof(TextBlock));
                 elementStyle.Setters.Add(new Setter(TextBlock.TextAlignmentProperty, alignment));
+            }
+
+            // 장평: 셀 TextBlock에 가로 LayoutTransform을 걸어 측정·배치까지
+            // 줄어든/늘어난 폭 기준으로 동작하게 한다.
+            if (Math.Abs(widthRatio - 1d) >= 0.001)
+            {
+                elementStyle.Setters.Add(
+                    new Setter(FrameworkElement.LayoutTransformProperty, CreateWidthTransform(widthRatio)));
+            }
+
+            if (elementStyle.Setters.Count > 0)
+            {
                 column.ElementStyle = elementStyle;
             }
 
@@ -357,7 +432,7 @@ namespace Modern.Lab.Controls.Wpf.Data
 
         // 배지 컬럼: 값 텍스트를 BadgeColorMember 색의 알약(Border)으로 감싼다.
         // 글자색은 배경색에서 자동 유도(ChipColorHelper.DeriveForeground)한다.
-        private DataGridColumn CreateBadgeColumn(ModernDataGridColumn definition)
+        private DataGridColumn CreateBadgeColumn(ModernDataGridColumn definition, double widthRatio)
         {
             DataGridTemplateColumn column = new DataGridTemplateColumn();
             column.Header = definition.HeaderText;
@@ -388,6 +463,12 @@ namespace Modern.Lab.Controls.Wpf.Data
             text.SetValue(TextBlock.FontSizeProperty, this.FindResource("Font.Size.Label"));
             text.SetValue(TextBlock.FontWeightProperty, FontWeights.SemiBold);
 
+            // 장평: 배지 텍스트에도 같은 가로 스케일을 적용한다 (알약은 텍스트 폭을 따라간다).
+            if (Math.Abs(widthRatio - 1d) >= 0.001)
+            {
+                text.SetValue(FrameworkElement.LayoutTransformProperty, CreateWidthTransform(widthRatio));
+            }
+
             if (!string.IsNullOrEmpty(definition.BadgeColorMember))
             {
                 Binding foregroundBinding = new Binding(definition.BadgeColorMember);
@@ -407,14 +488,25 @@ namespace Modern.Lab.Controls.Wpf.Data
 
         // 버튼 컬럼: 행 단위 액션 버튼. 클릭은 CellButtonClick 이벤트로 전달되고,
         // ButtonEnabledMember 컬럼 값(bool/Y/N)이 행별 활성화를 제어한다.
-        private DataGridColumn CreateButtonColumn(ModernDataGridColumn definition)
+        private DataGridColumn CreateButtonColumn(ModernDataGridColumn definition, double widthRatio)
         {
             DataGridTemplateColumn column = new DataGridTemplateColumn();
             column.Header = definition.HeaderText;
             column.CanUserSort = false;
 
             FrameworkElementFactory button = new FrameworkElementFactory(typeof(Button));
-            button.SetValue(ContentControl.ContentProperty, definition.ButtonText);
+
+            // 캡션은 TextBlock으로 감싸 장평(가로 스케일)을 적용한다 —
+            // 버튼 테두리는 스케일하지 않고 글자만 조절된다.
+            FrameworkElementFactory caption = new FrameworkElementFactory(typeof(TextBlock));
+            caption.SetValue(TextBlock.TextProperty, definition.ButtonText);
+
+            if (Math.Abs(widthRatio - 1d) >= 0.001)
+            {
+                caption.SetValue(FrameworkElement.LayoutTransformProperty, CreateWidthTransform(widthRatio));
+            }
+
+            button.AppendChild(caption);
             button.SetValue(FrameworkElement.TagProperty, definition.DataPropertyName);
             button.SetValue(FrameworkElement.HorizontalAlignmentProperty, ToHorizontalAlignment(definition.TextAlignment));
             button.SetValue(FrameworkElement.VerticalAlignmentProperty, VerticalAlignment.Center);
@@ -640,6 +732,9 @@ namespace Modern.Lab.Controls.Wpf.Data
             double headerFontSize = (double)this.FindResource("Font.Size.Label");
             double bodyFontSize = (double)this.FindResource("Font.Size.Body");
 
+            // 장평이 적용된 텍스트는 실제 폭이 비율만큼 달라지므로 측정에도 곱한다.
+            double widthRatio = this.ResolvedFontWidthRatio();
+
             int count = Math.Min(this.columnDefinitions.Count, this.InnerDataGrid.Columns.Count);
 
             for (int index = 0; index < count; index++)
@@ -654,13 +749,13 @@ namespace Modern.Lab.Controls.Wpf.Data
                     continue;
                 }
 
-                double width = MeasureText(definition.HeaderText, headerTypeface, headerFontSize, pixelsPerDip)
+                double width = (MeasureText(definition.HeaderText, headerTypeface, headerFontSize, pixelsPerDip) * widthRatio)
                     + autoFitCellPadding + autoFitSortGlyphReserve;
 
                 if (definition.Kind == GridColumnKind.Button)
                 {
                     // 버튼 컬럼은 캡션 폭 기준 — 데이터 내용은 측정하지 않는다.
-                    double captionWidth = MeasureText(definition.ButtonText, bodyTypeface, bodyFontSize, pixelsPerDip)
+                    double captionWidth = (MeasureText(definition.ButtonText, bodyTypeface, bodyFontSize, pixelsPerDip) * widthRatio)
                         + autoFitCellPadding + autoFitButtonChromeReserve;
 
                     if (captionWidth > width)
@@ -675,7 +770,7 @@ namespace Modern.Lab.Controls.Wpf.Data
 
                     foreach (string candidate in CollectLongestCellTexts(this.ItemsSource, definition))
                     {
-                        double cellWidth = MeasureText(candidate, bodyTypeface, bodyFontSize, pixelsPerDip)
+                        double cellWidth = (MeasureText(candidate, bodyTypeface, bodyFontSize, pixelsPerDip) * widthRatio)
                             + autoFitCellPadding + reserve;
 
                         if (cellWidth > width)

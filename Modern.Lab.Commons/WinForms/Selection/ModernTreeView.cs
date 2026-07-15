@@ -48,6 +48,8 @@ namespace Modern.Lab.WinForms.Controls.Selection
         /// 트리를 구성할 행 목록: 키/부모키/명칭 컬럼을 가진 DataTable, DataView,
         /// IList 또는 임의의 IEnumerable. null이면 트리를 비운다.
         /// 재할당 시 기존 SelectedValue가 새 트리에 없으면 미선택으로 초기화된다.
+        /// DataTable/DataView 소스는 Id/ParentId/Display/ForeColor 멤버 컬럼이 없으면
+        /// 빈 컬럼으로 자동 보장한다 — 폼에서 컬럼 목록을 다시 나열할 필요가 없다.
         /// </summary>
         [Browsable(false)]
         [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
@@ -60,6 +62,11 @@ namespace Modern.Lab.WinForms.Controls.Selection
             set
             {
                 this.dataSource = value;
+
+                DataSourceConverter.EnsureColumns(value, new string[]
+                {
+                    this.IdMember, this.ParentIdMember, this.DisplayMember, this.ForeColorMember
+                });
 
                 if (this.Wpf != null)
                 {

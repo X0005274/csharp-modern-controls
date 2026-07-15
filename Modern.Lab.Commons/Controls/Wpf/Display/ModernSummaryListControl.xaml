@@ -43,7 +43,8 @@
             <TextBlock DockPanel.Dock="Left"
                        Text="{Binding Title, ElementName=RootControl}"
                        VerticalAlignment="Center"
-                       Margin="0,0,10,0">
+                       Margin="0,0,10,0"
+                       LayoutTransform="{Binding Path=(common:FontWidthScaling.TextWidthTransform), RelativeSource={RelativeSource Self}}">
                 <TextBlock.Style>
                     <Style TargetType="TextBlock" BasedOn="{StaticResource Text.Label}">
                         <Style.Triggers>
@@ -74,13 +75,15 @@
                                 <TextBlock Text="{Binding Label}"
                                            FontSize="{StaticResource Font.Size.Helper}"
                                            Foreground="{Binding LabelForeground, TargetNullValue={StaticResource Brush.NeutralText}}"
-                                           VerticalAlignment="Center" />
+                                           VerticalAlignment="Center"
+                                           LayoutTransform="{Binding Path=(common:FontWidthScaling.TextWidthTransform), RelativeSource={RelativeSource Self}}" />
                                 <TextBlock Text="{Binding Count}"
                                            FontSize="{StaticResource Font.Size.Helper}"
                                            FontWeight="SemiBold"
                                            Foreground="{Binding CountForeground, TargetNullValue={StaticResource Brush.SelectedText}}"
                                            Margin="6,0,0,0"
-                                           VerticalAlignment="Center" />
+                                           VerticalAlignment="Center"
+                                           LayoutTransform="{Binding Path=(common:FontWidthScaling.TextWidthTransform), RelativeSource={RelativeSource Self}}" />
                             </StackPanel>
                         </Border>
                     </DataTemplate>

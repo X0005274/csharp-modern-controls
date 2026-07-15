@@ -28,7 +28,8 @@
                             <Border x:Name="ItemBorder"
                                     Background="Transparent"
                                     Padding="{TemplateBinding Padding}">
-                                <ContentPresenter VerticalAlignment="Center" />
+                                <ContentPresenter VerticalAlignment="Center"
+                                                  LayoutTransform="{Binding Path=(common:FontWidthScaling.TextWidthTransform), RelativeSource={RelativeSource Self}}" />
                             </Border>
                             <ControlTemplate.Triggers>
                                 <Trigger Property="IsMouseOver" Value="True">
@@ -107,6 +108,7 @@
                                           ContentTemplateSelector="{TemplateBinding ItemTemplateSelector}"
                                           Margin="12,0,32,0"
                                           VerticalAlignment="Center"
+                                          LayoutTransform="{Binding Path=(common:FontWidthScaling.TextWidthTransform), RelativeSource={RelativeSource Self}}"
                                           IsHitTestVisible="False" />
                         <!-- 멀티컬럼 모드의 선택 텍스트: 항목 템플릿이 멀티컬럼 행이라
                              필드에는 대신 TextSearch 기반 Text(표시 명칭)를 보여준다.
@@ -116,6 +118,7 @@
                                    Margin="12,0,32,0"
                                    VerticalAlignment="Center"
                                    Visibility="Collapsed"
+                                   LayoutTransform="{Binding Path=(common:FontWidthScaling.TextWidthTransform), RelativeSource={RelativeSource Self}}"
                                    IsHitTestVisible="False" />
                         <!-- 편집 가능 텍스트 영역(검색형 콤보). IsEditable일 때
                              ContentSite 대신 표시된다; 오른쪽 32px는 셰브런 토글
@@ -128,6 +131,7 @@
                                  Margin="12,0,32,0"
                                  Padding="0"
                                  VerticalAlignment="Center"
+                                 LayoutTransform="{Binding Path=(common:FontWidthScaling.TextWidthTransform), RelativeSource={RelativeSource Self}}"
                                  VerticalContentAlignment="Center"
                                  FontSize="{StaticResource Font.Size.Body}"
                                  Foreground="{StaticResource Brush.TextPrimary}"
@@ -183,6 +187,7 @@
                    VerticalAlignment="Center"
                    FontSize="{StaticResource Font.Size.Body}"
                    Foreground="{StaticResource Brush.TextPlaceholder}"
+                   LayoutTransform="{Binding Path=(common:FontWidthScaling.TextWidthTransform), RelativeSource={RelativeSource Self}}"
                    IsHitTestVisible="False" />
 
         <!-- 필수 미입력 점: Required이면서 값이 비어 있는 동안만 셰브런 왼쪽에 표시.

@@ -45,7 +45,8 @@
                                  HorizontalAlignment="Left"
                                  Margin="3,0,3,0" />
                     </Border>
-                    <ContentPresenter Margin="8,0,0,0" VerticalAlignment="Center" />
+                    <ContentPresenter Margin="8,0,0,0" VerticalAlignment="Center"
+                                      LayoutTransform="{Binding Path=(common:FontWidthScaling.TextWidthTransform), RelativeSource={RelativeSource Self}}" />
                 </StackPanel>
                 <ControlTemplate.Triggers>
                     <Trigger Property="IsMouseOver" Value="True">

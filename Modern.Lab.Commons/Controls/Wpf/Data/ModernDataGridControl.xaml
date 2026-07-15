@@ -148,11 +148,13 @@
                                DockPanel.Dock="Right"
                                FontSize="{StaticResource Font.Size.Label}"
                                Foreground="{StaticResource Brush.TextSecondary}"
-                               VerticalAlignment="Center" />
+                               VerticalAlignment="Center"
+                               LayoutTransform="{Binding Path=(common:FontWidthScaling.TextWidthTransform), RelativeSource={RelativeSource Self}}" />
                     <TextBlock x:Name="StatusCountText"
                                FontSize="{StaticResource Font.Size.Label}"
                                Foreground="{StaticResource Brush.TextSecondary}"
-                               VerticalAlignment="Center" />
+                               VerticalAlignment="Center"
+                               LayoutTransform="{Binding Path=(common:FontWidthScaling.TextWidthTransform), RelativeSource={RelativeSource Self}}" />
                 </DockPanel>
             </Border>
             <DataGrid x:Name="InnerDataGrid"
