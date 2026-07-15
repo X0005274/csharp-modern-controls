@@ -313,7 +313,12 @@ namespace Modern.Lab.Controls.Wpf.Input
             }
         }
 
-        private void CloseSuggestions()
+        /// <summary>
+        /// 추천 드롭다운을 닫는다. 검색 실행처럼 "지금부터는 추천이 무의미한"
+        /// 시점에 폼이 호출한다 — 뒤늦게 도착한 typeahead 응답이 목록을 다시
+        /// 열어 화면에 남는 것을 막는 용도.
+        /// </summary>
+        public void CloseSuggestions()
         {
             this.SuggestionPopup.IsOpen = false;
             this.SuggestionList.SelectedIndex = -1;

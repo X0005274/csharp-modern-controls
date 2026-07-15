@@ -341,7 +341,6 @@ namespace Modern.Lab.Samples
             this.detailCard.Text = "Selection";
             this.detailCard.TitleAccent = true;
             this.detailCard.TitleFontSize = 10F;
-            this.detailCard.TitleFontStyle = System.Drawing.FontStyle.Bold;
             //
             // tblDetail
             //

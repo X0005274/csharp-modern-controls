@@ -332,6 +332,13 @@ namespace Modern.Lab.Samples
                 return;
             }
 
+            // 검색이 시작되면 진행 중인 자동완성은 의미가 없다 — 디바운스 타이머와
+            // 대기 중 응답(버전 무효화)을 취소하고, 열려 있는 추천 목록도 닫는다.
+            // 안 그러면 검색 직후 뒤늦게 도착한 후보가 목록을 다시 열어 화면에 남는다.
+            this.autoCompleteTimer.Stop();
+            this.autoCompleteVersion = this.autoCompleteVersion + 1;
+            this.txtItemId.CloseSuggestions();
+
             string[] subProdTypes = this.GetCheckedTypes();
 
             this.busyMain.Busy = true;

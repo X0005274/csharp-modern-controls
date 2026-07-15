@@ -346,6 +346,18 @@ namespace Modern.Lab.WinForms.Controls.Input
             this.Wpf.AutoCompleteItemsSource = enabled ? this.autoCompleteCustomSource : null;
         }
 
+        /// <summary>
+        /// 열려 있는 자동완성 추천 드롭다운을 닫는다. 검색 실행 시점에 호출하면
+        /// 진행 중이던 typeahead 응답이 목록을 다시 열어 남는 것을 막을 수 있다.
+        /// </summary>
+        public void CloseSuggestions()
+        {
+            if (this.Wpf != null)
+            {
+                this.Wpf.CloseSuggestions();
+            }
+        }
+
         // 표준 WinForms TextChanged를 발생시켜, 기존 핸들러 연결
         // (this.textBox.TextChanged += ...)이 교체 후에도 계속 동작하게 한다.
         private void OnWpfTextChanged(object sender, EventArgs e)
