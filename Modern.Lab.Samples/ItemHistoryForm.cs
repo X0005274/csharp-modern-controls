@@ -4,23 +4,24 @@ using System.Data;
 using System.Drawing;
 using System.Net;
 using System.Text;
-using System.Threading;
+using System.Threading.Tasks;
 using System.Web.Script.Serialization;
 using System.Windows.Forms;
 using Modern.Lab.Controls.Wpf.Data;
 using Modern.Lab.Controls.Wpf.Display;
 using Modern.Lab.Samples.Services;
+using Modern.Lab.WinForms.Controls.Display;
 
 namespace Modern.Lab.Samples
 {
     /// <summary>
     /// Item History 화면 — MES Item 계보 트리와 선택 Item의 이력·웨이퍼 조회.
     ///
-    /// 영역 구성 (계약 룰 5 — 레이아웃은 WinForms 담당):
+    /// 영역 구성 (계약 룰 5 — 레이아웃은 WinForms 담당, 배치는 .Designer.cs):
     /// - 상단: 조회 카드 (Type 다중 필터[체크콤보] + Item ID 검색[필수, 자동완성 — ITEM만])
     /// - 중앙 좌측: Item 계보 트리(Scrap Item은 빨간 텍스트) + 선택 Item의 웨이퍼 목록
-    /// - 중앙 우측: 선택 Item 상세 카드(주요 컬럼 표) + 이력 그리드
-    ///   (MES_ITEM_HIS 전체 컬럼, 최신순, 하단 상태바 — 페이징 없음)
+    /// - 중앙 우측: 선택 Item 상세 카드(주요 컬럼 표) + 이력 탭
+    ///   (Item History / Unit History — 페이지 구성은 .Designer.cs의 ModernTabPage)
     ///
     /// 화면 오픈 시 자동 조회는 하지 않는다 — Item ID(필수)를 넣고 Search로 조회한다.
     /// 트리/자동완성은 ITEM만 다룬다. 트리에서 Item을 선택하면 그 Item의 이력(ITEM_HIS)과
@@ -28,14 +29,17 @@ namespace Modern.Lab.Samples
     /// 검색어와 ITEM_ID가 정확히 일치하면 그 Item을, 없으면 첫 Item을 자동 선택한다.
     ///
     /// 서버 호출은 아래 "서버 조회 (★ 회사 환경 교체 지점)" 영역의 private
-    /// 메서드 4개(tree/ids/history/units)에만 있다 — 회사 환경에서는 그 메서드들의
-    /// 본문만 사내 인터페이스(전문/미들웨어) 호출로 바꾸면 된다. 반환 타입이
-    /// DataTable / string[]이라 화면 코드는 손대지 않는다.
-    /// 모든 조회는 백그라운드 스레드 + UI Invoke 패턴(계약 규칙 3)으로 수행한다.
+    /// 메서드들에만 있다 — 회사 환경에서는 그 메서드들의 본문만 사내 인터페이스
+    /// (전문/미들웨어) 호출로 바꾸면 된다. 반환 타입이 DataTable / string[]이라
+    /// 화면 코드는 손대지 않는다.
+    ///
+    /// 모든 조회는 async/await(Task.Run) + 버전 가드 패턴이다: await 이후는
+    /// UI 스레드로 복귀하므로(WinForms 동기화 컨텍스트) Invoke가 필요 없고,
+    /// 빠른 재조회 시 버전 비교로 오래된 응답을 버린다. 파생 컬럼/표시 계산은
+    /// HistoryTablePresenter(순수 DataTable 로직)에 있다.
     /// </summary>
     public partial class ItemHistoryForm : Form
     {
-
         // 마지막 트리 조회 결과 — 상세 카드/웨이퍼 목록의 원천.
         private DataTable treeData;
 
@@ -57,22 +61,9 @@ namespace Modern.Lab.Samples
         // Unit 이력 조회 버전 — 빠른 재선택 시 오래된 응답을 버린다.
         private int unitHistoryVersion;
 
-        // Scrap 상태 노드의 트리 텍스트 색 — 어두운 테마에서는 밝은 빨강이어야 보인다.
-        private static string ScrapForeColor
-        {
-            get { return Modern.Lab.Theming.ModernTheme.IsDarkBased ? "#FF99A4" : "#C42B1C"; }
-        }
-
-        // 그리드 행 배경색 (Win11 시맨틱 면 색과 동일 계열) — 어두운 테마는 어두운 톤.
-        private static string ScrapRowColor
-        {
-            get { return Modern.Lab.Theming.ModernTheme.IsDarkBased ? "#4C2B2C" : "#FDE7E9"; }
-        }
-
-        private static string DoneRowColor
-        {
-            get { return Modern.Lab.Theming.ModernTheme.IsDarkBased ? "#39412A" : "#DFF6DD"; }
-        }
+        // 상세 표의 (값 라벨 ↔ 응답 컬럼) 매핑 — 채우기/비우기를 루프 하나로 처리한다.
+        // 항목을 추가하려면 .Designer.cs에 라벨을 놓고 여기 한 줄만 더하면 된다.
+        private readonly KeyValuePair<ModernLabel, string>[] detailBindings;
 
         // 노드 종류/상태 배지 색.
         private static readonly Dictionary<string, string> typeBadgeColors = new Dictionary<string, string>
@@ -92,11 +83,24 @@ namespace Modern.Lab.Samples
         public ItemHistoryForm()
         {
             this.InitializeComponent();
+
+            this.detailBindings = new KeyValuePair<ModernLabel, string>[]
+            {
+                new KeyValuePair<ModernLabel, string>(this.valEvent, "EVENT_CD"),
+                new KeyValuePair<ModernLabel, string>(this.valEventTm, "EVENT_TM"),
+                new KeyValuePair<ModernLabel, string>(this.valCarrier, "BOX_ID"),
+                new KeyValuePair<ModernLabel, string>(this.valStk, "STORE_ID"),
+                new KeyValuePair<ModernLabel, string>(this.valProduct, "MODEL_ID"),
+                new KeyValuePair<ModernLabel, string>(this.valFlow, "FLOW_ID"),
+                new KeyValuePair<ModernLabel, string>(this.valOper, "OPER_ID"),
+                new KeyValuePair<ModernLabel, string>(this.valEqp, "STATION_ID"),
+                new KeyValuePair<ModernLabel, string>(this.valDescription, "DESCRIPTION")
+            };
         }
 
         // ===== 서버 조회 (★ 회사 환경 교체 지점) =====
         //
-        // 아래 3개 메서드의 본문만 사내 서버 호출로 바꾸면 화면이 그대로 동작한다.
+        // 아래 메서드들의 본문만 사내 서버 호출로 바꾸면 화면이 그대로 동작한다.
         // 홈 환경에서는 Spring Boot REST(modernlab-api)를 호출한다.
 
         /// <summary>홈 환경 API 주소 — 회사 적용 시 함께 제거한다.</summary>
@@ -191,6 +195,8 @@ namespace Modern.Lab.Samples
             }
         }
 
+        // ===== 초기 데이터/컬럼 구성 =====
+
         private void OnFormLoad(object sender, EventArgs e)
         {
             // Type 필터 체크콤보: 미체크 = 전체 (플레이스홀더 "All Types").
@@ -276,7 +282,7 @@ namespace Modern.Lab.Samples
 
         private void OnSearchClick(object sender, EventArgs e)
         {
-            this.ExecuteSearch();
+            this.ExecuteSearchAsync();
         }
 
         // Reset: 조건과 결과를 모두 비운다. Item ID가 필수라 빈 조건 재조회는 없다.
@@ -309,10 +315,9 @@ namespace Modern.Lab.Samples
             return types;
         }
 
-        // 백그라운드에서 서버를 호출하고 UI 스레드로 복귀해 반영한다.
-        // 반영 순서: 트리 바인딩 → 자동완성 후보 누적 →
-        // 매칭 노드 자동 선택(조상 자동 펼침) → 선택 결과 화면 반영.
-        private void ExecuteSearch()
+        // 백그라운드에서 서버를 호출하고(await 복귀 = UI 스레드) 반영한다.
+        // 반영 순서: 트리 바인딩 → 매칭 노드 자동 선택 → 선택 결과 화면 반영.
+        private async void ExecuteSearchAsync()
         {
             if (!this.searchReady)
             {
@@ -332,60 +337,44 @@ namespace Modern.Lab.Samples
 
             this.busyMain.Busy = true;
 
-            ThreadPool.QueueUserWorkItem(delegate(object state)
+            try
             {
+                DataTable tree = await Task.Run(() => this.RequestItemTree(keyword, subProdTypes));
+
+                if (this.IsDisposed)
+                {
+                    return;
+                }
+
+                // 트리 멤버 컬럼(ITEM_ID 등)은 DataSource 할당 시 트리가 스스로
+                // 보장하고, 상세 카드는 CellText가 누락 컬럼을 빈 값으로 읽는다.
+                HistoryTablePresenter.ApplyScrapColor(tree);
+                this.treeData = tree;
+
+                this.suppressTreeEvent = true;
+
                 try
                 {
-                    DataTable tree = this.RequestItemTree(keyword, subProdTypes);
-
-                    this.Invoke(new MethodInvoker(delegate
-                    {
-                        // 트리 멤버 컬럼(ITEM_ID 등)은 DataSource 할당 시 트리가 스스로
-                        // 보장하고, 상세 카드는 GetString이 누락 컬럼을 빈 값으로 읽는다.
-                        ApplyScrapColor(tree);
-                        this.treeData = tree;
-
-                        this.suppressTreeEvent = true;
-
-                        try
-                        {
-                            this.treeItemUnit.DataSource = tree;
-                            this.treeItemUnit.SelectedValue = FindAutoSelectId(tree, keyword);
-                        }
-                        finally
-                        {
-                            this.suppressTreeEvent = false;
-                        }
-
-                        this.busyMain.Busy = false;
-                        this.ApplyTreeSelection();
-                    }));
+                    this.treeItemUnit.DataSource = tree;
+                    this.treeItemUnit.SelectedValue = FindAutoSelectId(tree, keyword);
                 }
-                catch (Exception ex)
+                finally
                 {
-                    this.Invoke(new MethodInvoker(delegate
-                    {
-                        this.busyMain.Busy = false;
-                        this.toastMain.Show("Server call failed: " + ex.Message, ToastKind.Error);
-                    }));
+                    this.suppressTreeEvent = false;
                 }
-            });
-        }
 
-        // Scrap 상태 Item에 트리 텍스트 색 컬럼(NODE_COLOR)을 채운다.
-        private static void ApplyScrapColor(DataTable tree)
-        {
-            if (!tree.Columns.Contains("NODE_COLOR"))
-            {
-                tree.Columns.Add("NODE_COLOR", typeof(string));
+                this.busyMain.Busy = false;
+                this.ApplyTreeSelection();
             }
-
-            foreach (DataRow row in tree.Rows)
+            catch (Exception ex)
             {
-                if (ToText(row, "STAT_TYP") == "Scrap")
+                if (this.IsDisposed)
                 {
-                    row["NODE_COLOR"] = ScrapForeColor;   // 트리 텍스트 빨강
+                    return;
                 }
+
+                this.busyMain.Busy = false;
+                this.toastMain.Show("Server call failed: " + ex.Message, ToastKind.Error);
             }
         }
 
@@ -433,7 +422,7 @@ namespace Modern.Lab.Samples
             return false;
         }
 
-        private void OnAutoCompleteTimerTick(object sender, EventArgs e)
+        private async void OnAutoCompleteTimerTick(object sender, EventArgs e)
         {
             this.autoCompleteTimer.Stop();
 
@@ -448,30 +437,24 @@ namespace Modern.Lab.Samples
             this.autoCompleteVersion = this.autoCompleteVersion + 1;
             int version = this.autoCompleteVersion;
 
-            ThreadPool.QueueUserWorkItem(delegate(object state)
+            try
             {
-                try
-                {
-                    string[] candidates = this.RequestIdCandidates(keyword);
+                string[] candidates = await Task.Run(() => this.RequestIdCandidates(keyword));
 
-                    this.Invoke(new MethodInvoker(delegate
-                    {
-                        // 그 사이 새 요청이 나갔으면 이 응답은 버린다.
-                        if (version != this.autoCompleteVersion)
-                        {
-                            return;
-                        }
-
-                        AutoCompleteStringCollection collection = new AutoCompleteStringCollection();
-                        collection.AddRange(candidates);
-                        this.txtItemId.AutoCompleteCustomSource = collection;
-                    }));
-                }
-                catch (Exception)
+                // 그 사이 새 요청이 나갔거나 폼이 닫혔으면 이 응답은 버린다.
+                if (this.IsDisposed || version != this.autoCompleteVersion)
                 {
-                    // 자동완성 실패는 조용히 무시한다 — 검색 자체에는 영향 없음.
+                    return;
                 }
-            });
+
+                AutoCompleteStringCollection collection = new AutoCompleteStringCollection();
+                collection.AddRange(candidates);
+                this.txtItemId.AutoCompleteCustomSource = collection;
+            }
+            catch (Exception)
+            {
+                // 자동완성 실패는 조용히 무시한다 — 검색 자체에는 영향 없음.
+            }
         }
 
         // 자동 선택 대상: 검색어와 ITEM_ID가 정확히 일치하는 Item이 있으면 그 Item,
@@ -480,7 +463,7 @@ namespace Modern.Lab.Samples
         {
             foreach (DataRow row in tree.Rows)
             {
-                string itemId = ToText(row, "ITEM_ID");
+                string itemId = HistoryTablePresenter.CellText(row, "ITEM_ID");
 
                 if (string.Equals(itemId, keyword, StringComparison.OrdinalIgnoreCase))
                 {
@@ -488,7 +471,7 @@ namespace Modern.Lab.Samples
                 }
             }
 
-            return tree.Rows.Count > 0 ? ToText(tree.Rows[0], "ITEM_ID") : null;
+            return tree.Rows.Count > 0 ? HistoryTablePresenter.CellText(tree.Rows[0], "ITEM_ID") : null;
         }
 
         // ===== 트리 선택 → 상세 + 웨이퍼 목록 + 이력 =====
@@ -516,17 +499,17 @@ namespace Modern.Lab.Samples
             }
 
             this.FillDetail(selected);
-            this.LoadItemDetails(GetString(selected, "ITEM_ID"));
+            this.LoadItemDetailsAsync(HistoryTablePresenter.CellText(selected, "ITEM_ID"));
         }
 
         private void FillDetail(DataRowView row)
         {
-            string prodType = GetString(row, "ITEM_TYP");
-            string subType = GetString(row, "SUB_TYP");
-            string stat = GetString(row, "STAT_TYP");
+            string prodType = HistoryTablePresenter.CellText(row, "ITEM_TYP");
+            string subType = HistoryTablePresenter.CellText(row, "SUB_TYP");
+            string stat = HistoryTablePresenter.CellText(row, "STAT_TYP");
 
             // 카드 제목에 선택 Item ID를 표시한다.
-            string itemId = GetString(row, "ITEM_ID");
+            string itemId = HistoryTablePresenter.CellText(row, "ITEM_ID");
             this.detailCard.Text = itemId.Length > 0 ? itemId : "Selection";
 
             // 타입 배지: "Prod Type - Sub Type" 결합 표기 (색은 Sub Type 기준).
@@ -538,67 +521,62 @@ namespace Modern.Lab.Samples
             this.badgeStat.Text = stat.Length > 0 ? stat : "-";
             this.badgeStat.Color = statBadgeColors.ContainsKey(stat) ? statBadgeColors[stat] : string.Empty;
 
-            // Selection: Item의 주요 컬럼들 (MES_ITEM_MAS 현재 상태).
-            this.valProduct.Text = GetString(row, "MODEL_ID");
-            this.valProdTyp.Text = GetString(row, "ITEM_TYP");
-            this.valEvent.Text = GetString(row, "EVENT_CD");
-            this.valFlow.Text = GetString(row, "FLOW_ID");
-            this.valOper.Text = GetString(row, "OPER_ID");
-            this.valEqp.Text = GetString(row, "STATION_ID");
-            this.valCarrier.Text = GetString(row, "BOX_ID");
-            this.valStk.Text = GetString(row, "STORE_ID");
-            this.valEventTm.Text = GetString(row, "EVENT_TM");
-            this.valDescription.Text = GetString(row, "DESCRIPTION");
+            // 상세 표: (값 라벨 ↔ 컬럼) 매핑을 돌며 채운다 (MES_ITEM_MAS 현재 상태).
+            foreach (KeyValuePair<ModernLabel, string> binding in this.detailBindings)
+            {
+                binding.Key.Text = HistoryTablePresenter.CellText(row, binding.Value);
+            }
         }
 
         // 선택 Item의 이력(MES_ITEM_HIS)과 웨이퍼 목록(MES_UNIT_MAS)을 백그라운드에서
         // 함께 불러온다. 두 조회가 끝날 때까지 로딩 팝업이 계속 표시된다.
-        private void LoadItemDetails(string itemId)
+        private async void LoadItemDetailsAsync(string itemId)
         {
             this.busyMain.Busy = true;
             this.selectionVersion = this.selectionVersion + 1;
             int version = this.selectionVersion;
 
-            ThreadPool.QueueUserWorkItem(delegate(object state)
+            try
             {
-                try
+                DataTable[] results = await Task.Run(() => new DataTable[]
                 {
-                    DataTable history = this.RequestItemHistory(itemId);
-                    DataTable units = this.RequestUnits(itemId);
+                    this.RequestItemHistory(itemId),
+                    this.RequestUnits(itemId)
+                });
 
-                    this.Invoke(new MethodInvoker(delegate
-                    {
-                        // 그 사이 다른 Item이 선택됐으면 이 응답은 버린다.
-                        if (version != this.selectionVersion)
-                        {
-                            return;
-                        }
-
-                        // ---- 이력 그리드 (ITEM_HIS 전체 컬럼) ----
-                        // 서버 응답에 없는 컬럼은 그리드가 DataSource 할당 시 보장한다.
-                        AddDurationColumn(history);
-                        AddRowColor(history);
-                        this.gridHistory.DataSource = history;
-                        this.gridHistory.StatusText = itemId + CycleTimeSuffix(history);
-                        this.stepIndicator.DataSource = BuildStepTable(history);
-
-                        // ---- 웨이퍼 목록 ----
-                        AddUnitRowColor(units);
-                        this.gridUnits.DataSource = units;
-                        this.unitCard.Text = "Units — " + itemId;
-
-                        this.busyMain.Busy = false;
-                    }));
-                }
-                catch (Exception ex)
+                // 그 사이 다른 Item이 선택됐으면 버린다 — 로딩 팝업은 최신 요청이 정리한다.
+                if (this.IsDisposed || version != this.selectionVersion)
                 {
-                    this.Invoke(new MethodInvoker(delegate
-                    {
-                        this.busyMain.Busy = false;
-                        this.toastMain.Show("Server call failed: " + ex.Message, ToastKind.Error);
-                    }));
+                    return;
                 }
-            });
+
+                DataTable history = results[0];
+                DataTable units = results[1];
+
+                // ---- 이력 그리드 (ITEM_HIS 전체 컬럼; 누락 컬럼은 그리드가 보장) ----
+                HistoryTablePresenter.AddDurationColumn(history);
+                HistoryTablePresenter.AddRowColor(history);
+                this.gridHistory.DataSource = history;
+                this.gridHistory.StatusText = itemId + HistoryTablePresenter.CycleTimeSuffix(history);
+                this.stepIndicator.DataSource = HistoryTablePresenter.BuildStepTable(history);
+
+                // ---- 웨이퍼 목록 ----
+                HistoryTablePresenter.AddUnitRowColor(units);
+                this.gridUnits.DataSource = units;
+                this.unitCard.Text = "Units — " + itemId;
+
+                this.busyMain.Busy = false;
+            }
+            catch (Exception ex)
+            {
+                if (this.IsDisposed)
+                {
+                    return;
+                }
+
+                this.busyMain.Busy = false;
+                this.toastMain.Show("Server call failed: " + ex.Message, ToastKind.Error);
+            }
         }
 
         // ===== Unit 이력 (하단 탭) =====
@@ -608,110 +586,75 @@ namespace Modern.Lab.Samples
         private void OnUnitSelectionChanged(object sender, EventArgs e)
         {
             DataRowView row = this.gridUnits.SelectedItem as DataRowView;
+
             if (row == null)
             {
                 return;
             }
 
-            string unitId = ToText(row.Row, "UNIT_ID");
-            if (string.IsNullOrEmpty(unitId))
+            string unitId = HistoryTablePresenter.CellText(row, "UNIT_ID");
+
+            if (unitId.Length == 0)
             {
                 return;
             }
 
-            this.LoadUnitHistory(unitId);
+            this.LoadUnitHistoryAsync(unitId);
         }
 
         // 선택 Unit의 이력을 백그라운드에서 불러와 Unit History 탭 그리드에 채운다.
-        private void LoadUnitHistory(string unitId)
+        private async void LoadUnitHistoryAsync(string unitId)
         {
             this.unitHistoryVersion = this.unitHistoryVersion + 1;
             int version = this.unitHistoryVersion;
 
-            ThreadPool.QueueUserWorkItem(delegate(object state)
+            try
             {
-                try
+                DataTable history = await Task.Run(() => this.RequestUnitHistory(unitId));
+
+                // 그 사이 다른 Unit이 선택됐거나 폼이 닫혔으면 이 응답은 버린다.
+                if (this.IsDisposed || version != this.unitHistoryVersion)
                 {
-                    DataTable history = this.RequestUnitHistory(unitId);
-
-                    this.Invoke(new MethodInvoker(delegate
-                    {
-                        // 그 사이 다른 Unit이 선택됐으면 이 응답은 버린다.
-                        if (version != this.unitHistoryVersion)
-                        {
-                            return;
-                        }
-
-                        AddDurationColumn(history);
-                        AddRowColor(history);
-                        this.gridUnitHistory.DataSource = history;
-                        this.gridUnitHistory.StatusText = unitId + CycleTimeSuffix(history);
-                        this.tabHistory.SetTabTitle(1, "Unit History — " + unitId);
-                    }));
+                    return;
                 }
-                catch (Exception ex)
-                {
-                    this.Invoke(new MethodInvoker(delegate
-                    {
-                        this.toastMain.Show("Server call failed: " + ex.Message, ToastKind.Error);
-                    }));
-                }
-            });
-        }
 
-        // 웨이퍼 목록의 Scrap 행 배경(옅은 빨강) 컬럼을 채운다.
-        private static void AddUnitRowColor(DataTable units)
-        {
-            if (units == null)
-            {
-                return;
+                HistoryTablePresenter.AddDurationColumn(history);
+                HistoryTablePresenter.AddRowColor(history);
+                this.gridUnitHistory.DataSource = history;
+                this.gridUnitHistory.StatusText = unitId + HistoryTablePresenter.CycleTimeSuffix(history);
+                this.tabHistory.SetTabTitle(1, "Unit History — " + unitId);
             }
-
-            if (!units.Columns.Contains("ROW_COLOR"))
+            catch (Exception ex)
             {
-                units.Columns.Add("ROW_COLOR", typeof(string));
-            }
-
-            foreach (DataRow row in units.Rows)
-            {
-                if (ToText(row, "STAT_TYP") == "Scrap")
+                if (this.IsDisposed)
                 {
-                    row["ROW_COLOR"] = ScrapRowColor;
+                    return;
                 }
+
+                this.toastMain.Show("Server call failed: " + ex.Message, ToastKind.Error);
             }
         }
 
-        // Selection 상세 표의 셀 배경/괘선을 그린다.
-        // 캡션 열(0,2,4)은 그리드 헤더처럼 옅은 톤(SurfaceAlt)으로 칠하고,
-        // 모든 셀에 BorderSubtle 괘선을 둘러 "표" 형태로 보이게 한다.
+        // ===== 상세 표 그리기 =====
+
+        // Selection 상세 표의 셀 배경/괘선을 그린다. 행·열 좌표 하드코딩 대신
+        // "그 셀을 차지한 컨트롤"로 판정한다:
+        // - 캡션 셀: 주인이 캡션 라벨(Kind=Label)이면 헤더 톤(SurfaceAlt)으로 칠한다.
+        // - 오른쪽 세로선: 오른쪽 이웃 셀의 주인이 같은 컨트롤(열 병합 내부)이면 긋지 않는다.
         // (TableLayoutPanel 기본 CellBorderStyle은 진회색 클래식 선이라 쓰지 않는다.)
         // 색은 하드코딩하지 않고 ModernTheme 팔레트에서 읽는다 — 커스텀 페인트는
         // ModernThemeWinForms.Apply의 속성 치환이 닿지 않으므로 이렇게 해야
         // 라이트/다크 모두에서 맞는 색이 나온다.
         private void OnDetailCellPaint(object sender, TableLayoutCellPaintEventArgs e)
         {
-            // 배치(3줄): 0행은 캡션/값 4쌍(짝수 열이 캡션), 1행은 Product 값이
-            // 1~3열 span이라 캡션이 0·4·6열, 2행(Description)은 캡션이 0열뿐이다.
-            bool captionColumn;
-            bool insideSpan;   // 값 span 내부(경계 세로선을 그리지 않을 셀)
+            Control owner = this.GetDetailCellOwner(e.Column, e.Row);
+            Control rightNeighbor = this.GetDetailCellOwner(e.Column + 1, e.Row);
 
-            if (e.Row == 2)
-            {
-                captionColumn = e.Column == 0;
-                insideSpan = e.Column >= 1 && e.Column <= 6;
-            }
-            else if (e.Row == 1)
-            {
-                captionColumn = e.Column == 0 || e.Column == 4 || e.Column == 6;
-                insideSpan = e.Column == 1 || e.Column == 2;
-            }
-            else
-            {
-                captionColumn = e.Column % 2 == 0;
-                insideSpan = false;
-            }
+            ModernLabel captionLabel = owner as ModernLabel;
+            bool captionCell = captionLabel != null && captionLabel.Kind == LabelKind.Label;
+            bool insideSpan = owner != null && object.ReferenceEquals(owner, rightNeighbor);
 
-            if (captionColumn)
+            if (captionCell)
             {
                 using (SolidBrush headerBrush = new SolidBrush(Modern.Lab.Theming.ModernTheme.SurfaceAlt))
                 {
@@ -723,8 +666,8 @@ namespace Modern.Lab.Samples
             {
                 Rectangle cell = e.CellBounds;
 
-                // 오른쪽 세로선: span된 값 영역 내부 셀에는 그리지 않는다
-                // (span 마지막 셀의 오른쪽 경계는 그림).
+                // 오른쪽 세로선: 병합된 값 영역 내부 셀에는 그리지 않는다
+                // (병합 마지막 셀의 오른쪽 경계는 그림).
                 if (!insideSpan)
                 {
                     e.Graphics.DrawLine(linePen, cell.Right - 1, cell.Top, cell.Right - 1, cell.Bottom - 1);
@@ -746,6 +689,28 @@ namespace Modern.Lab.Samples
             }
         }
 
+        // (column, row) 셀을 차지한 컨트롤을 찾는다 — 열 병합(ColumnSpan) 포함.
+        private Control GetDetailCellOwner(int column, int row)
+        {
+            if (column < 0 || column >= this.tblDetail.ColumnCount)
+            {
+                return null;
+            }
+
+            foreach (Control child in this.tblDetail.Controls)
+            {
+                TableLayoutPanelCellPosition position = this.tblDetail.GetPositionFromControl(child);
+                int span = this.tblDetail.GetColumnSpan(child);
+
+                if (position.Row == row && column >= position.Column && column < position.Column + span)
+                {
+                    return child;
+                }
+            }
+
+            return null;
+        }
+
         private void ClearSelection()
         {
             this.detailCard.Text = "Selection";
@@ -753,16 +718,12 @@ namespace Modern.Lab.Samples
             this.badgeType.Color = string.Empty;
             this.badgeStat.Text = "-";
             this.badgeStat.Color = string.Empty;
-            this.valProduct.Text = "-";
-            this.valProdTyp.Text = "-";
-            this.valEvent.Text = "-";
-            this.valFlow.Text = "-";
-            this.valOper.Text = "-";
-            this.valEqp.Text = "-";
-            this.valCarrier.Text = "-";
-            this.valStk.Text = "-";
-            this.valEventTm.Text = "-";
-            this.valDescription.Text = "-";
+
+            foreach (KeyValuePair<ModernLabel, string> binding in this.detailBindings)
+            {
+                binding.Key.Text = "-";
+            }
+
             this.gridUnits.DataSource = null;
             this.unitCard.Text = "Units";
             this.gridHistory.DataSource = null;
@@ -774,194 +735,6 @@ namespace Modern.Lab.Samples
             this.gridUnitHistory.DataSource = null;
             this.gridUnitHistory.StatusText = string.Empty;
             this.tabHistory.SetTabTitle(1, "Unit History");
-        }
-
-        // ===== 이력 파생 계산 (소요시간 · 사이클타임 · 진행 단계) =====
-
-        // 이력은 최신순(TIMEKEY DESC). 각 행의 DURATION = 이 이벤트 시각 − 바로 이전
-        // (더 오래된) 이벤트 시각. 가장 오래된 행(맨 아래)은 이전이 없어 빈칸.
-        private static void AddDurationColumn(DataTable history)
-        {
-            if (history == null)
-            {
-                return;
-            }
-
-            if (!history.Columns.Contains("DURATION"))
-            {
-                history.Columns.Add("DURATION", typeof(string));
-            }
-
-            for (int index = 0; index < history.Rows.Count; index++)
-            {
-                DateTime current;
-                DateTime older = DateTime.MinValue;
-
-                bool hasCurrent = TryParseEventTime(history.Rows[index], out current);
-                bool hasOlder = index + 1 < history.Rows.Count
-                    && TryParseEventTime(history.Rows[index + 1], out older);
-
-                if (hasCurrent && hasOlder)
-                {
-                    history.Rows[index]["DURATION"] = FormatDuration(current - older);
-                }
-                else
-                {
-                    history.Rows[index]["DURATION"] = string.Empty;
-                }
-            }
-        }
-
-        // 이력 행 배경색 컬럼(ROW_COLOR)을 이벤트로 채운다:
-        // Scrapped=빨강, JobEnd(완료)=초록, 그 외는 빈칸(기본 교차색 유지).
-        private static void AddRowColor(DataTable history)
-        {
-            if (history == null)
-            {
-                return;
-            }
-
-            if (!history.Columns.Contains("ROW_COLOR"))
-            {
-                history.Columns.Add("ROW_COLOR", typeof(string));
-            }
-
-            foreach (DataRow row in history.Rows)
-            {
-                string eventCd = ToText(row, "EVENT_CD");
-
-                if (eventCd == "Scrapped")
-                {
-                    row["ROW_COLOR"] = ScrapRowColor;
-                }
-                else if (eventCd == "JobEnd")
-                {
-                    row["ROW_COLOR"] = DoneRowColor;
-                }
-            }
-        }
-
-        // 상태바 우측에 붙일 총 사이클타임(가장 오래된 → 가장 최근 이벤트) 접미어.
-        private static string CycleTimeSuffix(DataTable history)
-        {
-            if (history == null || history.Rows.Count < 2)
-            {
-                return string.Empty;
-            }
-
-            DateTime newest;
-            DateTime oldest;
-
-            // 최신순이므로 첫 행이 최신, 마지막 행이 최초.
-            if (TryParseEventTime(history.Rows[0], out newest)
-                && TryParseEventTime(history.Rows[history.Rows.Count - 1], out oldest))
-            {
-                return "  ·  Cycle " + FormatDuration(newest - oldest);
-            }
-
-            return string.Empty;
-        }
-
-        // 이력 이벤트를 시간순(왼→오른쪽) 단계로 만든다. 마지막(최신) 이벤트가
-        // 현재 단계이며, 그 이벤트가 Scrapped면 Failed(빨강)로 표시한다.
-        private static DataTable BuildStepTable(DataTable history)
-        {
-            DataTable steps = new DataTable();
-            steps.Columns.Add("LABEL", typeof(string));
-            steps.Columns.Add("STATE", typeof(string));
-
-            if (history == null || history.Rows.Count == 0)
-            {
-                return steps;
-            }
-
-            // 최신순 → 시간순으로 뒤집어 왼쪽부터 진행 순서가 되게 한다.
-            int lastIndex = history.Rows.Count - 1;
-
-            for (int index = lastIndex; index >= 0; index--)
-            {
-                string eventCd = ToText(history.Rows[index], "EVENT_CD");
-                bool isCurrent = index == 0; // 최신 = 현재 단계
-                string state;
-
-                if (isCurrent)
-                {
-                    state = (eventCd == "Scrapped") ? "Failed" : "Current";
-                }
-                else
-                {
-                    state = "Completed";
-                }
-
-                steps.Rows.Add(eventCd, state);
-            }
-
-            return steps;
-        }
-
-        private static bool TryParseEventTime(DataRow row, out DateTime value)
-        {
-            value = DateTime.MinValue;
-            string text = ToText(row, "EVENT_TM");
-
-            if (text.Length == 0)
-            {
-                return false;
-            }
-
-            return DateTime.TryParse(text, out value);
-        }
-
-        // TimeSpan을 사람이 읽는 짧은 문자열로: "1d 4h" / "4h 12m" / "12m" / "45s".
-        private static string FormatDuration(TimeSpan span)
-        {
-            if (span.Ticks < 0)
-            {
-                span = span.Negate();
-            }
-
-            if (span.TotalDays >= 1d)
-            {
-                return (int)span.TotalDays + "d " + span.Hours + "h";
-            }
-
-            if (span.TotalHours >= 1d)
-            {
-                return (int)span.TotalHours + "h " + span.Minutes + "m";
-            }
-
-            if (span.TotalMinutes >= 1d)
-            {
-                return span.Minutes + "m";
-            }
-
-            return span.Seconds + "s";
-        }
-
-        // ===== 공통 헬퍼 =====
-
-        // 서버 응답에 컬럼 자체가 없거나(null 키 생략) DBNull인 경우를 모두
-        // 빈 문자열로 처리한다.
-        private static string GetString(DataRowView row, string columnName)
-        {
-            if (!row.Row.Table.Columns.Contains(columnName))
-            {
-                return string.Empty;
-            }
-
-            object value = row[columnName];
-            return value == DBNull.Value || value == null ? string.Empty : value.ToString();
-        }
-
-        private static string ToText(DataRow row, string columnName)
-        {
-            if (!row.Table.Columns.Contains(columnName))
-            {
-                return string.Empty;
-            }
-
-            object value = row[columnName];
-            return value == DBNull.Value || value == null ? string.Empty : value.ToString();
         }
     }
 }

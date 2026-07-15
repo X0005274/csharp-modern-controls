@@ -64,8 +64,6 @@ namespace Modern.Lab.Samples
             this.valCarrier = new Modern.Lab.WinForms.Controls.Display.ModernLabel();
             this.capEventTm = new Modern.Lab.WinForms.Controls.Display.ModernLabel();
             this.valEventTm = new Modern.Lab.WinForms.Controls.Display.ModernLabel();
-            this.capProdTyp = new Modern.Lab.WinForms.Controls.Display.ModernLabel();
-            this.valProdTyp = new Modern.Lab.WinForms.Controls.Display.ModernLabel();
             this.capEvent = new Modern.Lab.WinForms.Controls.Display.ModernLabel();
             this.valEvent = new Modern.Lab.WinForms.Controls.Display.ModernLabel();
             this.capStk = new Modern.Lab.WinForms.Controls.Display.ModernLabel();
@@ -406,26 +404,6 @@ namespace Modern.Lab.Samples
             this.badgeStat.TabIndex = 2;
             this.badgeStat.Text = "-";
             this.badgeStat.Child = null;
-            //
-            // capProdTyp
-            //
-            this.capProdTyp.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(247)))), ((int)(((byte)(248)))), ((int)(((byte)(250)))));
-            this.capProdTyp.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.capProdTyp.Kind = Modern.Lab.Controls.Wpf.Display.LabelKind.Label;
-            this.capProdTyp.Margin = new System.Windows.Forms.Padding(10, 5, 3, 5);
-            this.capProdTyp.Name = "capProdTyp";
-            this.capProdTyp.TabIndex = 15;
-            this.capProdTyp.Text = "Prod Type";
-            this.capProdTyp.Child = null;
-            //
-            // valProdTyp
-            //
-            this.valProdTyp.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.valProdTyp.Margin = new System.Windows.Forms.Padding(10, 5, 3, 5);
-            this.valProdTyp.Name = "valProdTyp";
-            this.valProdTyp.TabIndex = 16;
-            this.valProdTyp.Text = "-";
-            this.valProdTyp.Child = null;
             //
             // capEvent
             //
@@ -809,8 +787,6 @@ namespace Modern.Lab.Samples
         private Modern.Lab.WinForms.Controls.Display.ModernLabel capProduct;
         private Modern.Lab.WinForms.Controls.Display.ModernLabel capDescription;
         private Modern.Lab.WinForms.Controls.Display.ModernLabel valDescription;
-        private Modern.Lab.WinForms.Controls.Display.ModernLabel capProdTyp;
-        private Modern.Lab.WinForms.Controls.Display.ModernLabel valProdTyp;
         private Modern.Lab.WinForms.Controls.Display.ModernLabel capEvent;
         private Modern.Lab.WinForms.Controls.Display.ModernLabel valEvent;
         private Modern.Lab.WinForms.Controls.Display.ModernLabel capStk;
