@@ -17,6 +17,7 @@ namespace Modern.Lab.Controls.Wpf.Data
             this.Format = string.Empty;
             this.Kind = GridColumnKind.Text;
             this.TextColor = string.Empty;
+            this.TextSemiBold = false;
             this.BadgeColorMember = string.Empty;
             this.ButtonText = string.Empty;
             this.ButtonEnabledMember = string.Empty;
@@ -67,6 +68,13 @@ namespace Modern.Lab.Controls.Wpf.Data
         /// 선택 배경과 대비가 좋은 색을 고른다.
         /// </summary>
         public string TextColor { get; set; }
+
+        /// <summary>
+        /// Text 전용: 컬럼 전체 텍스트를 SemiBold로 강조한다 (기본 false).
+        /// TextColor와 조합해 파생 지표를 색+굵기로 강조할 때 쓴다.
+        /// AutoFitColumns 측정도 SemiBold 폭 기준으로 계산된다.
+        /// </summary>
+        public bool TextSemiBold { get; set; }
 
         /// <summary>
         /// Badge 전용: 배지 배경색으로 쓸 컬럼/속성 이름. 값은 "#FEE2E2" 같은

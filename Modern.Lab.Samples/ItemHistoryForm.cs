@@ -64,6 +64,13 @@ namespace Modern.Lab.Samples
         // 항목을 추가하려면 .Designer.cs에 라벨을 놓고 여기 한 줄만 더하면 된다.
         private readonly KeyValuePair<ModernLabel, string>[] detailBindings;
 
+        // Duration(파생 지표) 강조색 — 액센트/상태색(빨강·초록)과 겹치지 않는
+        // 틸 계열. 어두운 테마에서는 밝은 톤이어야 보인다.
+        private static string DurationColor
+        {
+            get { return Modern.Lab.Theming.ModernTheme.IsDarkBased ? "#4DD0C2" : "#0F7B6C"; }
+        }
+
         // 노드 종류/상태 배지 색.
         private static readonly Dictionary<string, string> typeBadgeColors = new Dictionary<string, string>
         {
@@ -232,16 +239,14 @@ namespace Modern.Lab.Samples
                 new ModernDataGridColumn("OPER_ID", "Oper", 90),
                 new ModernDataGridColumn("STATION_ID", "Eqp", 90));
 
-            // 파생 지표(Duration) 강조색 — 테마 액센트를 그대로 써 7개 테마에 자동 대응.
-            string durationColor = System.Drawing.ColorTranslator.ToHtml(Modern.Lab.Theming.ModernTheme.Accent);
-
             // 이력 그리드: MES_ITEM_HIS 전체 컬럼 + 파생(DURATION). 실제 컬럼명 그대로 바인딩.
             this.gridHistory.ConfigureColumns(
                 new ModernDataGridColumn("EVENT_TM", "Event Time", 150) { TextAlignment = GridTextAlignment.Center },
                 new ModernDataGridColumn("DURATION", "Duration", 84)
                 {
                     TextAlignment = GridTextAlignment.Center,
-                    TextColor = durationColor
+                    TextColor = DurationColor,
+                    TextSemiBold = true
                 },
                 new ModernDataGridColumn("EVENT_CD", "Event", 96) { TextAlignment = GridTextAlignment.Center },
                 new ModernDataGridColumn("STAT_TYP", "Status", 84) { TextAlignment = GridTextAlignment.Center },
@@ -266,7 +271,8 @@ namespace Modern.Lab.Samples
                 new ModernDataGridColumn("DURATION", "Duration", 84)
                 {
                     TextAlignment = GridTextAlignment.Center,
-                    TextColor = durationColor
+                    TextColor = DurationColor,
+                    TextSemiBold = true
                 },
                 new ModernDataGridColumn("EVENT_CD", "Event", 96) { TextAlignment = GridTextAlignment.Center },
                 new ModernDataGridColumn("STAT_TYP", "Status", 84) { TextAlignment = GridTextAlignment.Center },

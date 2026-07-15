@@ -407,6 +407,12 @@ namespace Modern.Lab.Controls.Wpf.Data
                 }
             }
 
+            // 컬럼 굵기 강조: 파생 지표를 색+굵기로 강조할 때 쓴다.
+            if (definition.TextSemiBold)
+            {
+                elementStyle.Setters.Add(new Setter(TextBlock.FontWeightProperty, FontWeights.SemiBold));
+            }
+
             if (elementStyle.Setters.Count > 0)
             {
                 column.ElementStyle = elementStyle;
@@ -796,9 +802,12 @@ namespace Modern.Lab.Controls.Wpf.Data
                     // 배지 셀은 알약 좌우 패딩만큼 여유를 더한다.
                     double reserve = definition.Kind == GridColumnKind.Badge ? autoFitBadgeReserve : 0d;
 
+                    // SemiBold 강조 컬럼은 실제 굵기 기준으로 잰다 (Regular보다 약간 넓음).
+                    Typeface cellTypeface = definition.TextSemiBold ? headerTypeface : bodyTypeface;
+
                     foreach (string candidate in CollectLongestCellTexts(this.ItemsSource, definition))
                     {
-                        double cellWidth = (MeasureText(candidate, bodyTypeface, bodyFontSize, pixelsPerDip) * widthRatio)
+                        double cellWidth = (MeasureText(candidate, cellTypeface, bodyFontSize, pixelsPerDip) * widthRatio)
                             + autoFitCellPadding + reserve;
 
                         if (cellWidth > width)

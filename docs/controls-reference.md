@@ -860,7 +860,8 @@ this.tblDetail = new Modern.Lab.WinForms.Controls.Layout.ModernDetailTable();
 | `TextAlignment` | `Left`(기본) / `Center` / `Right` |
 | `Format` | 표시 형식 — 숫자 `"N0"`/`"N2"`, 날짜 `"yyyy-MM-dd"` 등. **원본이 타입 컬럼(int/decimal/DateTime)일 때만 적용**되고, 정렬은 형식과 무관하게 원본 값 기준 |
 | `Kind` | 셀 표시 종류 — `Text`(기본) / `CheckBox` / `Badge` / `Button` (그리드 전용; 아래 표) |
-| `TextColor` | Text 셀 전용 컬럼 글자색 — `"#0078D4"` 같은 색 문자열. 파생 지표(Duration 등) 강조용. 비우거나 해석 불가하면 기본색. 테마 대응이 필요하면 `ColorTranslator.ToHtml(ModernTheme.Accent)`처럼 팔레트에서 만든다 |
+| `TextColor` | Text 셀 전용 컬럼 글자색 — `"#0F7B6C"` 같은 색 문자열. 파생 지표(Duration 등) 강조용. 비우거나 해석 불가하면 기본색. 어두운 테마 대응이 필요하면 `ModernTheme.IsDarkBased`로 밝은/진한 톤을 고른다 |
+| `TextSemiBold` | Text 셀 전용 SemiBold 강조 (기본 false) — `TextColor`와 조합해 색+굵기 강조. AutoFitColumns 측정도 SemiBold 폭 기준 |
 
 ### 컬럼 종류 (Kind) — 그리드 전용
 
