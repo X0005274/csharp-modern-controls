@@ -37,12 +37,35 @@ namespace Modern.Lab.WinForms.Controls.Hosting
             }
         }
 
-        /// <summary>ElementHost 하나의 Cursor 매핑을 제거한다 (없으면 무시).</summary>
+        /// <summary>
+        /// ElementHost 하나의 Cursor 매핑을 제거하고, 매핑이 이미 WPF 쪽에
+        /// 복사해 둔 커서 잔류(Child와 내부 호스트 컨테이너의 Cursor/ForceCursor)도
+        /// 함께 걷어낸다 — 이미 Wait가 박힌 화면의 응급 처치가 가능한 이유.
+        /// </summary>
         public static void RemoveCursorMapping(ElementHost host)
         {
-            if (host != null && host.PropertyMap != null)
+            if (host == null || host.PropertyMap == null)
             {
-                host.PropertyMap.Remove("Cursor");
+                return;
+            }
+
+            host.PropertyMap.Remove("Cursor");
+
+            if (host.Child != null)
+            {
+                host.Child.ClearValue(System.Windows.FrameworkElement.CursorProperty);
+                host.Child.ClearValue(System.Windows.FrameworkElement.ForceCursorProperty);
+
+                // 기본 매핑은 Child가 아니라 내부 호스트 컨테이너(어댑터)에 커서를
+                // 쓰므로, Child의 비주얼 부모까지 함께 초기화한다.
+                System.Windows.FrameworkElement adapter =
+                    System.Windows.Media.VisualTreeHelper.GetParent(host.Child)
+                        as System.Windows.FrameworkElement;
+                if (adapter != null)
+                {
+                    adapter.ClearValue(System.Windows.FrameworkElement.CursorProperty);
+                    adapter.ClearValue(System.Windows.FrameworkElement.ForceCursorProperty);
+                }
             }
         }
     }
