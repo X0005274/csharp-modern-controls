@@ -32,10 +32,11 @@ namespace Modern.Lab.Controls.Wpf.Common
             switch (mode)
             {
                 case ModernTheme.ThemeMode.Dark: name = "Tokens.Dark.xaml"; break;
-                case ModernTheme.ThemeMode.Gray: name = "Tokens.Gray.xaml"; break;
-                case ModernTheme.ThemeMode.Purple: name = "Tokens.Purple.xaml"; break;
-                case ModernTheme.ThemeMode.Orange: name = "Tokens.Orange.xaml"; break;
-                case ModernTheme.ThemeMode.Tomato: name = "Tokens.Tomato.xaml"; break;
+                case ModernTheme.ThemeMode.OrangeBlue: name = "Tokens.OrangeBlue.xaml"; break;
+                case ModernTheme.ThemeMode.GreenTomato: name = "Tokens.GreenTomato.xaml"; break;
+                case ModernTheme.ThemeMode.CrimsonGray: name = "Tokens.CrimsonGray.xaml"; break;
+                case ModernTheme.ThemeMode.Blue: name = "Tokens.Blue.xaml"; break;
+                case ModernTheme.ThemeMode.LightPurple: name = "Tokens.LightPurple.xaml"; break;
                 default: return null;
             }
             return new Uri("/Modern.Lab.Commons;component/Themes/" + name, UriKind.Relative);
