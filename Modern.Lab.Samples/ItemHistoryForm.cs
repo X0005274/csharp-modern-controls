@@ -232,10 +232,17 @@ namespace Modern.Lab.Samples
                 new ModernDataGridColumn("OPER_ID", "Oper", 90),
                 new ModernDataGridColumn("STATION_ID", "Eqp", 90));
 
+            // 파생 지표(Duration) 강조색 — 테마 액센트를 그대로 써 7개 테마에 자동 대응.
+            string durationColor = System.Drawing.ColorTranslator.ToHtml(Modern.Lab.Theming.ModernTheme.Accent);
+
             // 이력 그리드: MES_ITEM_HIS 전체 컬럼 + 파생(DURATION). 실제 컬럼명 그대로 바인딩.
             this.gridHistory.ConfigureColumns(
                 new ModernDataGridColumn("EVENT_TM", "Event Time", 150) { TextAlignment = GridTextAlignment.Center },
-                new ModernDataGridColumn("DURATION", "Duration", 84) { TextAlignment = GridTextAlignment.Center },
+                new ModernDataGridColumn("DURATION", "Duration", 84)
+                {
+                    TextAlignment = GridTextAlignment.Center,
+                    TextColor = durationColor
+                },
                 new ModernDataGridColumn("EVENT_CD", "Event", 96) { TextAlignment = GridTextAlignment.Center },
                 new ModernDataGridColumn("STAT_TYP", "Status", 84) { TextAlignment = GridTextAlignment.Center },
                 new ModernDataGridColumn("OPER_ID", "Operation", 96) { TextAlignment = GridTextAlignment.Center },
@@ -256,7 +263,11 @@ namespace Modern.Lab.Samples
             // (사용자가 보던 탭 유지).
             this.gridUnitHistory.ConfigureColumns(
                 new ModernDataGridColumn("EVENT_TM", "Event Time", 150) { TextAlignment = GridTextAlignment.Center },
-                new ModernDataGridColumn("DURATION", "Duration", 84) { TextAlignment = GridTextAlignment.Center },
+                new ModernDataGridColumn("DURATION", "Duration", 84)
+                {
+                    TextAlignment = GridTextAlignment.Center,
+                    TextColor = durationColor
+                },
                 new ModernDataGridColumn("EVENT_CD", "Event", 96) { TextAlignment = GridTextAlignment.Center },
                 new ModernDataGridColumn("STAT_TYP", "Status", 84) { TextAlignment = GridTextAlignment.Center },
                 new ModernDataGridColumn("OPER_ID", "Operation", 96) { TextAlignment = GridTextAlignment.Center },

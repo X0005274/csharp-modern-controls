@@ -16,6 +16,7 @@ namespace Modern.Lab.Controls.Wpf.Data
             this.TextAlignment = GridTextAlignment.Left;
             this.Format = string.Empty;
             this.Kind = GridColumnKind.Text;
+            this.TextColor = string.Empty;
             this.BadgeColorMember = string.Empty;
             this.ButtonText = string.Empty;
             this.ButtonEnabledMember = string.Empty;
@@ -58,6 +59,14 @@ namespace Modern.Lab.Controls.Wpf.Data
 
         /// <summary>셀 표시 종류 (기본 Text). CheckBox/Badge/Button 셀로 전환한다.</summary>
         public GridColumnKind Kind { get; set; }
+
+        /// <summary>
+        /// Text 전용: 컬럼 전체 텍스트에 적용할 글자색 — 파생 지표(Duration 등)를
+        /// 강조할 때 쓴다. 값은 "#0078D4" 같은 색 문자열이며 비어 있거나 해석
+        /// 불가하면 기본 글자색을 유지한다. 선택 행에서도 이 색이 유지되므로
+        /// 선택 배경과 대비가 좋은 색을 고른다.
+        /// </summary>
+        public string TextColor { get; set; }
 
         /// <summary>
         /// Badge 전용: 배지 배경색으로 쓸 컬럼/속성 이름. 값은 "#FEE2E2" 같은

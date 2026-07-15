@@ -396,12 +396,40 @@ namespace Modern.Lab.Controls.Wpf.Data
                     new Setter(FrameworkElement.LayoutTransformProperty, CreateWidthTransform(widthRatio)));
             }
 
+            // 컬럼 강조색: 지정된 경우 컬럼 전체 텍스트에 적용한다 (해석 불가하면 기본색).
+            if (!string.IsNullOrEmpty(definition.TextColor))
+            {
+                Brush textBrush = TryCreateBrush(definition.TextColor);
+
+                if (textBrush != null)
+                {
+                    elementStyle.Setters.Add(new Setter(TextBlock.ForegroundProperty, textBrush));
+                }
+            }
+
             if (elementStyle.Setters.Count > 0)
             {
                 column.ElementStyle = elementStyle;
             }
 
             return column;
+        }
+
+        // "#0078D4" 같은 색 문자열을 Freeze된 브러시로 해석한다. 실패 시 null —
+        // 잘못된 색 값이 그리드 전체를 깨뜨리지 않게 조용히 기본색으로 폴백한다.
+        private static Brush TryCreateBrush(string colorText)
+        {
+            try
+            {
+                Color color = (Color)ColorConverter.ConvertFromString(colorText);
+                SolidColorBrush brush = new SolidColorBrush(color);
+                brush.Freeze();
+                return brush;
+            }
+            catch (Exception)
+            {
+                return null;
+            }
         }
 
         // 체크박스 컬럼: bool 컬럼에 양방향 바인딩. 그리드가 읽기 전용이어도
