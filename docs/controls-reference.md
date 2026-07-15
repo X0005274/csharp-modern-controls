@@ -864,9 +864,18 @@ new ModernDataGridColumn("CHK", "", GridWidths.Check) { Kind = GridColumnKind.Ch
 new ModernDataGridColumn("EVENT_TM", "Event Time", GridWidths.DateTime)   // AutoFit 아닌 그리드
 ```
 
+**다중 줄 헤더**: 헤더 캡션에 `"\n"`을 넣으면 2줄 이상 헤더가 된다 — 헤더 높이는
+그리드가 최대 줄 수에 맞춰 자동으로 늘리고, `VisibleRowCapacity`(페이지 크기 연동)와
+AutoFit 폭 측정(최장 줄 기준)에도 반영된다. 줄바꿈 위치는 명시적 `\n`만 지원한다
+(폭 기준 자동 래핑은 AutoFit과 순환 의존이 생겨 지원하지 않음).
+
+```csharp
+new ModernDataGridColumn("EVENT_TM", "Event\nTime")   // 2줄 헤더
+```
+
 | 생성자/속성 | 설명 |
 |---|---|
-| `new ModernDataGridColumn(컬럼명, 헤더)` | 폭 생략 — AutoFit 그리드의 기본 형태. AutoFit이 꺼져 있으면 남은 공간 채움(star) |
+| `new ModernDataGridColumn(컬럼명, 헤더)` | 폭 생략 — AutoFit 그리드의 기본 형태. AutoFit이 꺼져 있으면 남은 공간 채움(star). 헤더에 `"\n"` = 다중 줄 |
 | `new ModernDataGridColumn(컬럼명, 헤더, 폭)` | 픽셀 고정 폭 — 숫자 대신 `GridWidths` 프리셋 권장 |
 | `TextAlignment` | `Left`(기본) / `Center` / `Right` |
 | `Format` | 표시 형식 — 숫자 `"N0"`/`"N2"`, 날짜 `"yyyy-MM-dd"` 등. **원본이 타입 컬럼(int/decimal/DateTime)일 때만 적용**되고, 정렬은 형식과 무관하게 원본 값 기준 |

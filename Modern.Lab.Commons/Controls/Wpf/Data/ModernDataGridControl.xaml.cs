@@ -231,7 +231,14 @@ namespace Modern.Lab.Controls.Wpf.Data
             get
             {
                 double rowHeight = (double)this.FindResource("Size.RowHeight");
-                double headerHeight = (double)this.FindResource("Size.GridHeaderHeight");
+
+                // 다중 줄 헤더로 높이가 조정됐을 수 있으므로 실제 적용 값을 쓴다.
+                double headerHeight = this.InnerDataGrid.ColumnHeaderHeight;
+
+                if (double.IsNaN(headerHeight) || headerHeight <= 0d)
+                {
+                    headerHeight = (double)this.FindResource("Size.GridHeaderHeight");
+                }
 
                 // 바깥 카드 테두리 위아래 1px씩 제외
                 double available = this.ActualHeight - headerHeight - 2.0;
@@ -287,6 +294,7 @@ namespace Modern.Lab.Controls.Wpf.Data
 
             if (columns == null)
             {
+                this.ApplyHeaderHeight();
                 return;
             }
 
@@ -312,8 +320,84 @@ namespace Modern.Lab.Controls.Wpf.Data
                 this.InnerDataGrid.Columns.Add(column);
             }
 
+            // 다중 줄 헤더("\n")가 있으면 헤더 높이를 줄 수에 맞춰 늘린다.
+            this.ApplyHeaderHeight();
+
             // 데이터가 이미 할당돼 있으면(할당 순서 내성) 즉시 자동 맞춤을 적용한다.
             this.AutoFitColumnWidths();
+        }
+
+        /// <summary>
+        /// 헤더 캡션의 최대 줄 수("\n" 기준)에 맞춰 헤더 높이를 조정한다.
+        /// HeaderText에 "Event\nTime"처럼 명시적 줄바꿈을 넣으면 2줄 이상 헤더가
+        /// 되고, 줄바꿈이 없으면 토큰 기본 높이(Size.GridHeaderHeight) 그대로다.
+        /// (헤더 문자열의 줄바꿈은 WPF TextBlock이 그대로 줄로 렌더링하므로
+        /// 높이만 확보하면 된다. AutoFit 폭 측정도 FormattedText가 최장 줄 폭을
+        /// 돌려주므로 별도 처리가 필요 없다.)
+        /// </summary>
+        private void ApplyHeaderHeight()
+        {
+            int maxLines = 1;
+
+            if (this.columnDefinitions != null)
+            {
+                foreach (ModernDataGridColumn definition in this.columnDefinitions)
+                {
+                    int lines = CountHeaderLines(definition.HeaderText);
+
+                    if (lines > maxLines)
+                    {
+                        maxLines = lines;
+                    }
+                }
+            }
+
+            double baseHeight = (double)this.FindResource("Size.GridHeaderHeight");
+
+            if (maxLines == 1)
+            {
+                this.InnerDataGrid.ColumnHeaderHeight = baseHeight;
+                return;
+            }
+
+            // 추가 줄마다 헤더 캡션 한 줄 높이(Label 크기 실측)만큼 늘린다 —
+            // 폰트 토큰이 바뀌어도 하드코딩 없이 따라온다.
+            double pixelsPerDip = VisualTreeHelper.GetDpi(this).PixelsPerDip;
+            Typeface headerTypeface = new Typeface(
+                this.FontFamily, FontStyles.Normal, FontWeights.SemiBold, FontStretches.Normal);
+            double headerFontSize = (double)this.FindResource("Font.Size.Label");
+
+            FormattedText lineProbe = new FormattedText(
+                "Ag",
+                CultureInfo.CurrentCulture,
+                System.Windows.FlowDirection.LeftToRight,
+                headerTypeface,
+                headerFontSize,
+                Brushes.Black,
+                pixelsPerDip);
+
+            this.InnerDataGrid.ColumnHeaderHeight = baseHeight + ((maxLines - 1) * lineProbe.Height);
+        }
+
+        // 헤더 캡션의 줄 수 ("\n" 개수 + 1; 빈 캡션은 1줄).
+        private static int CountHeaderLines(string headerText)
+        {
+            if (string.IsNullOrEmpty(headerText))
+            {
+                return 1;
+            }
+
+            int lines = 1;
+
+            for (int index = 0; index < headerText.Length; index++)
+            {
+                if (headerText[index] == '\n')
+                {
+                    lines = lines + 1;
+                }
+            }
+
+            return lines;
         }
 
         /// <summary>재정의 값(0 = 전역)을 유효 장평으로 해석한다.</summary>
