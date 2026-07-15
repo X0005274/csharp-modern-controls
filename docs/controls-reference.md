@@ -853,10 +853,21 @@ this.tblDetail = new Modern.Lab.WinForms.Controls.Layout.ModernDetailTable();
 그리드(`ConfigureColumns`)와 콤보 드롭다운(`ConfigureDropDownColumns`)이 공유하는
 컬럼 정의. **나열하는 만큼 컬럼이 생긴다 — 3개, 4개, 그 이상도 가능.**
 
+**폭 지정 지침**: `AutoFitColumns`를 켠 그리드는 폭을 **생략**한다 — 텍스트/배지/
+버튼 컬럼 폭은 헤더+데이터 실측으로 재계산되어 숫자를 적어도 무시된다(죽은 값).
+폭이 실제로 쓰이는 곳(AutoFit 끈 그리드, AutoFit 그리드의 CheckBox 컬럼)에서는
+숫자 대신 시맨틱 프리셋 **`GridWidths`** 를 쓴다: `Check`(44) · `Status`(84) ·
+`Code`(96) · `Id`(130) · `Name`(150) · `DateTime`(150).
+
+```csharp
+new ModernDataGridColumn("CHK", "", GridWidths.Check) { Kind = GridColumnKind.CheckBox }
+new ModernDataGridColumn("EVENT_TM", "Event Time", GridWidths.DateTime)   // AutoFit 아닌 그리드
+```
+
 | 생성자/속성 | 설명 |
 |---|---|
-| `new ModernDataGridColumn(컬럼명, 헤더)` | 폭 생략 = 남은 공간 채움(star) |
-| `new ModernDataGridColumn(컬럼명, 헤더, 폭)` | 픽셀 고정 폭 |
+| `new ModernDataGridColumn(컬럼명, 헤더)` | 폭 생략 — AutoFit 그리드의 기본 형태. AutoFit이 꺼져 있으면 남은 공간 채움(star) |
+| `new ModernDataGridColumn(컬럼명, 헤더, 폭)` | 픽셀 고정 폭 — 숫자 대신 `GridWidths` 프리셋 권장 |
 | `TextAlignment` | `Left`(기본) / `Center` / `Right` |
 | `Format` | 표시 형식 — 숫자 `"N0"`/`"N2"`, 날짜 `"yyyy-MM-dd"` 등. **원본이 타입 컬럼(int/decimal/DateTime)일 때만 적용**되고, 정렬은 형식과 무관하게 원본 값 기준 |
 | `Kind` | 셀 표시 종류 — `Text`(기본) / `CheckBox` / `Badge` / `Button` (그리드 전용; 아래 표) |

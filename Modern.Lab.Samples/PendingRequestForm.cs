@@ -176,41 +176,43 @@ namespace Modern.Lab.Samples
 
             // 컬럼 정의만 코드에서 구성한다 (디자이너 직렬화 대상이 아님).
             // 서버 응답에 없는 컬럼은 그리드가 DataSource 할당 시 자동 보장한다.
+            // AutoFitColumns 그리드라 폭은 생략한다 — 예외는 내용 측정 대상이
+            // 아닌 CheckBox 컬럼뿐이며 시맨틱 프리셋(GridWidths)으로 지정한다.
             //
             // Item 리스트: 체크박스(벌크 대상) + 도착 정보 + Days 배지 + Priority +
             // 행 단위 물류처리 버튼(미처리 건만 활성). 실제 컬럼명 그대로 바인딩.
             this.gridItems.ConfigureColumns(
-                new ModernDataGridColumn("CHK", "", 44) { Kind = GridColumnKind.CheckBox },
-                new ModernDataGridColumn("ITEM_ID", "Item ID", 140),
-                new ModernDataGridColumn("ELAPSED_DAYS", "Days", 70)
+                new ModernDataGridColumn("CHK", "", GridWidths.Check) { Kind = GridColumnKind.CheckBox },
+                new ModernDataGridColumn("ITEM_ID", "Item ID"),
+                new ModernDataGridColumn("ELAPSED_DAYS", "Days")
                 {
                     Kind = GridColumnKind.Badge,
                     BadgeColorMember = "DAYS_COLOR",
                     TextAlignment = GridTextAlignment.Center
                 },
-                new ModernDataGridColumn("PRIORITY", "Priority", 80) { TextAlignment = GridTextAlignment.Center },
-                new ModernDataGridColumn("UNIT_CNT", "Units", 60) { TextAlignment = GridTextAlignment.Center },
-                new ModernDataGridColumn("LOGIS_YN", "Logistics", 100)
+                new ModernDataGridColumn("PRIORITY", "Priority") { TextAlignment = GridTextAlignment.Center },
+                new ModernDataGridColumn("UNIT_CNT", "Units") { TextAlignment = GridTextAlignment.Center },
+                new ModernDataGridColumn("LOGIS_YN", "Logistics")
                 {
                     Kind = GridColumnKind.Button,
                     ButtonText = "Process",
                     ButtonEnabledMember = "LOGIS_CAN",
                     TextAlignment = GridTextAlignment.Center
                 },
-                new ModernDataGridColumn("EVENT_TM", "Arrived At", 150) { TextAlignment = GridTextAlignment.Center },
-                new ModernDataGridColumn("MODEL_ID", "Product", 140),
-                new ModernDataGridColumn("SUB_TYP", "Type", 80) { TextAlignment = GridTextAlignment.Center },
-                new ModernDataGridColumn("ORG_ITEM_ID", "Org Item", 120),
-                new ModernDataGridColumn("BOX_ID", "Carrier", 90) { TextAlignment = GridTextAlignment.Center },
-                new ModernDataGridColumn("STORE_ID", "Stocker", 90) { TextAlignment = GridTextAlignment.Center },
+                new ModernDataGridColumn("EVENT_TM", "Arrived At") { TextAlignment = GridTextAlignment.Center },
+                new ModernDataGridColumn("MODEL_ID", "Product"),
+                new ModernDataGridColumn("SUB_TYP", "Type") { TextAlignment = GridTextAlignment.Center },
+                new ModernDataGridColumn("ORG_ITEM_ID", "Org Item"),
+                new ModernDataGridColumn("BOX_ID", "Carrier") { TextAlignment = GridTextAlignment.Center },
+                new ModernDataGridColumn("STORE_ID", "Stocker") { TextAlignment = GridTextAlignment.Center },
                 new ModernDataGridColumn("DESCRIPTION", "Description"));
 
             // Unit 리스트: 좁은 패널에 맞는 최소 컬럼.
             this.gridUnits.ConfigureColumns(
-                new ModernDataGridColumn("UNIT_ID", "Unit ID", 130),
-                new ModernDataGridColumn("SUB_TYP", "Type", 70) { TextAlignment = GridTextAlignment.Center },
-                new ModernDataGridColumn("STAT_TYP", "Status", 70) { TextAlignment = GridTextAlignment.Center },
-                new ModernDataGridColumn("EVENT_TM", "Arrived At", 140) { TextAlignment = GridTextAlignment.Center });
+                new ModernDataGridColumn("UNIT_ID", "Unit ID"),
+                new ModernDataGridColumn("SUB_TYP", "Type") { TextAlignment = GridTextAlignment.Center },
+                new ModernDataGridColumn("STAT_TYP", "Status") { TextAlignment = GridTextAlignment.Center },
+                new ModernDataGridColumn("EVENT_TM", "Arrived At") { TextAlignment = GridTextAlignment.Center });
 
             // 워크리스트 화면이라 열자마자 자동 조회한다 (필수 조건 없음).
             this.ExecuteSearch();

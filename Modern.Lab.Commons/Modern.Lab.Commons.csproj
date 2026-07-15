@@ -261,6 +261,7 @@
     <Compile Include="WinForms\Hosting\WpfElementHostBase.cs" />
     <Compile Include="WinForms\Rendering\ScaledTextRenderer.cs" />
     <Compile Include="Controls\Wpf\Common\FontWidthScaling.cs" />
+    <Compile Include="Controls\Wpf\Data\GridWidths.cs" />
     <Compile Include="WinForms\Hosting\WpfHostOptions.cs" />
     <Compile Include="WinForms\Hosting\WpfHostCursorGuard.cs" />
     <Compile Include="WinForms\Hosting\DataSourceConverter.cs" />

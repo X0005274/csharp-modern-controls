@@ -231,63 +231,65 @@ namespace Modern.Lab.Samples
             // DataSource 할당 시 자기 컬럼 정의로 자동 보장한다.
 
             // 선택 Item에 속한 Unit 목록 (MES_UNIT_MAS 현재 상태).
+            // AutoFitColumns 그리드라 폭은 생략한다 — 헤더+데이터 실측으로 계산된다.
             this.gridUnits.ConfigureColumns(
-                new ModernDataGridColumn("UNIT_ID", "Unit ID", 150),
-                new ModernDataGridColumn("SUB_TYP", "Type", 70) { TextAlignment = GridTextAlignment.Center },
-                new ModernDataGridColumn("STAT_TYP", "Status", 66) { TextAlignment = GridTextAlignment.Center },
-                new ModernDataGridColumn("EVENT_CD", "Event", 90),
-                new ModernDataGridColumn("OPER_ID", "Oper", 90),
-                new ModernDataGridColumn("STATION_ID", "Eqp", 90));
+                new ModernDataGridColumn("UNIT_ID", "Unit ID"),
+                new ModernDataGridColumn("SUB_TYP", "Type") { TextAlignment = GridTextAlignment.Center },
+                new ModernDataGridColumn("STAT_TYP", "Status") { TextAlignment = GridTextAlignment.Center },
+                new ModernDataGridColumn("EVENT_CD", "Event"),
+                new ModernDataGridColumn("OPER_ID", "Oper"),
+                new ModernDataGridColumn("STATION_ID", "Eqp"));
 
             // 이력 그리드: MES_ITEM_HIS 전체 컬럼 + 파생(DURATION). 실제 컬럼명 그대로 바인딩.
+            // AutoFitColumns 그리드라 폭은 생략한다.
             this.gridHistory.ConfigureColumns(
-                new ModernDataGridColumn("EVENT_TM", "Event Time", 150) { TextAlignment = GridTextAlignment.Center },
-                new ModernDataGridColumn("DURATION", "Duration", 84)
+                new ModernDataGridColumn("EVENT_TM", "Event Time") { TextAlignment = GridTextAlignment.Center },
+                new ModernDataGridColumn("DURATION", "Duration")
                 {
                     TextAlignment = GridTextAlignment.Center,
                     TextColor = DurationColor,
                     TextSemiBold = true
                 },
-                new ModernDataGridColumn("EVENT_CD", "Event", 96) { TextAlignment = GridTextAlignment.Center },
-                new ModernDataGridColumn("STAT_TYP", "Status", 84) { TextAlignment = GridTextAlignment.Center },
-                new ModernDataGridColumn("OPER_ID", "Operation", 96) { TextAlignment = GridTextAlignment.Center },
-                new ModernDataGridColumn("STATION_ID", "Equipment", 96) { TextAlignment = GridTextAlignment.Center },
-                new ModernDataGridColumn("BOX_ID", "Carrier", 92) { TextAlignment = GridTextAlignment.Center },
-                new ModernDataGridColumn("STORE_ID", "Stocker", 92) { TextAlignment = GridTextAlignment.Center },
-                new ModernDataGridColumn("FLOW_ID", "Flow", 130),
-                new ModernDataGridColumn("MODEL_ID", "Product", 150),
-                new ModernDataGridColumn("ITEM_TYP", "Prod Type", 90) { TextAlignment = GridTextAlignment.Center },
-                new ModernDataGridColumn("SUB_TYP", "Sub Type", 90) { TextAlignment = GridTextAlignment.Center },
-                new ModernDataGridColumn("ORG_ITEM_ID", "Org Item", 120),
-                new ModernDataGridColumn("PARENT_ITEM_ID", "Parent Item", 120),
-                new ModernDataGridColumn("ITEM_ID", "Item", 120),
-                new ModernDataGridColumn("TIMEKEY", "Time Key", 150));
+                new ModernDataGridColumn("EVENT_CD", "Event") { TextAlignment = GridTextAlignment.Center },
+                new ModernDataGridColumn("STAT_TYP", "Status") { TextAlignment = GridTextAlignment.Center },
+                new ModernDataGridColumn("OPER_ID", "Operation") { TextAlignment = GridTextAlignment.Center },
+                new ModernDataGridColumn("STATION_ID", "Equipment") { TextAlignment = GridTextAlignment.Center },
+                new ModernDataGridColumn("BOX_ID", "Carrier") { TextAlignment = GridTextAlignment.Center },
+                new ModernDataGridColumn("STORE_ID", "Stocker") { TextAlignment = GridTextAlignment.Center },
+                new ModernDataGridColumn("FLOW_ID", "Flow"),
+                new ModernDataGridColumn("MODEL_ID", "Product"),
+                new ModernDataGridColumn("ITEM_TYP", "Prod Type") { TextAlignment = GridTextAlignment.Center },
+                new ModernDataGridColumn("SUB_TYP", "Sub Type") { TextAlignment = GridTextAlignment.Center },
+                new ModernDataGridColumn("ORG_ITEM_ID", "Org Item"),
+                new ModernDataGridColumn("PARENT_ITEM_ID", "Parent Item"),
+                new ModernDataGridColumn("ITEM_ID", "Item"),
+                new ModernDataGridColumn("TIMEKEY", "Time Key"));
 
             // Unit History 탭 그리드 (UNIT_HIS 전체 컬럼). Units 목록에서 Unit을
             // 클릭하면 이 탭의 "데이터만" 갱신한다 — 탭 자동 전환은 하지 않는다
             // (사용자가 보던 탭 유지).
             this.gridUnitHistory.ConfigureColumns(
-                new ModernDataGridColumn("EVENT_TM", "Event Time", 150) { TextAlignment = GridTextAlignment.Center },
-                new ModernDataGridColumn("DURATION", "Duration", 84)
+                new ModernDataGridColumn("EVENT_TM", "Event Time") { TextAlignment = GridTextAlignment.Center },
+                new ModernDataGridColumn("DURATION", "Duration")
                 {
                     TextAlignment = GridTextAlignment.Center,
                     TextColor = DurationColor,
                     TextSemiBold = true
                 },
-                new ModernDataGridColumn("EVENT_CD", "Event", 96) { TextAlignment = GridTextAlignment.Center },
-                new ModernDataGridColumn("STAT_TYP", "Status", 84) { TextAlignment = GridTextAlignment.Center },
-                new ModernDataGridColumn("OPER_ID", "Operation", 96) { TextAlignment = GridTextAlignment.Center },
-                new ModernDataGridColumn("STATION_ID", "Equipment", 96) { TextAlignment = GridTextAlignment.Center },
-                new ModernDataGridColumn("BOX_ID", "Carrier", 92) { TextAlignment = GridTextAlignment.Center },
-                new ModernDataGridColumn("STORE_ID", "Stocker", 92) { TextAlignment = GridTextAlignment.Center },
-                new ModernDataGridColumn("FLOW_ID", "Flow", 130),
-                new ModernDataGridColumn("MODEL_ID", "Product", 150),
-                new ModernDataGridColumn("SUB_TYP", "Sub Type", 90) { TextAlignment = GridTextAlignment.Center },
-                new ModernDataGridColumn("ORG_UNIT_ID", "Org Unit", 130),
-                new ModernDataGridColumn("PARENT_UNIT_ID", "Parent Unit", 130),
-                new ModernDataGridColumn("UNIT_ID", "Unit", 130),
-                new ModernDataGridColumn("ITEM_ID", "Item", 120),
-                new ModernDataGridColumn("TIMEKEY", "Time Key", 150));
+                new ModernDataGridColumn("EVENT_CD", "Event") { TextAlignment = GridTextAlignment.Center },
+                new ModernDataGridColumn("STAT_TYP", "Status") { TextAlignment = GridTextAlignment.Center },
+                new ModernDataGridColumn("OPER_ID", "Operation") { TextAlignment = GridTextAlignment.Center },
+                new ModernDataGridColumn("STATION_ID", "Equipment") { TextAlignment = GridTextAlignment.Center },
+                new ModernDataGridColumn("BOX_ID", "Carrier") { TextAlignment = GridTextAlignment.Center },
+                new ModernDataGridColumn("STORE_ID", "Stocker") { TextAlignment = GridTextAlignment.Center },
+                new ModernDataGridColumn("FLOW_ID", "Flow"),
+                new ModernDataGridColumn("MODEL_ID", "Product"),
+                new ModernDataGridColumn("SUB_TYP", "Sub Type") { TextAlignment = GridTextAlignment.Center },
+                new ModernDataGridColumn("ORG_UNIT_ID", "Org Unit"),
+                new ModernDataGridColumn("PARENT_UNIT_ID", "Parent Unit"),
+                new ModernDataGridColumn("UNIT_ID", "Unit"),
+                new ModernDataGridColumn("ITEM_ID", "Item"),
+                new ModernDataGridColumn("TIMEKEY", "Time Key"));
 
             // 화면 오픈 시 자동 조회 없음 — Item ID(필수) 입력 후 Search로 조회한다.
             this.ClearSelection();
