@@ -42,7 +42,8 @@ namespace Modern.Lab.WinForms.Controls.Data
     /// 호환 멤버(ModernDataGrid와 동일): DataSource(DataTable/DataView),
     /// ConfigureColumns(...), RowCount, SelectedItem, SelectedIndex, SelectionChanged.
     ///
-    /// 스타일: 헤더 SemiBold, 짝수행 교차색, 액센트 선택색, Segoe UI 9pt,
+    /// 스타일: 헤더 SemiBold, 짝수행 교차색(AlternatingRowColors, 기본 켜짐),
+    /// 액센트 선택색, Segoe UI 9pt,
     /// 행 높이 32 / 헤더 36 — 색은 전부 ModernTheme 팔레트에서 읽으므로
     /// 6종 테마(Light/Dark/Gray/Purple/Orange/Tomato)가 그대로 적용된다
     /// (다른 컨트롤처럼 앱 시작 시 ModernTheme.Mode를 설정하면 끝).
@@ -78,6 +79,9 @@ namespace Modern.Lab.WinForms.Controls.Data
         // 폴백 저장소 — 데이터/컬럼은 바인딩 시 Spread 셀로 채운다.
         private object dataSource;
 
+        // 교차 행 배경 사용 여부 — 기존 회사 화면 외관 보존을 위해 기본 켜짐.
+        private bool alternatingRowColors;
+
         /// <summary>행 선택이 바뀔 때 발생한다(ModernDataGrid와 동일 이름).</summary>
         public event EventHandler SelectionChanged;
 
@@ -85,6 +89,7 @@ namespace Modern.Lab.WinForms.Controls.Data
         {
             this.columns = null;
             this.dataSource = null;
+            this.alternatingRowColors = true;
         }
 
         // ===== 드롭인 API (ModernDataGrid와 동일 형태) =====
@@ -157,6 +162,50 @@ namespace Modern.Lab.WinForms.Controls.Data
         }
 
         /// <summary>
+        /// 교차 행 배경(줄무늬) 표시 여부. ModernDataGrid의 동명 속성과 짝 —
+        /// 단, 기존 Spread 화면 외관을 보존하기 위해 기본값은 켜짐(true)이다
+        /// (ModernDataGrid는 기본 꺼짐). 값을 바꾸면 바인딩된 행 배경을 즉시 다시 칠한다.
+        /// </summary>
+        [Category("모던 컨트롤")]
+        [Description("교차 행 배경(줄무늬) 표시 여부 — 끄면 모든 행이 단색 배경 (기본 켜짐)")]
+        [DefaultValue(true)]
+        public bool AlternatingRowColors
+        {
+            get
+            {
+                return this.alternatingRowColors;
+            }
+            set
+            {
+                if (this.alternatingRowColors == value)
+                {
+                    return;
+                }
+
+                this.alternatingRowColors = value;
+
+                // 이미 바인딩된 데이터가 있으면 행 배경만 새 값으로 다시 칠한다.
+                // COM 미연결(디자인 타임 등) 실패는 무시 — 다음 BindData에서 반영된다.
+                try
+                {
+                    this.ReDraw = false;
+
+                    try
+                    {
+                        this.ApplyAlternatingRows(this.RowCount);
+                    }
+                    finally
+                    {
+                        this.ReDraw = true;
+                    }
+                }
+                catch (Exception)
+                {
+                }
+            }
+        }
+
+        /// <summary>
         /// 컬럼을 명시적 정의로 지정한다(ModernDataGrid.ConfigureColumns와 동일 시그니처).
         /// DataSource 할당 전에 호출한다.
         /// </summary>
@@ -178,6 +227,10 @@ namespace Modern.Lab.WinForms.Controls.Data
             try
             {
                 this.ApplyModernStyle();
+
+                // 핸들 생성 전에 DataSource가 먼저 할당된 경우 — 전역 스타일이
+                // 행 배경을 덮었을 수 있으므로 교차색을 다시 칠한다.
+                this.ApplyAlternatingRows(this.RowCount);
             }
             catch (Exception)
             {
@@ -254,7 +307,6 @@ namespace Modern.Lab.WinForms.Controls.Data
                 this.FillHeaders(plan);
                 this.FillCells(view, plan);
                 this.ApplyColumnLayout(plan);
-                this.ApplyAlternatingRows(view.Count);
             }
             finally
             {
@@ -263,6 +315,11 @@ namespace Modern.Lab.WinForms.Controls.Data
                 try
                 {
                     this.ApplyModernStyle();
+
+                    // 행 배경은 전역 스타일 다음에 칠한다 — ApplyModernStyle이
+                    // 전체 셀 배경(RowBackColor)을 다시 쓰므로 순서가 반대면
+                    // 교차색이 덮여 사라진다. ※확인: 회사 Spread에서 순서 영향 검증.
+                    this.ApplyAlternatingRows(this.RowCount);
                 }
                 catch (Exception)
                 {
@@ -357,14 +414,16 @@ namespace Modern.Lab.WinForms.Controls.Data
             }
         }
 
-        // 짝수 데이터 행에 교차 배경색을 넣어 ModernDataGrid의 AlternatingRowBackground를 재현한다.
+        // 데이터 행 배경을 칠한다 — AlternatingRowColors가 켜져 있으면 짝수 행에
+        // 교차색을 넣어 ModernDataGrid의 AlternatingRowBackground를 재현하고,
+        // 꺼져 있으면 전 행을 단색(RowBackColor)으로 되돌린다.
         private void ApplyAlternatingRows(int rowCount)
         {
             for (int rowIndex = 1; rowIndex <= rowCount; rowIndex++)
             {
                 this.Row = rowIndex;
                 this.Col = AllCellsIndex;
-                this.BackColor = (rowIndex % 2 == 0) ? RowAltBackColor : RowBackColor;
+                this.BackColor = (this.alternatingRowColors && rowIndex % 2 == 0) ? RowAltBackColor : RowBackColor;
             }
         }
 
