@@ -71,11 +71,9 @@
       <DependentUpon>ItemHistoryForm.cs</DependentUpon>
     </Compile>
     <Compile Include="Services\GridCaptionDictionary.cs" />
-    <Compile Include="Services\GridXlsxExporter.cs" />
     <Compile Include="Services\HistoryTablePresenter.cs" />
     <Compile Include="Services\JsonTableConverter.cs" />
     <Compile Include="Services\PendingTablePresenter.cs" />
-    <Compile Include="Services\SimpleXlsxWriter.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>

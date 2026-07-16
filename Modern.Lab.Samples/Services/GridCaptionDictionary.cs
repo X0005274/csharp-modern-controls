@@ -1,23 +1,25 @@
 using System;
 using System.Collections.Generic;
+using Modern.Lab.Controls.Wpf.Data;
 
 namespace Modern.Lab.Samples.Services
 {
     /// <summary>
-    /// 그리드 컬럼 캡션 용어사전 — 필드 이름(DB 컬럼) → 표준 캡션.
+    /// 데모 앱의 그리드 컬럼 캡션 용어집 — 필드 이름(DB 컬럼) → 표준 캡션.
     ///
-    /// Program.Main에서 ModernDataGridColumn.CaptionResolver로 등록되며,
-    /// 이후 폼은 new ModernDataGridColumn("ITEM_ID")처럼 캡션 없이 컬럼을
-    /// 정의하면 여기 표준 캡션이 자동으로 붙는다. 화면 문맥상 다른 표현이
-    /// 필요하면(예: EVENT_TM을 도착 화면에서 "Arrived At") headerText를 받는
-    /// 생성자로 명시해 재정의한다 — 명시가 항상 사전을 이긴다.
+    /// Program.Main이 RegisterAll()로 라이브러리 사전(GridCaptionCatalog)에
+    /// 부어 넣으며, 이후 폼은 new ModernDataGridColumn("ITEM_ID")처럼 캡션 없이
+    /// 컬럼을 정의하면 여기 표준 캡션이 자동으로 붙는다. 화면 문맥상 다른
+    /// 표현이 필요하면(예: EVENT_TM을 도착 화면에서 "Arrived At") headerText를
+    /// 받는 생성자로 명시해 재정의한다 — 명시가 항상 사전을 이긴다.
     ///
-    /// 회사 적용 시 이 사전을 사내 표준 용어집에 맞춰 채우면 모든 화면과
-    /// 엑셀 내보내기의 컬럼 캡션이 한 곳에서 관리된다.
+    /// 회사 적용 시 이 용어집을 사내 표준 용어집에 맞춰 채우면(하드코딩 목록,
+    /// 리소스 파일, 사내 DB 조회 등 출처 무관) 모든 화면과 엑셀 내보내기의
+    /// 컬럼 캡션이 한 곳에서 관리된다.
     /// </summary>
     internal static class GridCaptionDictionary
     {
-        // 필드 이름은 대소문자 무시로 찾는다 (DB 컬럼 표기 편차 허용).
+        // 필드 이름 대소문자 무시는 GridCaptionCatalog가 처리한다.
         private static readonly Dictionary<string, string> captions =
             new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
             {
@@ -54,16 +56,10 @@ namespace Modern.Lab.Samples.Services
                 { "DESCRIPTION", "Description" }
             };
 
-        /// <summary>표준 캡션을 돌려준다. 사전에 없으면 null (호출측이 필드 이름 사용).</summary>
-        internal static string Resolve(string dataPropertyName)
+        /// <summary>용어집 전체를 라이브러리 사전에 등록한다 — 앱 시작 시(첫 폼 생성 전) 1회.</summary>
+        internal static void RegisterAll()
         {
-            if (string.IsNullOrEmpty(dataPropertyName))
-            {
-                return null;
-            }
-
-            string caption;
-            return captions.TryGetValue(dataPropertyName, out caption) ? caption : null;
+            GridCaptionCatalog.RegisterRange(captions);
         }
     }
 }

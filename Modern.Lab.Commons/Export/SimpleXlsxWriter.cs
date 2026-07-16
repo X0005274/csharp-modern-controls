@@ -4,21 +4,24 @@ using System.IO;
 using System.IO.Packaging;
 using System.Text;
 
-namespace Modern.Lab.Samples.Services
+namespace Modern.Lab.Export
 {
     /// <summary>
     /// 외부 라이브러리 없이 최소 구성의 진짜 .xlsx(Open XML) 파일을 쓰는 헬퍼.
     /// WindowsBase의 System.IO.Packaging(ZIP 컨테이너)으로 워크북/시트/스타일
     /// 파트를 직접 기록한다. 모든 셀은 인라인 문자열이고 헤더 행만 굵게 —
     /// 조회 결과 내보내기 용도에 충분한 범위다. Excel이 더블클릭으로 바로 연다.
+    ///
+    /// 그리드 화면을 그대로 저장하려면 ModernDataGrid.ExportXlsx를 쓴다 —
+    /// 이 클래스는 그리드와 무관한 임의 표를 저장할 때 직접 쓴다.
     /// </summary>
-    internal static class SimpleXlsxWriter
+    public static class SimpleXlsxWriter
     {
         private const string MainNamespace = "http://schemas.openxmlformats.org/spreadsheetml/2006/main";
         private const string RelNamespace = "http://schemas.openxmlformats.org/officeDocument/2006/relationships";
 
         /// <summary>헤더 1행 + 데이터 행들을 단일 시트 워크북으로 저장한다.</summary>
-        internal static void Write(string path, string sheetName, string[] headers, IEnumerable<string[]> rows)
+        public static void Write(string path, string sheetName, string[] headers, IEnumerable<string[]> rows)
         {
             using (Package package = Package.Open(path, FileMode.Create))
             {

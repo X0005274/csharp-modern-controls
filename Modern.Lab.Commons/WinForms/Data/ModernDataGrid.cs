@@ -471,6 +471,28 @@ namespace Modern.Lab.WinForms.Controls.Data
         }
 
         /// <summary>
+        /// 화면 컬럼 정의(ConfigureColumns)를 그대로 엑셀 컬럼으로 써서 데이터
+        /// 전체를 .xlsx로 저장한다 — 내보내기 컬럼/헤더 목록을 폼이 따로 관리하지
+        /// 않는다. CheckBox/Button 컬럼은 제외되고, Format은 화면 표시와 같은
+        /// 규칙으로 적용된다. 데이터는 그리드 DataSource가 아니라 인자로 받는다 —
+        /// 페이지 화면(그리드에는 현재 페이지 조각만 바인딩)에서도 전체가 나간다.
+        /// </summary>
+        public void ExportXlsx(string path, string sheetName, System.Data.DataTable data)
+        {
+            if (this.configuredColumns == null || this.configuredColumns.Length == 0)
+            {
+                throw new InvalidOperationException("ExportXlsx는 ConfigureColumns로 컬럼을 선언한 뒤에만 쓸 수 있다.");
+            }
+
+            if (data == null)
+            {
+                throw new ArgumentNullException("data");
+            }
+
+            Modern.Lab.Export.GridXlsxExporter.Write(path, sheetName, this.configuredColumns, data);
+        }
+
+        /// <summary>
         /// 컬럼을 명시적 정의로 교체하고 자동 생성을 끈다.
         /// DataSource 할당 전에 호출한다.
         /// </summary>

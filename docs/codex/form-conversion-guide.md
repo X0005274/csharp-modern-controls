@@ -144,6 +144,12 @@ this.gridEmployee = new Modern.Lab.WinForms.Controls.Data.ModernDataGrid();
    - `grid.CurrentRow.DataBoundItem` → `grid.SelectedItem`
    - `grid.Rows[i].Cells["X"].Value` → `((DataRowView)grid.SelectedItem)["X"]`
    - `DataGridViewButtonColumn` + `CellContentClick` → `Kind = Button` 컬럼 + `CellButtonClick`
+   - `ConfigureColumns` 작성 시: 앱이 캡션 용어사전(`GridCaptionCatalog`)을
+     등록해 뒀다면 표준 캡션 컬럼은 `new ModernDataGridColumn("ITEM_ID")`처럼
+     캡션 인자를 생략하고, 화면 문맥상 다른 표현만 headerText로 명시한다
+   - 그리드 내용 엑셀 저장(기존 Excel COM/CSV 내보내기) →
+     `grid.ExportXlsx(path, sheetName, dataTable)` — 화면 컬럼 정의 그대로 저장,
+     내보내기용 컬럼 목록 코드는 삭제한다
    - 완료 안내 `MessageBox.Show("저장되었습니다")` → `toast.Show("저장되었습니다", ToastKind.Success)`
      (§단, 폼에 `ModernToast`를 새로 놓아야 하므로 사람 승인 후)
 3. 업무 로직(무엇을 조회하고 무엇을 저장하는지)은 어떤 경우에도 바꾸지 않는다.

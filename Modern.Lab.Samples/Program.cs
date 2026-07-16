@@ -12,11 +12,11 @@ namespace Modern.Lab.Samples
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
 
-            // 그리드 컬럼 캡션 용어사전 등록 — 이후 폼들은 캡션 없는 컬럼 정의
+            // 그리드 컬럼 캡션 용어집 등록 — 라이브러리 사전(GridCaptionCatalog)에
+            // 앱 용어집을 부어 넣으면, 이후 폼들은 캡션 없는 컬럼 정의
             // (new ModernDataGridColumn("ITEM_ID"))로 표준 캡션을 자동으로 받는다.
             // 반드시 첫 폼 생성 전에 등록한다.
-            Modern.Lab.Controls.Wpf.Data.ModernDataGridColumn.CaptionResolver =
-                Services.GridCaptionDictionary.Resolve;
+            Services.GridCaptionDictionary.RegisterAll();
 
             // 테마 확인용: "--dark" 또는 "--theme=<이름>"
             // (dark/orangeblue/greentomato/crimsongray/blue/lightpurple) 인자로 실행하면 해당 테마로

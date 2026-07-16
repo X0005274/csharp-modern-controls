@@ -26,8 +26,9 @@
 
 | 멤버 | 설명 |
 |---|---|
-| `ConfigureColumns(params ModernDataGridColumn[])` | 명시적 컬럼 정의. `DataSource` 할당 전에 호출. `ModernDataGridColumn(dataPropertyName[, headerText[, width]])` — headerText 생략 시 캡션 용어사전(`ModernDataGridColumn.CaptionResolver`, 앱 시작 시 등록) 참조, width 생략/음수는 남은 폭 채움(star). `TextAlignment`(Left/Center/Right) 지정 가능 |
-| `ColumnDefinitions` | `ConfigureColumns`로 선언한 정의의 복사본 — 화면과 동일한 컬럼 구성(순서·캡션·형식)으로 엑셀 내보내기 등을 만들 때 단일 원천. 샘플 `GridXlsxExporter` 참고 |
+| `ConfigureColumns(params ModernDataGridColumn[])` | 명시적 컬럼 정의. `DataSource` 할당 전에 호출. `ModernDataGridColumn(dataPropertyName[, headerText[, width]])` — headerText 생략 시 캡션 용어사전(`GridCaptionCatalog`, 앱 시작 시 `Register`/`RegisterRange`로 용어집 등록) 참조, width 생략/음수는 남은 폭 채움(star). `TextAlignment`(Left/Center/Right) 지정 가능 |
+| `ExportXlsx(path, sheetName, data)` | 화면 컬럼 정의 그대로(순서·캡션·`Format`) 데이터 전체를 진짜 .xlsx로 저장 — 외부 라이브러리 없음, 내보내기용 컬럼/헤더 목록을 폼이 따로 관리하지 않는다. CheckBox/Button 컬럼 자동 제외. `data`는 그리드 `DataSource`가 아니라 인자 — 페이지 화면에서도 전체 결과 저장 |
+| `ColumnDefinitions` | `ConfigureColumns`로 선언한 정의의 복사본 — 화면과 동일한 컬럼 구성(순서·캡션·형식)으로 커스텀 파생 출력을 만들 때 단일 원천 (엑셀 저장은 `ExportXlsx`가 이미 해준다) |
 | `ModernDataGridColumn.Kind` | 셀 표시 종류 — `Text`(기본) / `CheckBox`(bool 양방향 체크박스, 벌크 대상 지정) / `Badge`(`BadgeColorMember` 색 알약) / `Button`(`ButtonText` 캡션, `ButtonEnabledMember`로 행별 활성 제어) |
 | `CellButtonClick` | 버튼 컬럼 셀 클릭 이벤트 — `e.Item`(클릭 행 `DataRowView`) + `e.DataPropertyName`(버튼 컬럼 이름). `DataGridView`의 `CellContentClick` + 버튼 컬럼 대체 |
 | `SelectedItem` | 선택 행 (`DataTable` 소스일 때 `DataRowView`) — 기존 `CurrentRow.DataBoundItem` 대체 |

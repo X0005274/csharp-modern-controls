@@ -4,14 +4,15 @@ using System.Data;
 using System.Globalization;
 using Modern.Lab.Controls.Wpf.Data;
 
-namespace Modern.Lab.Samples.Services
+namespace Modern.Lab.Export
 {
     /// <summary>
-    /// 그리드 컬럼 정의를 그대로 엑셀 컬럼으로 쓰는 내보내기 도우미.
+    /// 그리드 컬럼 정의를 그대로 엑셀 컬럼으로 쓰는 내보내기 도우미 —
+    /// ModernDataGrid.ExportXlsx의 내부 구현.
     ///
-    /// 화면 그리드의 ConfigureColumns 정의(grid.ColumnDefinitions)를 단일
-    /// 원천으로 사용하므로, 폼이 내보내기용 컬럼/헤더 목록을 따로 관리할
-    /// 필요가 없다 — 화면 컬럼을 바꾸면 엑셀도 자동으로 따라온다.
+    /// 화면 그리드의 ConfigureColumns 정의를 단일 원천으로 사용하므로, 폼이
+    /// 내보내기용 컬럼/헤더 목록을 따로 관리할 필요가 없다 — 화면 컬럼을
+    /// 바꾸면 엑셀도 자동으로 따라온다.
     ///
     /// - CheckBox(벌크 체크)/Button(행 동작) 컬럼은 엑셀에 의미가 없어 제외한다.
     /// - Badge 컬럼은 값(텍스트)만 내보낸다.

@@ -45,8 +45,8 @@ namespace Modern.Lab.Samples
     /// 2개(pending/units)에만 있다. Return/Logistics 동작(반송 전문, 물류 시스템
     /// 인터페이스)과 LOGIS_YN 데모 시뮬레이션도 회사 인터페이스로 교체하는
     /// 지점이다 — 데모는 알림만 띄우고 화면 상태(LOGIS_YN)만 바꾼다.
-    /// Export Excel은 그리드 컬럼 정의(ColumnDefinitions)를 단일 원천으로
-    /// GridXlsxExporter가 저장한다 — 내보내기 컬럼을 따로 관리하지 않는다.
+    /// Export Excel은 그리드 컬럼 정의를 단일 원천으로 grid.ExportXlsx가
+    /// 저장한다 — 내보내기 컬럼을 따로 관리하지 않는다.
     /// </summary>
     public partial class PendingRequestForm : Form
     {
@@ -511,7 +511,7 @@ namespace Modern.Lab.Samples
         // ===== 실행 패널 =====
 
         // Export Excel: 조회 결과 전체(현재 페이지가 아니라)를 진짜 Excel 파일
-        // (.xlsx, Open XML)로 저장한다 — SimpleXlsxWriter(외부 라이브러리 없음).
+        // (.xlsx, Open XML)로 저장한다 — 그리드 ExportXlsx(외부 라이브러리 없음).
         private void OnExportClick(object sender, EventArgs e)
         {
             if (this.resultData == null || this.resultData.Rows.Count == 0)
@@ -548,7 +548,7 @@ namespace Modern.Lab.Samples
         // 제외하므로 내보내기용 컬럼 목록을 따로 관리하지 않는다.
         private void WriteExcel(string path)
         {
-            GridXlsxExporter.Write(path, "Pending Requests", this.gridItems.ColumnDefinitions, this.resultData);
+            this.gridItems.ExportXlsx(path, "Pending Requests", this.resultData);
         }
 
         // 체크된 행 목록 (조회 결과 원본 기준 — 페이지를 오가며 체크한 것 전부).

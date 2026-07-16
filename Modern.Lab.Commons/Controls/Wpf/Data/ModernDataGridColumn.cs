@@ -10,24 +10,24 @@ namespace Modern.Lab.Controls.Wpf.Data
     public class ModernDataGridColumn
     {
         /// <summary>
-        /// 캡션 용어사전 훅 — HeaderText를 생략한 생성자가 캡션을 물어볼 전역
-        /// 제공자. 앱 시작 시(첫 폼 생성 전) 한 번 등록한다. 미등록이거나
+        /// 캡션 해석기 재정의 훅 — HeaderText를 생략한 생성자가 캡션을 물어볼
+        /// 전역 제공자. 비워 두면(기본) GridCaptionCatalog 사전을 쓰므로 보통은
+        /// 앱 시작 시 GridCaptionCatalog에 용어집을 등록하는 것으로 충분하다.
+        /// 사전 조회로 부족한 해석 로직(리소스/다국어 등)이 필요할 때만 등록한다.
         /// 제공자가 null/빈 값을 돌려주면 DataPropertyName이 그대로 캡션이 된다.
         /// 사전의 내용(도메인 용어)은 앱 쪽 책임이다 — 라이브러리는 메커니즘만 제공한다.
         /// </summary>
         public static Func<string, string> CaptionResolver { get; set; }
 
         // 용어사전에서 캡션을 해석한다 — 실패 시 필드 이름 그대로.
+        // CaptionResolver가 등록돼 있으면 그것이 GridCaptionCatalog보다 우선한다.
         private static string ResolveCaption(string dataPropertyName)
         {
             Func<string, string> resolver = CaptionResolver;
+            string caption = resolver != null
+                    ? resolver(dataPropertyName)
+                    : GridCaptionCatalog.Resolve(dataPropertyName);
 
-            if (resolver == null)
-            {
-                return dataPropertyName;
-            }
-
-            string caption = resolver(dataPropertyName);
             return string.IsNullOrEmpty(caption) ? dataPropertyName : caption;
         }
 
@@ -48,9 +48,10 @@ namespace Modern.Lab.Controls.Wpf.Data
         }
 
         /// <summary>
-        /// 캡션을 용어사전(CaptionResolver)에서 찾는 스타 너비 컬럼을 만든다.
-        /// 사전에 없으면 필드 이름이 그대로 캡션이 된다. 화면 문맥상 다른 캡션이
-        /// 필요하면 headerText를 받는 생성자로 명시해 재정의한다.
+        /// 캡션을 용어사전(GridCaptionCatalog, 또는 CaptionResolver 재정의)에서
+        /// 찾는 스타 너비 컬럼을 만든다. 사전에 없으면 필드 이름이 그대로 캡션이
+        /// 된다. 화면 문맥상 다른 캡션이 필요하면 headerText를 받는 생성자로
+        /// 명시해 재정의한다.
         /// </summary>
         public ModernDataGridColumn(string dataPropertyName)
             : this(dataPropertyName, ResolveCaption(dataPropertyName))
