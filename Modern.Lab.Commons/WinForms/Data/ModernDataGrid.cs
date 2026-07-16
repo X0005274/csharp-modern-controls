@@ -449,6 +449,28 @@ namespace Modern.Lab.WinForms.Controls.Data
         }
 
         /// <summary>
+        /// ConfigureColumns로 선언한 컬럼 정의의 복사본. 화면 그리드와 동일한
+        /// 컬럼 구성(순서·캡션·형식)으로 파생 출력(엑셀 내보내기 등)을 만들 때
+        /// 단일 원천으로 쓴다. 선언 전이면 빈 배열.
+        /// </summary>
+        [Browsable(false)]
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+        public ModernDataGridColumn[] ColumnDefinitions
+        {
+            get
+            {
+                if (this.configuredColumns == null)
+                {
+                    return new ModernDataGridColumn[0];
+                }
+
+                ModernDataGridColumn[] copy = new ModernDataGridColumn[this.configuredColumns.Length];
+                this.configuredColumns.CopyTo(copy, 0);
+                return copy;
+            }
+        }
+
+        /// <summary>
         /// 컬럼을 명시적 정의로 교체하고 자동 생성을 끈다.
         /// DataSource 할당 전에 호출한다.
         /// </summary>

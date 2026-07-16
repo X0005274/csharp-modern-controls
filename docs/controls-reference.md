@@ -549,6 +549,7 @@ this.treeOrg.SelectedValueChanged += this.OnOrgTreeSelectionChanged;
 |---|---|---|
 | `DataSource` | object | 할당 시 첫 행 자동 선택 + `SelectionChanged` 1회 |
 | `ConfigureColumns(...)` | 메서드 | 명시적 컬럼 정의 — 개수 제한 없음. `DataSource` 할당 전에 호출 |
+| `ColumnDefinitions` | `ModernDataGridColumn[]` | `ConfigureColumns`로 선언한 정의의 복사본 — 화면과 동일한 컬럼 구성으로 파생 출력(엑셀 내보내기 등)을 만들 때 단일 원천으로 사용 |
 | `AutoGenerateColumns` | bool | 기본 true. `ConfigureColumns` 호출 시 자동 false |
 | `RowCount` | int | 현재 행 수 — 조회 건수 표시 연동 |
 | `SelectedItem` | object | 선택 행 (`DataRowView`) — 기존 `CurrentRow.DataBoundItem` 대체 |
@@ -589,6 +590,27 @@ this.gridEmployee.ShowStatusBar = true;
 this.gridEmployee.StatusCountFormat = "조회 {0:N0}건";
 this.gridEmployee.StatusText = "부서: 개발1팀";   // 비워두면 표시 없음
 ```
+
+### 컬럼 캡션 용어사전 (선택 기능)
+
+`ModernDataGridColumn.CaptionResolver`에 "필드 이름 → 캡션" 제공자를 앱 시작 시
+(첫 폼 생성 전) 한 번 등록하면, 캡션 인자가 없는 생성자가 사전을 참조한다:
+
+```csharp
+// Program.Main — 앱당 1회
+ModernDataGridColumn.CaptionResolver = GridCaptionDictionary.Resolve;   // 앱 쪽 사전 클래스
+
+// 폼 — 캡션 생략 = 사전 표준 캡션, 명시 = 화면 문맥 재정의(항상 사전보다 우선)
+this.grid.ConfigureColumns(
+    new ModernDataGridColumn("ITEM_ID"),                 // 사전: "Item ID"
+    new ModernDataGridColumn("EVENT_TM", "Arrived At")); // 이 화면만 다른 표현
+```
+
+- 사전에 없는 필드는 필드 이름이 그대로 캡션이 된다 (예외 없음).
+- 라이브러리는 메커니즘만 제공한다 — 사전 내용(도메인 용어)은 앱 책임.
+  샘플 구현은 `Modern.Lab.Samples/Services/GridCaptionDictionary.cs` 참고.
+- 화면 컬럼 정의(`ColumnDefinitions`)를 엑셀 내보내기의 원천으로 쓰면
+  (샘플 `GridXlsxExporter` 참고) 사전 한 곳 수정으로 화면과 엑셀 캡션이 함께 바뀐다.
 
 ---
 

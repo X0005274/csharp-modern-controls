@@ -52,9 +52,12 @@
                                    Fill="{Binding LeftConnectorBrush}"
                                    Visibility="{Binding LeftConnectorVisibility}" />
 
+                        <!-- 노드: 1~2자리 숫자·글리프는 정원(26px), 3자리 이상 숫자는
+                             내용 폭에 맞춰 알약형으로 늘어난다 (MinWidth + 좌우 Padding). -->
                         <Border Grid.Column="1"
-                                Width="26" Height="26"
+                                MinWidth="26" Height="26"
                                 CornerRadius="13"
+                                Padding="6,0"
                                 BorderThickness="1.5"
                                 Background="{Binding NodeBackground}"
                                 BorderBrush="{Binding NodeBorderBrush}">

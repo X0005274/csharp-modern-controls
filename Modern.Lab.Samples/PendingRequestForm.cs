@@ -35,11 +35,18 @@ namespace Modern.Lab.Samples
     ///   배지색: 0-2일 파랑 · 3-6일 호박 · 7-13일 주황 · 14일+ 빨강 틴트.
     ///   화면 표기는 전부 영어.
     ///
+    /// 역할 분담 (ItemHistory와 동일 구조):
+    /// - 서버: 원본 행(도착 정보)과 서버만 계산 가능한 집계(UNIT_CNT)만 준다.
+    /// - PendingTablePresenter: 표시 파생(ELAPSED_DAYS/PRIORITY/DAYS_COLOR/CHK/
+    ///   LOGIS_CAN)·필터(경과일/물류)·KPI 집계 — 순수 DataTable 로직.
+    /// - 폼: 서버 호출, 컨트롤 바인딩, 이벤트 배선만.
+    ///
     /// 서버 호출은 "서버 조회 (★ 회사 환경 교체 지점)" 영역의 private 메서드
     /// 2개(pending/units)에만 있다. Return/Logistics 동작(반송 전문, 물류 시스템
     /// 인터페이스)과 LOGIS_YN 데모 시뮬레이션도 회사 인터페이스로 교체하는
     /// 지점이다 — 데모는 알림만 띄우고 화면 상태(LOGIS_YN)만 바꾼다.
-    /// Export Excel은 SimpleXlsxWriter로 진짜 .xlsx를 저장한다.
+    /// Export Excel은 그리드 컬럼 정의(ColumnDefinitions)를 단일 원천으로
+    /// GridXlsxExporter가 저장한다 — 내보내기 컬럼을 따로 관리하지 않는다.
     /// </summary>
     public partial class PendingRequestForm : Form
     {
@@ -63,9 +70,6 @@ namespace Modern.Lab.Samples
         // 마지막 조회 결과 전체 (페이지 슬라이스/KPI/분포/엑셀의 원천).
         private DataTable resultData;
 
-        // 경과일 구간별 건수 (0-2 / 3-6 / 7-13 / 14+) — 하단 중앙 분포 배지의 원천.
-        private readonly int[] agingCounts = new int[4];
-
         // 코드로 CurrentPage를 되돌릴 때 PageChanged 재진입을 막는다.
         private bool suppressPageEvent;
 
@@ -74,13 +78,6 @@ namespace Modern.Lab.Samples
 
         // Unit 조회 버전 — 빠른 재선택 시 오래된 응답을 버린다.
         private int unitsVersion;
-
-        // 경과일 구간 라벨 (분포 배지와 Priority 계산이 같은 경계를 쓴다).
-        private static readonly string[] agingLabels = { "0-2 d", "3-6 d", "7-13 d", "14+ d" };
-
-        // 경과일 구간별 배지 배경색 (구간이 심해질수록 파랑 → 호박 → 주황 → 빨강 틴트).
-        // 하단 분포 배지(.Designer.cs의 Color)와 그리드 Days 배지가 같은 색을 쓴다.
-        private static readonly string[] agingBadgeColors = { "#DBEAFE", "#FEF3C7", "#FFE0CC", "#FEE2E2" };
 
         public PendingRequestForm()
         {
@@ -105,16 +102,17 @@ namespace Modern.Lab.Samples
 
         // ===== 서버 조회 (★ 회사 환경 교체 지점) =====
 
-        // 도착 후 의뢰서 미작성 Item 목록. 서버가 경과일(ELAPSED_DAYS)과
-        // Unit 수(UNIT_CNT)를 계산해 경과일 오래된 순으로 준다.
-        private DataTable RequestPendingItems(string keyword, int minDays)
+        // 도착 후 의뢰서 미작성 Item 목록. 서버는 원본 행(도착 오래된 순)과
+        // 서버만 계산 가능한 집계(UNIT_CNT)만 준다 — 경과일(ELAPSED_DAYS)과
+        // 필터는 클라이언트(PendingTablePresenter)가 처리한다.
+        private DataTable RequestPendingItems(string keyword)
         {
             StringBuilder query = new StringBuilder();
-            query.Append("/api/items/pending-requests?minDays=").Append(minDays);
+            query.Append("/api/items/pending-requests");
 
             if (!string.IsNullOrEmpty(keyword))
             {
-                query.Append("&keyword=").Append(Uri.EscapeDataString(keyword));
+                query.Append("?keyword=").Append(Uri.EscapeDataString(keyword));
             }
 
             return this.DownloadTable(query.ToString());
@@ -179,20 +177,24 @@ namespace Modern.Lab.Samples
             // AutoFitColumns 그리드라 폭은 생략한다 — 예외는 내용 측정 대상이
             // 아닌 CheckBox 컬럼뿐이며 시맨틱 프리셋(GridWidths)으로 지정한다.
             //
+            // 캡션은 용어사전(GridCaptionDictionary) 기본값을 쓴다 — 캡션 인자가
+            // 없는 컬럼이 사전 참조이고, 이 화면 문맥의 재정의(EVENT_TM=도착 시각,
+            // SUB_TYP 축약)만 명시한다. 이 정의는 엑셀 내보내기의 원천이기도 하다.
+            //
             // Item 리스트: 체크박스(벌크 대상) + 도착 정보 + Days 배지 + Priority +
             // 행 단위 물류처리 버튼(미처리 건만 활성). 실제 컬럼명 그대로 바인딩.
             this.gridItems.ConfigureColumns(
                 new ModernDataGridColumn("CHK", "", GridWidths.Check) { Kind = GridColumnKind.CheckBox },
-                new ModernDataGridColumn("ITEM_ID", "Item ID"),
-                new ModernDataGridColumn("ELAPSED_DAYS", "Days")
+                new ModernDataGridColumn("ITEM_ID"),
+                new ModernDataGridColumn("ELAPSED_DAYS")
                 {
                     Kind = GridColumnKind.Badge,
                     BadgeColorMember = "DAYS_COLOR",
                     TextAlignment = GridTextAlignment.Center
                 },
-                new ModernDataGridColumn("PRIORITY", "Priority") { TextAlignment = GridTextAlignment.Center },
-                new ModernDataGridColumn("UNIT_CNT", "Units") { TextAlignment = GridTextAlignment.Center },
-                new ModernDataGridColumn("LOGIS_YN", "Logistics")
+                new ModernDataGridColumn("PRIORITY") { TextAlignment = GridTextAlignment.Center },
+                new ModernDataGridColumn("UNIT_CNT") { TextAlignment = GridTextAlignment.Center },
+                new ModernDataGridColumn("LOGIS_YN")
                 {
                     Kind = GridColumnKind.Button,
                     ButtonText = "Process",
@@ -200,18 +202,18 @@ namespace Modern.Lab.Samples
                     TextAlignment = GridTextAlignment.Center
                 },
                 new ModernDataGridColumn("EVENT_TM", "Arrived At") { TextAlignment = GridTextAlignment.Center },
-                new ModernDataGridColumn("MODEL_ID", "Product"),
+                new ModernDataGridColumn("MODEL_ID"),
                 new ModernDataGridColumn("SUB_TYP", "Type") { TextAlignment = GridTextAlignment.Center },
-                new ModernDataGridColumn("ORG_ITEM_ID", "Org Item"),
-                new ModernDataGridColumn("BOX_ID", "Carrier") { TextAlignment = GridTextAlignment.Center },
-                new ModernDataGridColumn("STORE_ID", "Stocker") { TextAlignment = GridTextAlignment.Center },
-                new ModernDataGridColumn("DESCRIPTION", "Description"));
+                new ModernDataGridColumn("ORG_ITEM_ID"),
+                new ModernDataGridColumn("BOX_ID") { TextAlignment = GridTextAlignment.Center },
+                new ModernDataGridColumn("STORE_ID") { TextAlignment = GridTextAlignment.Center },
+                new ModernDataGridColumn("DESCRIPTION"));
 
             // Unit 리스트: 좁은 패널에 맞는 최소 컬럼.
             this.gridUnits.ConfigureColumns(
-                new ModernDataGridColumn("UNIT_ID", "Unit ID"),
+                new ModernDataGridColumn("UNIT_ID"),
                 new ModernDataGridColumn("SUB_TYP", "Type") { TextAlignment = GridTextAlignment.Center },
-                new ModernDataGridColumn("STAT_TYP", "Status") { TextAlignment = GridTextAlignment.Center },
+                new ModernDataGridColumn("STAT_TYP") { TextAlignment = GridTextAlignment.Center },
                 new ModernDataGridColumn("EVENT_TM", "Arrived At") { TextAlignment = GridTextAlignment.Center });
 
             // 워크리스트 화면이라 열자마자 자동 조회한다 (필수 조건 없음).
@@ -261,8 +263,9 @@ namespace Modern.Lab.Samples
         }
 
         // 백그라운드에서 서버를 호출하고 UI 스레드로 복귀해 반영한다.
-        // 반영 순서: 파생 컬럼(Priority/Days 배지색/체크/물류) → 물류처리 필터 →
-        // 페이지 1 바인딩 → KPI/분포 갱신.
+        // 반영 순서: 경과일 파생 → LOGIS_YN 데모 시뮬레이션(★) → 워크리스트
+        // 파생(Priority/배지색/체크/버튼) → 필터(경과일+물류) → 페이지 1 바인딩 →
+        // KPI/분포 갱신. 파생·필터·집계는 전부 PendingTablePresenter가 계산한다.
         private void ExecuteSearch()
         {
             string keyword = this.cboItemId.Text.Trim();
@@ -277,7 +280,7 @@ namespace Modern.Lab.Samples
             {
                 try
                 {
-                    DataTable pending = this.RequestPendingItems(keyword, minDays);
+                    DataTable pending = this.RequestPendingItems(keyword);
 
                     this.Invoke(new MethodInvoker(delegate
                     {
@@ -289,8 +292,10 @@ namespace Modern.Lab.Samples
 
                         // 그리드 표시 컬럼은 그리드가 DataSource 할당 시 스스로
                         // 보장한다 — 여기서는 파생 컬럼만 채운다.
-                        ApplyDerivedColumns(pending);
-                        this.resultData = ApplyLogisticsFilter(pending, logisticsFilter);
+                        PendingTablePresenter.AddElapsedDays(pending);
+                        this.SimulateLogisticsState(pending);
+                        PendingTablePresenter.ApplyWorkflowColumns(pending);
+                        this.resultData = PendingTablePresenter.Filter(pending, minDays, logisticsFilter);
 
                         // 페이지 바: 전체 건수 반영 후 1페이지부터.
                         this.suppressPageEvent = true;
@@ -306,8 +311,7 @@ namespace Modern.Lab.Samples
                         }
 
                         this.BindCurrentPage();
-                        this.UpdateKpis();
-                        this.UpdateAgingCounts();
+                        this.ApplySummary(PendingTablePresenter.Aggregate(this.resultData));
 
                         // 전체 조회(조건 없음)일 때 그 결과로 Item ID 자동완성
                         // 후보를 갱신한다 — DataSource 할당의 첫 행 자동 선택은
@@ -337,127 +341,25 @@ namespace Modern.Lab.Samples
             });
         }
 
-        // 파생 컬럼: PRIORITY/DAYS_COLOR(경과일 강조 — **물류처리 완료 건만**),
-        // CHK(벌크 대상 체크박스), LOGIS_CAN(행 단위 물류처리 버튼 활성 = 미처리).
-        private static void ApplyDerivedColumns(DataTable pending)
+        // ★ 회사 환경 교체 지점 — 홈 API는 물류처리 상태(LOGIS_YN)를 내려주지
+        // 않으므로 데모용으로 결정적 시뮬레이션한다(경과일 3의 배수가 아니면 완료).
+        // 서버가 실제 물류처리 상태를 내려주면 이 메서드를 통째로 제거한다.
+        private void SimulateLogisticsState(DataTable pending)
         {
-            // LOGIS_YN은 아래에서 값을 "쓰는" 컬럼이라 (서버가 안 내려주면 JSON
-            // 변환에서 생략됨) 여기서 직접 보장해야 한다.
             if (!pending.Columns.Contains("LOGIS_YN"))
             {
                 pending.Columns.Add("LOGIS_YN", typeof(string));
             }
 
-            if (!pending.Columns.Contains("PRIORITY"))
-            {
-                pending.Columns.Add("PRIORITY", typeof(string));
-            }
-
-            if (!pending.Columns.Contains("DAYS_COLOR"))
-            {
-                pending.Columns.Add("DAYS_COLOR", typeof(string));
-            }
-
-            if (!pending.Columns.Contains("CHK"))
-            {
-                pending.Columns.Add("CHK", typeof(bool));
-            }
-
-            if (!pending.Columns.Contains("LOGIS_CAN"))
-            {
-                pending.Columns.Add("LOGIS_CAN", typeof(bool));
-            }
-
             foreach (DataRow row in pending.Rows)
             {
-                // ★ 회사 환경 교체 지점 — 홈 API는 LOGIS_YN을 내려주지 않으므로
-                // 데모용으로 결정적 시뮬레이션한다(경과일 3의 배수가 아니면 완료).
-                // 서버가 실제 물류처리 상태를 내려주면 이 블록을 제거한다.
-                if (ToText(row, "LOGIS_YN").Trim().Length == 0)
+                if (PendingTablePresenter.CellText(row, "LOGIS_YN").Trim().Length == 0)
                 {
-                    int days = ParseDays(ToText(row, "ELAPSED_DAYS"));
+                    int days = PendingTablePresenter.ParseDays(
+                            PendingTablePresenter.CellText(row, "ELAPSED_DAYS"));
                     row["LOGIS_YN"] = days % 3 != 0 ? "Y" : "N";
                 }
-
-                ApplyAgingToRow(row);
-
-                // 기존 컬럼에 행이 이미 있던 경우 DBNull로 남으므로 명시적으로 채운다.
-                if (row.IsNull("CHK"))
-                {
-                    row["CHK"] = false;
-                }
-
-                row["LOGIS_CAN"] = !IsLogisticsDone(row);
             }
-        }
-
-        // 경과일 강조(PRIORITY + Days 배지색)를 한 행에 적용한다.
-        // 경과일 체크는 **물류처리가 완료된 건만** 대상 — 미처리 행은
-        // 무색 배지 + Priority "-" 로 표시한다.
-        private static void ApplyAgingToRow(DataRow row)
-        {
-            if (!IsLogisticsDone(row))
-            {
-                row["PRIORITY"] = "-";
-                row["DAYS_COLOR"] = string.Empty;
-                return;
-            }
-
-            int days = ParseDays(ToText(row, "ELAPSED_DAYS"));
-            int band;
-
-            if (days >= 14)
-            {
-                row["PRIORITY"] = "Critical";
-                band = 3;
-            }
-            else if (days >= 7)
-            {
-                row["PRIORITY"] = "Warning";
-                band = 2;
-            }
-            else if (days >= 3)
-            {
-                row["PRIORITY"] = "Watch";
-                band = 1;
-            }
-            else
-            {
-                row["PRIORITY"] = "Normal";
-                band = 0;
-            }
-
-            row["DAYS_COLOR"] = agingBadgeColors[band];
-        }
-
-        // 물류처리 완료 여부 — LOGIS_YN이 "Y"면 완료로 본다.
-        private static bool IsLogisticsDone(DataRow row)
-        {
-            return "Y".Equals(ToText(row, "LOGIS_YN").Trim(), StringComparison.OrdinalIgnoreCase);
-        }
-
-        // 물류처리 라디오(All/Pending/Done)에 맞춰 조회 결과를 잘라낸다.
-        // ★ 회사 환경 교체 지점 — 서버가 LOGIS_YN 필터를 지원하면 조회 조건으로
-        // 넘기고 이 클라이언트 필터는 제거한다.
-        private static DataTable ApplyLogisticsFilter(DataTable pending, string logisticsFilter)
-        {
-            if (logisticsFilter.Length == 0)
-            {
-                return pending;
-            }
-
-            bool wantDone = logisticsFilter == "Y";
-            DataTable filtered = pending.Clone();
-
-            foreach (DataRow row in pending.Rows)
-            {
-                if (IsLogisticsDone(row) == wantDone)
-                {
-                    filtered.ImportRow(row);
-                }
-            }
-
-            return filtered;
         }
 
         // ===== 페이지 =====
@@ -505,7 +407,7 @@ namespace Modern.Lab.Samples
                 return;
             }
 
-            DataRow source = this.FindResultRow(ToText(e.Row, "ITEM_ID"));
+            DataRow source = this.FindResultRow(PendingTablePresenter.CellText(e.Row, "ITEM_ID"));
 
             if (source != null)
             {
@@ -523,7 +425,7 @@ namespace Modern.Lab.Samples
 
             foreach (DataRow row in this.resultData.Rows)
             {
-                if (ToText(row, "ITEM_ID") == itemId)
+                if (PendingTablePresenter.CellText(row, "ITEM_ID") == itemId)
                 {
                     return row;
                 }
@@ -534,82 +436,22 @@ namespace Modern.Lab.Samples
 
         // ===== KPI + 경과일 분포 =====
 
-        private void UpdateKpis()
+        // 집계(Presenter 계산 결과)를 KPI 배지 4개와 분포 배지 4개에 표기한다.
+        private void ApplySummary(PendingTablePresenter.PendingSummary summary)
         {
-            int itemCount = this.resultData.Rows.Count;
-            int unitTotal = 0;
-            int agedCount = 0;
-            int daysSum = 0;
-            int daysMax = 0;
-
-            foreach (DataRow row in this.resultData.Rows)
-            {
-                unitTotal += ParseDays(ToText(row, "UNIT_CNT"));
-
-                // 경과일 통계(Avg/Oldest)는 물류처리 완료 건만 집계한다.
-                if (!IsLogisticsDone(row))
-                {
-                    continue;
-                }
-
-                agedCount = agedCount + 1;
-
-                int days = ParseDays(ToText(row, "ELAPSED_DAYS"));
-                daysSum += days;
-
-                if (days > daysMax)
-                {
-                    daysMax = days;
-                }
-            }
-
-            this.badgePending.Text = "Pending " + itemCount.ToString("N0");
-            this.badgeUnits.Text = "Units " + unitTotal.ToString("N0");
-            this.badgeAvg.Text = agedCount > 0
-                    ? "Avg " + ((double)daysSum / agedCount).ToString("0.0", CultureInfo.InvariantCulture) + " d"
+            this.badgePending.Text = "Pending " + summary.ItemCount.ToString("N0");
+            this.badgeUnits.Text = "Units " + summary.UnitTotal.ToString("N0");
+            this.badgeAvg.Text = summary.AgedCount > 0
+                    ? "Avg " + summary.DaysAverage.ToString("0.0", CultureInfo.InvariantCulture) + " d"
                     : "Avg -";
-            this.badgeOldest.Text = agedCount > 0 ? "Oldest " + daysMax.ToString("N0") + " d" : "Oldest -";
-        }
+            this.badgeOldest.Text = summary.AgedCount > 0
+                    ? "Oldest " + summary.DaysMax.ToString("N0") + " d"
+                    : "Oldest -";
 
-        // 경과일 구간(0-2 / 3-6 / 7-13 / 14+)별 건수를 집계해 분포 배지에 표기한다.
-        // 경과일 체크 대상인 물류처리 완료 건만 센다.
-        private void UpdateAgingCounts()
-        {
-            for (int index = 0; index < this.agingCounts.Length; index++)
+            for (int index = 0; index < this.badgeAging.Length; index++)
             {
-                this.agingCounts[index] = 0;
-            }
-
-            foreach (DataRow row in this.resultData.Rows)
-            {
-                if (!IsLogisticsDone(row))
-                {
-                    continue;
-                }
-
-                int days = ParseDays(ToText(row, "ELAPSED_DAYS"));
-
-                if (days >= 14)
-                {
-                    this.agingCounts[3] = this.agingCounts[3] + 1;
-                }
-                else if (days >= 7)
-                {
-                    this.agingCounts[2] = this.agingCounts[2] + 1;
-                }
-                else if (days >= 3)
-                {
-                    this.agingCounts[1] = this.agingCounts[1] + 1;
-                }
-                else
-                {
-                    this.agingCounts[0] = this.agingCounts[0] + 1;
-                }
-            }
-
-            for (int index = 0; index < this.agingCounts.Length; index++)
-            {
-                this.badgeAging[index].Text = agingLabels[index] + " · " + this.agingCounts[index].ToString("N0");
+                this.badgeAging[index].Text = PendingTablePresenter.AgingLabels[index]
+                        + " · " + summary.AgingCounts[index].ToString("N0");
             }
         }
 
@@ -623,7 +465,7 @@ namespace Modern.Lab.Samples
                 return;
             }
 
-            string itemId = ToText(row.Row, "ITEM_ID");
+            string itemId = PendingTablePresenter.CellText(row.Row, "ITEM_ID");
             if (string.IsNullOrEmpty(itemId))
             {
                 return;
@@ -701,36 +543,12 @@ namespace Modern.Lab.Samples
             }
         }
 
-        // 내보낼 컬럼(그리드 표시 순서와 동일)과 헤더.
-        private static readonly string[] exportColumns =
-        {
-            "ITEM_ID", "ELAPSED_DAYS", "PRIORITY", "UNIT_CNT", "LOGIS_YN", "EVENT_TM",
-            "MODEL_ID", "SUB_TYP", "ORG_ITEM_ID", "BOX_ID", "STORE_ID", "DESCRIPTION"
-        };
-
-        private static readonly string[] exportHeaders =
-        {
-            "Item ID", "Days", "Priority", "Units", "Logistics", "Arrived At",
-            "Product", "Type", "Org Item", "Carrier", "Stocker", "Description"
-        };
-
+        // 그리드 컬럼 정의(화면 표시와 동일한 순서·캡션·형식)를 단일 원천으로
+        // 전체 조회 결과를 저장한다 — 체크박스/버튼 컬럼은 내보내기가 알아서
+        // 제외하므로 내보내기용 컬럼 목록을 따로 관리하지 않는다.
         private void WriteExcel(string path)
         {
-            List<string[]> rows = new List<string[]>();
-
-            foreach (DataRow row in this.resultData.Rows)
-            {
-                string[] cells = new string[exportColumns.Length];
-
-                for (int index = 0; index < exportColumns.Length; index++)
-                {
-                    cells[index] = ToText(row, exportColumns[index]);
-                }
-
-                rows.Add(cells);
-            }
-
-            SimpleXlsxWriter.Write(path, "Pending Requests", exportHeaders, rows);
+            GridXlsxExporter.Write(path, "Pending Requests", this.gridItems.ColumnDefinitions, this.resultData);
         }
 
         // 체크된 행 목록 (조회 결과 원본 기준 — 페이지를 오가며 체크한 것 전부).
@@ -795,9 +613,9 @@ namespace Modern.Lab.Samples
 
             foreach (DataRow row in checkedRows)
             {
-                if (!IsLogisticsDone(row))
+                if (!PendingTablePresenter.IsLogisticsDone(row))
                 {
-                    MarkLogisticsDone(row);
+                    PendingTablePresenter.MarkLogisticsDone(row);
                     processed = processed + 1;
                 }
 
@@ -831,56 +649,19 @@ namespace Modern.Lab.Samples
                 return;
             }
 
-            string itemId = ToText(row.Row, "ITEM_ID");
+            string itemId = PendingTablePresenter.CellText(row.Row, "ITEM_ID");
 
             // 페이지 조각(화면)과 조회 결과 원본을 함께 갱신한다 — 버튼은
             // LOGIS_CAN 바인딩으로 즉시 비활성화된다.
-            MarkLogisticsDone(row.Row);
+            PendingTablePresenter.MarkLogisticsDone(row.Row);
             DataRow source = this.FindResultRow(itemId);
 
             if (source != null)
             {
-                MarkLogisticsDone(source);
+                PendingTablePresenter.MarkLogisticsDone(source);
             }
 
             this.toastMain.Show("Logistics processed for " + itemId + ". (demo)", ToastKind.Success);
-        }
-
-        // 물류처리 완료 상태로 표시한다 (LOGIS_YN=Y, 행 버튼 비활성).
-        // 완료되는 순간부터 경과일 체크 대상이므로 Days 배지/Priority도 함께 채운다.
-        private static void MarkLogisticsDone(DataRow row)
-        {
-            row["LOGIS_YN"] = "Y";
-            row["LOGIS_CAN"] = false;
-            ApplyAgingToRow(row);
-        }
-
-        // ===== 공통 헬퍼 =====
-
-        // 서버 숫자 컬럼(JSON number)을 관용적으로 파싱한다 — 빈 값/소수 표기 모두 허용.
-        private static int ParseDays(string text)
-        {
-            double value;
-
-            if (double.TryParse(text, NumberStyles.Any, CultureInfo.InvariantCulture, out value))
-            {
-                return (int)value;
-            }
-
-            return 0;
-        }
-
-        // 서버 응답에 컬럼 자체가 없거나(null 키 생략) DBNull인 경우를 모두
-        // 빈 문자열로 처리한다.
-        private static string ToText(DataRow row, string columnName)
-        {
-            if (!row.Table.Columns.Contains(columnName))
-            {
-                return string.Empty;
-            }
-
-            object value = row[columnName];
-            return value == DBNull.Value || value == null ? string.Empty : value.ToString();
         }
     }
 }
