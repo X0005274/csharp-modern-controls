@@ -24,10 +24,10 @@ namespace Modern.Lab.Controls.Wpf.Display
     /// </summary>
     public partial class ModernStepIndicatorControl : UserControl
     {
-        // Segoe MDL2 Assets 글리프: 완료 체크(E73E) / 실패 X(E711).
-        private const string GlyphCompleted = "";
+        // Segoe MDL2 Assets 글리프: 실패 X(E711).
         private const string GlyphFailed = "";
-        private const string GlyphCurrent = "●"; // ● 검은 원 (본문 폰트)
+        // 완료/현재/대기 노드는 글리프 대신 단계 숫자를 그린다 — 완료는 옅은
+        // 액센트 틴트 채움, 현재는 진한 액센트 채움 + 흰 숫자(농도 램프)로 구분한다.
 
         /// <summary>단계 행 목록. 임의의 IEnumerable (DataView, IList, ...).</summary>
         public static readonly DependencyProperty ItemsSourceProperty =
@@ -124,6 +124,8 @@ namespace Modern.Lab.Controls.Wpf.Display
             Brush accent = this.Brush("Brush.Accent");
             Brush onAccent = this.Brush("Brush.OnAccent");
             Brush surface = this.Brush("Brush.Surface");
+            Brush selectedBackground = this.Brush("Brush.SelectedBackground");
+            Brush selectedText = this.Brush("Brush.SelectedText");
             Brush border = this.Brush("Brush.Border");
             Brush textPrimary = this.Brush("Brush.TextPrimary");
             Brush textSecondary = this.Brush("Brush.TextSecondary");
@@ -152,19 +154,25 @@ namespace Modern.Lab.Controls.Wpf.Display
             switch (row.State)
             {
                 case ModernStepState.Completed:
-                    item.NodeBackground = accent;
-                    item.NodeBorderBrush = accent;
-                    item.NodeForeground = onAccent;
-                    item.Glyph = GlyphCompleted;
-                    item.GlyphFontFamily = mdl2;
+                    // 완료: 옅은 액센트 틴트로 채운 원 + 진한 숫자 (테두리 없음).
+                    // 지나온 단계일수록 옅고 현재가 가장 진한 "농도 램프"가
+                    // 현재 단계와의 차별점이다. 색 쌍은 선택 강조 토큰을 재사용해
+                    // 7종 테마 모두에서 대비가 보장된다.
+                    item.NodeBackground = selectedBackground;
+                    item.NodeBorderBrush = selectedBackground;
+                    item.NodeForeground = selectedText;
+                    item.Glyph = (index + 1).ToString();
+                    item.GlyphFontFamily = bodyFont;
                     item.LabelForeground = textPrimary;
                     break;
 
                 case ModernStepState.Current:
-                    item.NodeBackground = surface;
+                    // 현재: 진한 액센트로 꽉 채운 원 + 흰 숫자 — 옅은 틴트의 완료
+                    // 단계들 끝에서 가장 진한 노드라 "지금 위치"가 즉시 드러난다.
+                    item.NodeBackground = accent;
                     item.NodeBorderBrush = accent;
-                    item.NodeForeground = accent;
-                    item.Glyph = GlyphCurrent;
+                    item.NodeForeground = onAccent;
+                    item.Glyph = (index + 1).ToString();
                     item.GlyphFontFamily = bodyFont;
                     item.LabelForeground = textPrimary;
                     item.LabelWeight = FontWeights.SemiBold;
