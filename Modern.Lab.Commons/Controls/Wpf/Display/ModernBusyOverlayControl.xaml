@@ -34,14 +34,8 @@
                 BorderBrush="{StaticResource Brush.Border}"
                 BorderThickness="1"
                 CornerRadius="{StaticResource Radius.Lg}"
-                Padding="32,24">
-            <Border.Effect>
-                <DropShadowEffect Color="#FF1E293B"
-                                  Opacity="0.28"
-                                  BlurRadius="22"
-                                  ShadowDepth="4"
-                                  Direction="270" />
-            </Border.Effect>
+                Padding="32,24"
+                Effect="{StaticResource Shadow.Overlay}">
 
             <StackPanel HorizontalAlignment="Center">
                 <!-- 아크 스피너: 옅은 트랙 링 위에서 액센트 그라디언트 3/4 아크가 회전.
@@ -60,9 +54,10 @@
                           VerticalAlignment="Center"
                           RenderTransformOrigin="0.5,0.5">
                         <Path.Stroke>
+                            <!-- 액센트 그라디언트 — 테마의 Color.Accent/AccentSoft를 따라간다. -->
                             <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                                <GradientStop Color="#FF0078D4" Offset="0" />
-                                <GradientStop Color="#FF5EB0EE" Offset="1" />
+                                <GradientStop Color="{StaticResource Color.Accent}" Offset="0" />
+                                <GradientStop Color="{StaticResource Color.AccentSoft}" Offset="1" />
                             </LinearGradientBrush>
                         </Path.Stroke>
                         <Path.Data>

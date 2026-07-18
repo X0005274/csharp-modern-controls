@@ -64,6 +64,7 @@
     <SolidColorBrush x:Key="Brush.Scrim" Color="#99000000" />
 
     <Color x:Key="Color.Accent">#FFF2919E</Color>
+    <Color x:Key="Color.AccentSoft">#FFF8C1C9</Color>
     <Color x:Key="Color.TrackOff">#FF929292</Color>
 
     <!-- Text.* 스타일 재정의 — 어두운 전경 (Dark와 동일 이유) -->

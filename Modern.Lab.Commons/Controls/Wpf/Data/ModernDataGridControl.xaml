@@ -15,6 +15,7 @@
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
                 <common:SharedResourceDictionary Source="/Modern.Lab.Commons;component/Themes/Tokens.xaml" />
+                <common:SharedResourceDictionary Source="/Modern.Lab.Commons;component/Themes/ControlParts.xaml" />
             </ResourceDictionary.MergedDictionaries>
 
             <!-- 컬럼 헤더: SemiBold 캡션, 은은한 구분선, 정렬 셰브런.
@@ -49,7 +50,7 @@
                                         <TextBlock x:Name="SortGlyph"
                                                    Grid.Column="1"
                                                    Text=""
-                                                   FontFamily="Segoe MDL2 Assets"
+                                                   FontFamily="{StaticResource Font.Family.Icon}"
                                                    FontSize="{StaticResource Font.Size.IconSm}"
                                                    Margin="6,0,0,0"
                                                    VerticalAlignment="Center"
@@ -97,6 +98,9 @@
                     </Trigger>
                 </Style.Triggers>
             </Style>
+
+            <!-- 그리드 셀/헤더 체크박스는 공용 파츠(Parts.GridCheckBoxStyle)를 쓴다 —
+                 GridColumnFactory가 이 키로 리소스를 조회한다. -->
 
             <!-- 셀: 내용 세로 중앙 정렬, 셀 단위 포커스 테두리 없음.
                  투명 배경이라 행 배경이 그대로 비쳐 보인다.

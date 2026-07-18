@@ -481,7 +481,8 @@ namespace Modern.Lab.Controls.Wpf.Display
             Brush errorText = this.Brush("Brush.ErrorText");
 
             FontFamily bodyFont = this.FontFamily;
-            FontFamily mdl2 = new FontFamily("Segoe MDL2 Assets");
+            // 아이콘 폰트는 하드코딩하지 않고 토큰(Font.Family.Icon)에서 가져온다.
+            FontFamily mdl2 = (FontFamily)this.FindResource("Font.Family.Icon");
 
             StepIndicatorItem item = new StepIndicatorItem();
             item.Label = row.Label;

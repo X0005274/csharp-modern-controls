@@ -53,7 +53,7 @@
 
             <!-- 이전/다음 셰브런 버튼 -->
             <Style x:Key="NavButtonStyle" TargetType="Button">
-                <Setter Property="FontFamily" Value="Segoe MDL2 Assets" />
+                <Setter Property="FontFamily" Value="{StaticResource Font.Family.Icon}" />
                 <Setter Property="FontSize" Value="{StaticResource Font.Size.IconSm}" />
                 <Setter Property="Foreground" Value="{StaticResource Brush.TextSecondary}" />
                 <Setter Property="Cursor" Value="Hand" />

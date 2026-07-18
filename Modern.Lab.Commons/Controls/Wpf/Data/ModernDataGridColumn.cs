@@ -45,6 +45,7 @@ namespace Modern.Lab.Controls.Wpf.Data
             this.BadgeColorMember = string.Empty;
             this.ButtonText = string.Empty;
             this.ButtonEnabledMember = string.Empty;
+            this.HeaderCheckBox = false;
         }
 
         /// <summary>
@@ -126,5 +127,13 @@ namespace Modern.Lab.Controls.Wpf.Data
         /// 비워 두면 모든 행에서 버튼이 활성화된다.
         /// </summary>
         public string ButtonEnabledMember { get; set; }
+
+        /// <summary>
+        /// CheckBox 전용: 헤더에 전체 선택/해제 체크박스를 표시할지 여부
+        /// (기본 false). 켜면 헤더 캡션 대신 체크박스가 올라가고, 클릭하면
+        /// 현재 그리드에 표시 중인 모든 행의 값이 일괄 설정된다. 헤더 상태는
+        /// 행 값에 따라 체크(전체)/해제(없음)/중간(일부)으로 자동 갱신된다.
+        /// </summary>
+        public bool HeaderCheckBox { get; set; }
     }
 }

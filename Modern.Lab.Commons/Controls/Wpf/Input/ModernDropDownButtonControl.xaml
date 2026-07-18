@@ -41,7 +41,7 @@
                                        VerticalAlignment="Center"
                                        LayoutTransform="{Binding Path=(common:FontWidthScaling.TextWidthTransform), RelativeSource={RelativeSource Self}}" />
                             <TextBlock Text="&#xE70D;"
-                                       FontFamily="Segoe MDL2 Assets"
+                                       FontFamily="{StaticResource Font.Family.Icon}"
                                        FontSize="{StaticResource Font.Size.IconSm}"
                                        Margin="6,0,0,0"
                                        VerticalAlignment="Center"

@@ -31,7 +31,7 @@
                             <Border Background="Transparent" Width="18" Height="18">
                                 <TextBlock x:Name="Chevron"
                                            Text="&#xE76C;"
-                                           FontFamily="Segoe MDL2 Assets"
+                                           FontFamily="{StaticResource Font.Family.Icon}"
                                            FontSize="{StaticResource Font.Size.IconSm}"
                                            Foreground="{StaticResource Brush.TextSecondary}"
                                            HorizontalAlignment="Center"
@@ -148,7 +148,7 @@
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Left">
                         <!-- 노드 글리프: 항목 글자색을 상속해 선택 시 함께 반전된다 -->
                         <TextBlock Text="{Binding IconGlyph}"
-                                   FontFamily="Segoe MDL2 Assets"
+                                   FontFamily="{StaticResource Font.Family.Icon}"
                                    FontSize="{StaticResource Font.Size.IconSm}"
                                    Margin="2,0,5,0"
                                    VerticalAlignment="Center"

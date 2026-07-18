@@ -15,93 +15,11 @@
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
                 <common:SharedResourceDictionary Source="/Modern.Lab.Commons;component/Themes/Tokens.xaml" />
+                <common:SharedResourceDictionary Source="/Modern.Lab.Commons;component/Themes/ControlParts.xaml" />
             </ResourceDictionary.MergedDictionaries>
 
-            <!-- 필드 표면 + 화살표. ModernComboBox와 동일한 외형 -->
-            <ControlTemplate x:Key="CheckComboToggleTemplate" TargetType="ToggleButton">
-                <Border x:Name="FieldBorder"
-                        CornerRadius="{StaticResource Radius.Sm}"
-                        Background="{StaticResource Brush.Surface}"
-                        BorderBrush="{StaticResource Brush.Border}"
-                        BorderThickness="1">
-                    <TextBlock Text="&#xE70D;"
-                               FontFamily="Segoe MDL2 Assets"
-                               FontSize="{StaticResource Font.Size.IconSm}"
-                               HorizontalAlignment="Right"
-                               VerticalAlignment="Center"
-                               Margin="0,0,12,0"
-                               Foreground="{StaticResource Brush.TextSecondary}" />
-                </Border>
-                <ControlTemplate.Triggers>
-                    <Trigger Property="IsMouseOver" Value="True">
-                        <Setter TargetName="FieldBorder" Property="BorderBrush" Value="{StaticResource Brush.BorderHover}" />
-                    </Trigger>
-                    <Trigger Property="IsChecked" Value="True">
-                        <Setter TargetName="FieldBorder" Property="BorderBrush" Value="{StaticResource Brush.FocusBorder}" />
-                    </Trigger>
-                    <Trigger Property="IsEnabled" Value="False">
-                        <Setter TargetName="FieldBorder" Property="Background" Value="{StaticResource Brush.DisabledBackground}" />
-                        <Setter TargetName="FieldBorder" Property="BorderBrush" Value="{StaticResource Brush.BorderSubtle}" />
-                    </Trigger>
-                </ControlTemplate.Triggers>
-            </ControlTemplate>
-
-            <!-- 모던 체크박스: 둥근 사각(4px) + 액센트 채움 + 흰 체크 글리프.
-                 IsChecked=null(부분 선택)은 대시 글리프로 표시 -->
-            <Style x:Key="ModernCheckBoxStyle" TargetType="CheckBox">
-                <Setter Property="FontFamily" Value="{DynamicResource Font.Family}" />
-                <Setter Property="FontSize" Value="{StaticResource Font.Size.Body}" />
-                <Setter Property="Foreground" Value="{StaticResource Brush.TextPrimary}" />
-                <Setter Property="Cursor" Value="Hand" />
-                <Setter Property="Template">
-                    <Setter.Value>
-                        <ControlTemplate TargetType="CheckBox">
-                            <StackPanel Orientation="Horizontal" Background="Transparent">
-                                <Border x:Name="Box"
-                                        Width="18" Height="18"
-                                        CornerRadius="4"
-                                        Background="{StaticResource Brush.Surface}"
-                                        BorderBrush="{StaticResource Brush.Border}"
-                                        BorderThickness="1"
-                                        VerticalAlignment="Center">
-                                    <TextBlock x:Name="Glyph"
-                                               Text="&#xE73E;"
-                                               FontFamily="Segoe MDL2 Assets"
-                                               FontSize="{StaticResource Font.Size.Icon}"
-                                               Foreground="{StaticResource Brush.OnAccent}"
-                                               HorizontalAlignment="Center"
-                                               VerticalAlignment="Center"
-                                               Visibility="Collapsed" />
-                                </Border>
-                                <ContentPresenter Margin="8,0,0,0" VerticalAlignment="Center"
-                                                  LayoutTransform="{Binding Path=(common:FontWidthScaling.TextWidthTransform), RelativeSource={RelativeSource Self}}" />
-                            </StackPanel>
-                            <ControlTemplate.Triggers>
-                                <Trigger Property="IsMouseOver" Value="True">
-                                    <Setter TargetName="Box" Property="BorderBrush" Value="{StaticResource Brush.BorderHover}" />
-                                </Trigger>
-                                <Trigger Property="IsChecked" Value="True">
-                                    <Setter TargetName="Box" Property="Background" Value="{StaticResource Brush.Accent}" />
-                                    <Setter TargetName="Box" Property="BorderBrush" Value="{StaticResource Brush.Accent}" />
-                                    <Setter TargetName="Glyph" Property="Visibility" Value="Visible" />
-                                </Trigger>
-                                <!-- 부분 선택(전체 선택 헤더 전용) -->
-                                <Trigger Property="IsChecked" Value="{x:Null}">
-                                    <Setter TargetName="Box" Property="Background" Value="{StaticResource Brush.Accent}" />
-                                    <Setter TargetName="Box" Property="BorderBrush" Value="{StaticResource Brush.Accent}" />
-                                    <Setter TargetName="Glyph" Property="Text" Value="&#xE738;" />
-                                    <Setter TargetName="Glyph" Property="Visibility" Value="Visible" />
-                                </Trigger>
-                                <Trigger Property="IsEnabled" Value="False">
-                                    <Setter TargetName="Box" Property="Background" Value="{StaticResource Brush.DisabledBackground}" />
-                                    <Setter TargetName="Box" Property="BorderBrush" Value="{StaticResource Brush.BorderSubtle}" />
-                                    <Setter Property="Foreground" Value="{StaticResource Brush.DisabledText}" />
-                                </Trigger>
-                            </ControlTemplate.Triggers>
-                        </ControlTemplate>
-                    </Setter.Value>
-                </Setter>
-            </Style>
+            <!-- 필드 표면 + 화살표(ModernComboBox와 동일 외형)와 모던 체크박스는
+                 공용 파츠(Parts.FieldToggleTemplate / Parts.CheckBoxStyle)를 쓴다 -->
 
             <!-- 온/오프 토글 스위치: 알약형 트랙 + 원형 썸.
                  켬 = 액센트 트랙 + 오른쪽 썸, 끔 = 회색 트랙 + 왼쪽 썸 -->
@@ -149,7 +67,7 @@
 
             <!-- 항목 템플릿 두 종류 — ItemStyle 속성에 따라 코드에서 선택 -->
             <DataTemplate x:Key="CheckBoxItemTemplate">
-                <CheckBox Style="{StaticResource ModernCheckBoxStyle}"
+                <CheckBox Style="{StaticResource Parts.CheckBoxStyle}"
                           Content="{Binding DisplayText}"
                           IsChecked="{Binding IsChecked, Mode=TwoWay}"
                           Margin="12,6" />
@@ -172,7 +90,7 @@
                       Height="{StaticResource Size.ControlHeight}"
                       Focusable="False"
                       ClickMode="Release"
-                      Template="{StaticResource CheckComboToggleTemplate}"
+                      Template="{StaticResource Parts.FieldToggleTemplate}"
                       PreviewMouseLeftButtonDown="DropToggle_PreviewMouseLeftButtonDown" />
 
         <!-- 체크된 항목들의 표시 텍스트를 ", "로 연결해 표시 -->
@@ -187,28 +105,16 @@
 
         <!-- 체크된 항목이 없을 때의 플레이스홀더 -->
         <TextBlock x:Name="PlaceholderOverlay"
+                   Style="{StaticResource Parts.PlaceholderTextStyle}"
                    Text="{Binding Placeholder, ElementName=RootControl}"
-                   Margin="13,0,32,0"
-                   VerticalAlignment="Center"
-                   FontSize="{StaticResource Font.Size.Body}"
-                   Foreground="{StaticResource Brush.TextPlaceholder}"
-                   LayoutTransform="{Binding Path=(common:FontWidthScaling.TextWidthTransform), RelativeSource={RelativeSource Self}}"
-                   IsHitTestVisible="False" />
+                   Margin="13,0,32,0" />
 
         <!-- 필수 미입력 점: Required이면서 체크된 항목이 없는 동안만 셰브런 왼쪽에 표시.
              빈 값 판정은 placeholder 표시 로직(UpdateDisplay)을 그대로 따른다. -->
         <Border x:Name="RequiredDot"
-                Width="6"
-                Height="6"
-                CornerRadius="3"
-                HorizontalAlignment="Right"
-                VerticalAlignment="Center"
-                Margin="0,0,30,0"
-                Background="{StaticResource Brush.ErrorBorder}"
-                IsHitTestVisible="False">
+                Margin="0,0,30,0">
             <Border.Style>
-                <Style TargetType="Border">
-                    <Setter Property="Visibility" Value="Collapsed" />
+                <Style TargetType="Border" BasedOn="{StaticResource Parts.RequiredDotStyle}">
                     <Style.Triggers>
                         <MultiDataTrigger>
                             <MultiDataTrigger.Conditions>
@@ -246,7 +152,7 @@
                             BorderThickness="0,0,0,1"
                             Padding="12,8">
                         <CheckBox x:Name="SelectAllCheck"
-                                  Style="{StaticResource ModernCheckBoxStyle}"
+                                  Style="{StaticResource Parts.CheckBoxStyle}"
                                   Content="Select all"
                                   Click="SelectAllCheck_Click" />
                     </Border>

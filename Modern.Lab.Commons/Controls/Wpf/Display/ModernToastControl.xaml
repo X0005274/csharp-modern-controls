@@ -47,7 +47,7 @@
                     </Style>
                 </Border.Style>
                 <TextBlock x:Name="IconGlyph"
-                           FontFamily="Segoe MDL2 Assets"
+                           FontFamily="{StaticResource Font.Family.Icon}"
                            FontSize="{StaticResource Font.Size.IconSm}"
                            Foreground="{StaticResource Brush.OnAccent}"
                            HorizontalAlignment="Center"

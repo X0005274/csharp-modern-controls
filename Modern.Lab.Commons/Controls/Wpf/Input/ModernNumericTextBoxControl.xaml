@@ -15,49 +15,25 @@
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
                 <common:SharedResourceDictionary Source="/Modern.Lab.Commons;component/Themes/Tokens.xaml" />
+                <common:SharedResourceDictionary Source="/Modern.Lab.Commons;component/Themes/ControlParts.xaml" />
             </ResourceDictionary.MergedDictionaries>
         </ResourceDictionary>
     </UserControl.Resources>
 
     <!-- 숫자 전용 마스크 입력 필드: 숫자만 치면 천단위 콤마가 자동으로 붙고
-         (구분자는 코드가 삽입), 소수/음수는 옵션으로 허용한다. 숫자는 우측 정렬. -->
+         (구분자는 코드가 삽입), 소수/음수는 옵션으로 허용한다. 숫자는 우측 정렬.
+         필드 표면(hover/포커스/비활성 반응)은 공용 Parts.FieldBorderStyle을 쓴다. -->
     <Border x:Name="OuterBorder"
-            Height="{StaticResource Size.ControlHeight}"
-            CornerRadius="{StaticResource Radius.Sm}"
-            BorderThickness="1">
-        <Border.Style>
-            <Style TargetType="Border">
-                <Setter Property="Background" Value="{StaticResource Brush.Surface}" />
-                <Setter Property="BorderBrush" Value="{StaticResource Brush.Border}" />
-                <Style.Triggers>
-                    <DataTrigger Binding="{Binding IsMouseOver, ElementName=RootControl}" Value="True">
-                        <Setter Property="BorderBrush" Value="{StaticResource Brush.BorderHover}" />
-                    </DataTrigger>
-                    <!-- 포커스가 hover보다 우선: 나중에 선언되어 우선순위를 가진다 -->
-                    <DataTrigger Binding="{Binding IsKeyboardFocusWithin, ElementName=RootControl}" Value="True">
-                        <Setter Property="BorderBrush" Value="{StaticResource Brush.FocusBorder}" />
-                    </DataTrigger>
-                    <DataTrigger Binding="{Binding IsEnabled, ElementName=RootControl}" Value="False">
-                        <Setter Property="Background" Value="{StaticResource Brush.DisabledBackground}" />
-                        <Setter Property="BorderBrush" Value="{StaticResource Brush.BorderSubtle}" />
-                    </DataTrigger>
-                </Style.Triggers>
-            </Style>
-        </Border.Style>
+            Style="{StaticResource Parts.FieldBorderStyle}">
 
         <Grid>
             <!-- 입력 전 안내 플레이스홀더: 에디터가 비어 있는 동안 회색으로 표시 -->
             <TextBlock x:Name="PlaceholderLabel"
                        Text="{Binding Placeholder, ElementName=RootControl}"
                        Margin="{StaticResource Pad.Field}"
-                       HorizontalAlignment="Right"
-                       VerticalAlignment="Center"
-                       FontSize="{StaticResource Font.Size.Body}"
-                       Foreground="{StaticResource Brush.TextPlaceholder}"
-                       LayoutTransform="{Binding Path=(common:FontWidthScaling.TextWidthTransform), RelativeSource={RelativeSource Self}}"
-                       IsHitTestVisible="False">
+                       HorizontalAlignment="Right">
                 <TextBlock.Style>
-                    <Style TargetType="TextBlock">
+                    <Style TargetType="TextBlock" BasedOn="{StaticResource Parts.PlaceholderTextStyle}">
                         <Setter Property="Visibility" Value="Collapsed" />
                         <Style.Triggers>
                             <DataTrigger Binding="{Binding Text, ElementName=InnerTextBox}" Value="">
@@ -85,17 +61,10 @@
             <!-- 필수 미입력 점: Required이면서 값이 비어 있는 동안만 왼쪽에 표시.
                  (숫자가 우측 정렬이라 점은 왼쪽 여백에 둔다) -->
             <Border x:Name="RequiredDot"
-                    Width="6"
-                    Height="6"
-                    CornerRadius="3"
                     HorizontalAlignment="Left"
-                    VerticalAlignment="Center"
-                    Margin="10,0,0,0"
-                    Background="{StaticResource Brush.ErrorBorder}"
-                    IsHitTestVisible="False">
+                    Margin="10,0,0,0">
                 <Border.Style>
-                    <Style TargetType="Border">
-                        <Setter Property="Visibility" Value="Collapsed" />
+                    <Style TargetType="Border" BasedOn="{StaticResource Parts.RequiredDotStyle}">
                         <Style.Triggers>
                             <MultiDataTrigger>
                                 <MultiDataTrigger.Conditions>

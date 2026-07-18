@@ -2,11 +2,8 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Collections.Specialized;
-using System.Globalization;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Controls.Primitives;
-using System.Windows.Data;
 using System.Windows.Media;
 using Modern.Lab.Controls.Wpf.Common;
 
@@ -146,21 +143,9 @@ namespace Modern.Lab.Controls.Wpf.Data
         // ApplyColumns로 받은 컬럼 정의 — AutoFitColumns 재계산의 원천.
         private IList<ModernDataGridColumn> columnDefinitions;
 
-        // ===== AutoFitColumns 측정 상수 =====
-        // 컬럼당 실제 픽셀 측정할 후보 문자열 수 — 글자 수 상위 후보만 측정해
-        // 큰 데이터에서도 비용을 일정하게 유지한다.
-        private const int autoFitCandidateCount = 8;
-        // 자동 맞춤 너비의 하한/상한 (지나치게 좁은 컬럼과 폭주 컬럼 방지).
-        private const double autoFitMinWidth = 48d;
-        private const double autoFitMaxWidth = 600d;
-        // 셀 좌우 패딩(Pad.Field 12,0) + 우측 구분선/렌더링 오차 여유.
-        private const double autoFitCellPadding = 28d;
-        // 헤더 전용 추가 여유: 오른쪽 고정 정렬 글리프(여백 6 + 글리프 폭).
-        private const double autoFitSortGlyphReserve = 18d;
-        // 배지 셀 추가 여유: 알약 좌우 패딩(8+8) + 곡률 여유.
-        private const double autoFitBadgeReserve = 18d;
-        // 버튼 셀 추가 여유: 버튼 좌우 패딩(10+10) + 테두리(1+1).
-        private const double autoFitButtonChromeReserve = 22d;
+        // HeaderCheckBox 옵션이 켜진 체크박스 컬럼의 헤더 체크박스 목록 —
+        // 행 값 변화(전체/일부/없음)에 맞춰 상태를 갱신하기 위해 들고 있는다.
+        private readonly List<CheckBox> headerCheckBoxes = new List<CheckBox>();
 
         public ModernDataGridControl()
         {
@@ -331,6 +316,7 @@ namespace Modern.Lab.Controls.Wpf.Data
             this.AutoGenerateColumns = false;
             this.InnerDataGrid.Columns.Clear();
             this.columnDefinitions = null;
+            this.headerCheckBoxes.Clear();
 
             if (columns == null)
             {
@@ -346,14 +332,24 @@ namespace Modern.Lab.Controls.Wpf.Data
 
             foreach (ModernDataGridColumn definition in columns)
             {
-                DataGridColumn column = this.CreateColumn(definition, widthRatio);
+                // 컬럼 생성은 GridColumnFactory가 담당한다 — 리소스 조회 기준(this),
+                // 클릭 핸들러, 헤더 체크박스 등록 콜백만 넘기고 결과를 받는다.
+                DataGridColumn column = GridColumnFactory.CreateColumn(
+                    definition,
+                    widthRatio,
+                    this,
+                    this.OnHeaderCheckBoxClick,
+                    this.OnCellCheckBoxClick,
+                    this.OnCellButtonClick,
+                    this.headerCheckBoxes.Add);
 
                 // 헤더 캡션도 같은 장평으로 — 문자열 대신 스케일된 TextBlock을 쓴다.
-                if (Math.Abs(widthRatio - 1d) >= 0.001)
+                // (헤더가 문자열이 아닌 컬럼 — 헤더 체크박스 — 은 건드리지 않는다.)
+                if (Math.Abs(widthRatio - 1d) >= 0.001 && column.Header is string)
                 {
                     TextBlock headerText = new TextBlock();
                     headerText.Text = definition.HeaderText;
-                    headerText.LayoutTransform = CreateWidthTransform(widthRatio);
+                    headerText.LayoutTransform = GridColumnFactory.CreateWidthTransform(widthRatio);
                     column.Header = headerText;
                 }
 
@@ -369,89 +365,18 @@ namespace Modern.Lab.Controls.Wpf.Data
 
         /// <summary>
         /// 헤더 캡션의 최대 줄 수("\n" 기준)에 맞춰 헤더 높이를 조정한다.
-        /// HeaderText에 "Event\nTime"처럼 명시적 줄바꿈을 넣으면 2줄 이상 헤더가
-        /// 되고, 줄바꿈이 없으면 토큰 기본 높이(Size.GridHeaderHeight) 그대로다.
-        /// (헤더 문자열의 줄바꿈은 WPF TextBlock이 그대로 줄로 렌더링하므로
-        /// 높이만 확보하면 된다. AutoFit 폭 측정도 FormattedText가 최장 줄 폭을
-        /// 돌려주므로 별도 처리가 필요 없다.)
+        /// 계산 자체(줄 수 세기 + 한 줄 높이 실측)는 GridAutoFitMeasurer가 담당한다.
         /// </summary>
         private void ApplyHeaderHeight()
         {
-            int maxLines = 1;
-
-            if (this.columnDefinitions != null)
-            {
-                foreach (ModernDataGridColumn definition in this.columnDefinitions)
-                {
-                    int lines = CountHeaderLines(definition.HeaderText);
-
-                    if (lines > maxLines)
-                    {
-                        maxLines = lines;
-                    }
-                }
-            }
-
-            double baseHeight = (double)this.FindResource("Size.GridHeaderHeight");
-
-            if (maxLines == 1)
-            {
-                this.InnerDataGrid.ColumnHeaderHeight = baseHeight;
-                return;
-            }
-
-            // 추가 줄마다 헤더 캡션 한 줄 높이(Label 크기 실측)만큼 늘린다 —
-            // 폰트 토큰이 바뀌어도 하드코딩 없이 따라온다.
-            double pixelsPerDip = VisualTreeHelper.GetDpi(this).PixelsPerDip;
-            Typeface headerTypeface = new Typeface(
-                this.FontFamily, FontStyles.Normal, FontWeights.SemiBold, FontStretches.Normal);
-            double headerFontSize = (double)this.FindResource("Font.Size.Label");
-
-            FormattedText lineProbe = new FormattedText(
-                "Ag",
-                CultureInfo.CurrentCulture,
-                System.Windows.FlowDirection.LeftToRight,
-                headerTypeface,
-                headerFontSize,
-                Brushes.Black,
-                pixelsPerDip);
-
-            this.InnerDataGrid.ColumnHeaderHeight = baseHeight + ((maxLines - 1) * lineProbe.Height);
-        }
-
-        // 헤더 캡션의 줄 수 ("\n" 개수 + 1; 빈 캡션은 1줄).
-        private static int CountHeaderLines(string headerText)
-        {
-            if (string.IsNullOrEmpty(headerText))
-            {
-                return 1;
-            }
-
-            int lines = 1;
-
-            for (int index = 0; index < headerText.Length; index++)
-            {
-                if (headerText[index] == '\n')
-                {
-                    lines = lines + 1;
-                }
-            }
-
-            return lines;
+            this.InnerDataGrid.ColumnHeaderHeight =
+                GridAutoFitMeasurer.ComputeHeaderHeight(this, this.columnDefinitions);
         }
 
         /// <summary>재정의 값(0 = 전역)을 유효 장평으로 해석한다.</summary>
         private double ResolvedFontWidthRatio()
         {
             return Modern.Lab.Theming.ModernTheme.ResolveFontWidthRatio(this.FontWidthRatio);
-        }
-
-        // 장평 적용용 가로 ScaleTransform (Freeze해 컬럼/행 간 공유 가능).
-        private static ScaleTransform CreateWidthTransform(double widthRatio)
-        {
-            ScaleTransform transform = new ScaleTransform(widthRatio, 1d);
-            transform.Freeze();
-            return transform;
         }
 
         // 장평이 바뀌면 이미 구성된 컬럼을 새 비율로 다시 만들고,
@@ -468,274 +393,64 @@ namespace Modern.Lab.Controls.Wpf.Data
             }
         }
 
-        // 컬럼 정의의 Kind에 따라 텍스트/체크박스/배지/버튼 컬럼을 만든다.
-        private DataGridColumn CreateColumn(ModernDataGridColumn definition, double widthRatio)
+        // 헤더 체크박스 클릭: 현재 그리드에 표시 중인 모든 행의 값을 일괄 설정한다.
+        // 페이지 화면이라면 현재 페이지 조각이 대상이다 — DataTable 소스는 행 값
+        // 변경이 ColumnChanged로 전파되므로 폼의 원본 동기화 로직이 그대로 동작한다.
+        private void OnHeaderCheckBoxClick(object sender, RoutedEventArgs e)
         {
-            switch (definition.Kind)
+            CheckBox header = (CheckBox)sender;
+            string memberPath = header.Tag as string;
+            bool check = header.IsChecked == true;
+
+            foreach (object item in this.InnerDataGrid.Items)
             {
-                case GridColumnKind.CheckBox:
-                    return this.CreateCheckBoxColumn(definition);
-                case GridColumnKind.Badge:
-                    return this.CreateBadgeColumn(definition, widthRatio);
-                case GridColumnKind.Button:
-                    return this.CreateButtonColumn(definition, widthRatio);
-                default:
-                    return CreateTextColumn(definition, widthRatio);
+                MemberPathReader.Write(item, memberPath, check);
             }
+
+            this.RefreshHeaderCheckBoxes();
         }
 
-        private static DataGridTextColumn CreateTextColumn(ModernDataGridColumn definition, double widthRatio)
+        // 셀 체크박스 클릭: 헤더 체크박스 상태(전체/일부/없음)를 다시 계산한다.
+        private void OnCellCheckBoxClick(object sender, RoutedEventArgs e)
         {
-            DataGridTextColumn column = new DataGridTextColumn();
-            column.Header = definition.HeaderText;
+            this.RefreshHeaderCheckBoxes();
+        }
 
-            Binding binding = new Binding(definition.DataPropertyName);
-
-            // 표시 형식: "N0" 같은 단순 형식은 "{0:N0}"으로 해석된다(WPF 규칙).
-            // 원본이 타입 컬럼(int/decimal/DateTime)일 때만 효과가 있다.
-            if (!string.IsNullOrEmpty(definition.Format))
+        // 헤더 체크박스 상태를 행 값으로부터 다시 계산한다 —
+        // 전체 체크 = 체크, 전체 해제/빈 그리드 = 해제, 일부만 체크 = 중간 상태.
+        private void RefreshHeaderCheckBoxes()
+        {
+            foreach (CheckBox header in this.headerCheckBoxes)
             {
-                binding.StringFormat = definition.Format;
-            }
+                string memberPath = header.Tag as string;
+                int total = 0;
+                int checkedCount = 0;
 
-            column.Binding = binding;
-            ApplyColumnWidth(column, definition);
-
-            Style elementStyle = new Style(typeof(TextBlock));
-
-            if (definition.TextAlignment != GridTextAlignment.Left)
-            {
-                TextAlignment alignment = definition.TextAlignment == GridTextAlignment.Center
-                    ? TextAlignment.Center
-                    : TextAlignment.Right;
-
-                elementStyle.Setters.Add(new Setter(TextBlock.TextAlignmentProperty, alignment));
-            }
-
-            // 장평: 셀 TextBlock에 가로 LayoutTransform을 걸어 측정·배치까지
-            // 줄어든/늘어난 폭 기준으로 동작하게 한다.
-            if (Math.Abs(widthRatio - 1d) >= 0.001)
-            {
-                elementStyle.Setters.Add(
-                    new Setter(FrameworkElement.LayoutTransformProperty, CreateWidthTransform(widthRatio)));
-            }
-
-            // 컬럼 강조색: 지정된 경우 컬럼 전체 텍스트에 적용한다 (해석 불가하면 기본색).
-            if (!string.IsNullOrEmpty(definition.TextColor))
-            {
-                Brush textBrush = TryCreateBrush(definition.TextColor);
-
-                if (textBrush != null)
+                foreach (object item in this.InnerDataGrid.Items)
                 {
-                    elementStyle.Setters.Add(new Setter(TextBlock.ForegroundProperty, textBrush));
+                    total = total + 1;
+
+                    object value = MemberPathReader.Read(item, memberPath);
+
+                    if (value is bool && (bool)value)
+                    {
+                        checkedCount = checkedCount + 1;
+                    }
+                }
+
+                if (total == 0 || checkedCount == 0)
+                {
+                    header.IsChecked = false;
+                }
+                else if (checkedCount == total)
+                {
+                    header.IsChecked = true;
+                }
+                else
+                {
+                    header.IsChecked = null;
                 }
             }
-
-            // 컬럼 굵기 강조: 파생 지표를 색+굵기로 강조할 때 쓴다.
-            if (definition.TextSemiBold)
-            {
-                elementStyle.Setters.Add(new Setter(TextBlock.FontWeightProperty, FontWeights.SemiBold));
-            }
-
-            if (elementStyle.Setters.Count > 0)
-            {
-                column.ElementStyle = elementStyle;
-            }
-
-            return column;
-        }
-
-        // "#0078D4" 같은 색 문자열을 Freeze된 브러시로 해석한다. 실패 시 null —
-        // 잘못된 색 값이 그리드 전체를 깨뜨리지 않게 조용히 기본색으로 폴백한다.
-        private static Brush TryCreateBrush(string colorText)
-        {
-            try
-            {
-                Color color = (Color)ColorConverter.ConvertFromString(colorText);
-                SolidColorBrush brush = new SolidColorBrush(color);
-                brush.Freeze();
-                return brush;
-            }
-            catch (Exception)
-            {
-                return null;
-            }
-        }
-
-        // 체크박스 컬럼: bool 컬럼에 양방향 바인딩. 그리드가 읽기 전용이어도
-        // CellTemplate 안의 체크박스는 살아 있으므로 한 번의 클릭으로 토글되고,
-        // UpdateSourceTrigger=PropertyChanged로 원본 행 값이 즉시 갱신된다.
-        private DataGridColumn CreateCheckBoxColumn(ModernDataGridColumn definition)
-        {
-            DataGridTemplateColumn column = new DataGridTemplateColumn();
-            column.Header = definition.HeaderText;
-            column.CanUserSort = false;
-
-            Binding binding = new Binding(definition.DataPropertyName);
-            binding.Mode = BindingMode.TwoWay;
-            binding.UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged;
-
-            FrameworkElementFactory check = new FrameworkElementFactory(typeof(CheckBox));
-            check.SetBinding(CheckBox.IsCheckedProperty, binding);
-            check.SetValue(FrameworkElement.HorizontalAlignmentProperty, HorizontalAlignment.Center);
-            check.SetValue(FrameworkElement.VerticalAlignmentProperty, VerticalAlignment.Center);
-
-            DataTemplate template = new DataTemplate();
-            template.VisualTree = check;
-            column.CellTemplate = template;
-
-            ApplyColumnWidth(column, definition);
-            return column;
-        }
-
-        // 배지 컬럼: 값 텍스트를 BadgeColorMember 색의 알약(Border)으로 감싼다.
-        // 글자색은 배경색에서 자동 유도(ChipColorHelper.DeriveForeground)한다.
-        private DataGridColumn CreateBadgeColumn(ModernDataGridColumn definition, double widthRatio)
-        {
-            DataGridTemplateColumn column = new DataGridTemplateColumn();
-            column.Header = definition.HeaderText;
-            column.SortMemberPath = definition.DataPropertyName;
-
-            FrameworkElementFactory border = new FrameworkElementFactory(typeof(Border));
-            border.SetValue(Border.CornerRadiusProperty, this.FindResource("Radius.Pill"));
-            border.SetValue(Border.PaddingProperty, new Thickness(8d, 1d, 8d, 1d));
-            border.SetValue(FrameworkElement.HorizontalAlignmentProperty, ToHorizontalAlignment(definition.TextAlignment));
-            border.SetValue(FrameworkElement.VerticalAlignmentProperty, VerticalAlignment.Center);
-
-            if (!string.IsNullOrEmpty(definition.BadgeColorMember))
-            {
-                Binding backgroundBinding = new Binding(definition.BadgeColorMember);
-                backgroundBinding.Converter = badgeBackgroundConverter;
-                border.SetBinding(Border.BackgroundProperty, backgroundBinding);
-            }
-
-            Binding textBinding = new Binding(definition.DataPropertyName);
-
-            if (!string.IsNullOrEmpty(definition.Format))
-            {
-                textBinding.StringFormat = definition.Format;
-            }
-
-            FrameworkElementFactory text = new FrameworkElementFactory(typeof(TextBlock));
-            text.SetBinding(TextBlock.TextProperty, textBinding);
-            text.SetValue(TextBlock.FontSizeProperty, this.FindResource("Font.Size.Label"));
-            text.SetValue(TextBlock.FontWeightProperty, FontWeights.SemiBold);
-
-            // 장평: 배지 텍스트에도 같은 가로 스케일을 적용한다 (알약은 텍스트 폭을 따라간다).
-            if (Math.Abs(widthRatio - 1d) >= 0.001)
-            {
-                text.SetValue(FrameworkElement.LayoutTransformProperty, CreateWidthTransform(widthRatio));
-            }
-
-            if (!string.IsNullOrEmpty(definition.BadgeColorMember))
-            {
-                Binding foregroundBinding = new Binding(definition.BadgeColorMember);
-                foregroundBinding.Converter = badgeForegroundConverter;
-                text.SetBinding(TextBlock.ForegroundProperty, foregroundBinding);
-            }
-
-            border.AppendChild(text);
-
-            DataTemplate template = new DataTemplate();
-            template.VisualTree = border;
-            column.CellTemplate = template;
-
-            ApplyColumnWidth(column, definition);
-            return column;
-        }
-
-        // 버튼 컬럼: 행 단위 액션 버튼. 클릭은 CellButtonClick 이벤트로 전달되고,
-        // ButtonEnabledMember 컬럼 값(bool/Y/N)이 행별 활성화를 제어한다.
-        private DataGridColumn CreateButtonColumn(ModernDataGridColumn definition, double widthRatio)
-        {
-            DataGridTemplateColumn column = new DataGridTemplateColumn();
-            column.Header = definition.HeaderText;
-            column.CanUserSort = false;
-
-            FrameworkElementFactory button = new FrameworkElementFactory(typeof(Button));
-
-            // 캡션은 TextBlock으로 감싸 장평(가로 스케일)을 적용한다 —
-            // 버튼 테두리는 스케일하지 않고 글자만 조절된다.
-            FrameworkElementFactory caption = new FrameworkElementFactory(typeof(TextBlock));
-            caption.SetValue(TextBlock.TextProperty, definition.ButtonText);
-
-            if (Math.Abs(widthRatio - 1d) >= 0.001)
-            {
-                caption.SetValue(FrameworkElement.LayoutTransformProperty, CreateWidthTransform(widthRatio));
-            }
-
-            button.AppendChild(caption);
-            button.SetValue(FrameworkElement.TagProperty, definition.DataPropertyName);
-            button.SetValue(FrameworkElement.HorizontalAlignmentProperty, ToHorizontalAlignment(definition.TextAlignment));
-            button.SetValue(FrameworkElement.VerticalAlignmentProperty, VerticalAlignment.Center);
-            button.SetValue(FrameworkElement.StyleProperty, this.BuildCellButtonStyle());
-
-            if (!string.IsNullOrEmpty(definition.ButtonEnabledMember))
-            {
-                Binding enabledBinding = new Binding(definition.ButtonEnabledMember);
-                enabledBinding.Converter = truthyConverter;
-                button.SetBinding(UIElement.IsEnabledProperty, enabledBinding);
-            }
-
-            button.AddHandler(ButtonBase.ClickEvent, new RoutedEventHandler(this.OnCellButtonClick));
-
-            DataTemplate template = new DataTemplate();
-            template.VisualTree = button;
-            column.CellTemplate = template;
-
-            ApplyColumnWidth(column, definition);
-            return column;
-        }
-
-        // 셀 안 버튼의 아웃라인 스타일: 액센트 텍스트/테두리의 작은 버튼.
-        // 비활성 행은 회색 텍스트/테두리로 눌 수 없음을 드러낸다.
-        private Style BuildCellButtonStyle()
-        {
-            Style style = new Style(typeof(Button));
-            style.Setters.Add(new Setter(Control.ForegroundProperty, this.FindResource("Brush.Accent")));
-            style.Setters.Add(new Setter(Control.BackgroundProperty, Brushes.Transparent));
-            style.Setters.Add(new Setter(Control.BorderBrushProperty, this.FindResource("Brush.Accent")));
-            style.Setters.Add(new Setter(Control.FontSizeProperty, this.FindResource("Font.Size.Label")));
-            style.Setters.Add(new Setter(Control.PaddingProperty, new Thickness(10d, 1d, 10d, 1d)));
-            style.Setters.Add(new Setter(FrameworkElement.CursorProperty, System.Windows.Input.Cursors.Hand));
-
-            ControlTemplate template = new ControlTemplate(typeof(Button));
-            FrameworkElementFactory border = new FrameworkElementFactory(typeof(Border));
-            border.SetValue(Border.CornerRadiusProperty, this.FindResource("Radius.Sm"));
-            border.SetValue(Border.BorderThicknessProperty, new Thickness(1d));
-            border.SetBinding(Border.BackgroundProperty, TemplateBinding(Control.BackgroundProperty));
-            border.SetBinding(Border.BorderBrushProperty, TemplateBinding(Control.BorderBrushProperty));
-            border.SetBinding(Border.PaddingProperty, TemplateBinding(Control.PaddingProperty));
-
-            FrameworkElementFactory presenter = new FrameworkElementFactory(typeof(ContentPresenter));
-            presenter.SetValue(FrameworkElement.HorizontalAlignmentProperty, HorizontalAlignment.Center);
-            presenter.SetValue(FrameworkElement.VerticalAlignmentProperty, VerticalAlignment.Center);
-            border.AppendChild(presenter);
-            template.VisualTree = border;
-            style.Setters.Add(new Setter(Control.TemplateProperty, template));
-
-            Trigger hover = new Trigger();
-            hover.Property = UIElement.IsMouseOverProperty;
-            hover.Value = true;
-            hover.Setters.Add(new Setter(Control.BackgroundProperty, this.FindResource("Brush.HoverBackground")));
-            style.Triggers.Add(hover);
-
-            Trigger disabled = new Trigger();
-            disabled.Property = UIElement.IsEnabledProperty;
-            disabled.Value = false;
-            disabled.Setters.Add(new Setter(Control.ForegroundProperty, this.FindResource("Brush.DisabledText")));
-            disabled.Setters.Add(new Setter(Control.BorderBrushProperty, this.FindResource("Brush.BorderSubtle")));
-            style.Triggers.Add(disabled);
-
-            return style;
-        }
-
-        // 코드 생성 템플릿에서 TemplateBinding과 같은 효과를 내는 바인딩 헬퍼.
-        private static Binding TemplateBinding(DependencyProperty property)
-        {
-            Binding binding = new Binding(property.Name);
-            binding.RelativeSource = RelativeSource.TemplatedParent;
-            return binding;
         }
 
         private void OnCellButtonClick(object sender, RoutedEventArgs e)
@@ -746,114 +461,6 @@ namespace Modern.Lab.Controls.Wpf.Data
             if (this.CellButtonClick != null)
             {
                 this.CellButtonClick(this, new GridButtonClickEventArgs(element.DataContext, element.Tag as string));
-            }
-        }
-
-        private static void ApplyColumnWidth(DataGridColumn column, ModernDataGridColumn definition)
-        {
-            if (definition.Width > 0d)
-            {
-                column.Width = new DataGridLength(definition.Width);
-            }
-            else
-            {
-                column.Width = new DataGridLength(1d, DataGridLengthUnitType.Star);
-            }
-        }
-
-        private static HorizontalAlignment ToHorizontalAlignment(GridTextAlignment alignment)
-        {
-            if (alignment == GridTextAlignment.Center)
-            {
-                return HorizontalAlignment.Center;
-            }
-
-            if (alignment == GridTextAlignment.Right)
-            {
-                return HorizontalAlignment.Right;
-            }
-
-            return HorizontalAlignment.Left;
-        }
-
-        // ===== 배지/버튼 셀이 쓰는 값 변환기 =====
-
-        private static readonly IValueConverter badgeBackgroundConverter = new BadgeBackgroundConverter();
-        private static readonly IValueConverter badgeForegroundConverter = new BadgeForegroundConverter();
-        private static readonly IValueConverter truthyConverter = new TruthyToBooleanConverter();
-
-        // 색 문자열("#FEE2E2") → 배경 브러시. 해석 불가면 투명(일반 텍스트처럼 보임).
-        private sealed class BadgeBackgroundConverter : IValueConverter
-        {
-            public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
-            {
-                Color color;
-
-                if (ChipColorHelper.TryParseColor(value == null ? null : value.ToString(), out color))
-                {
-                    SolidColorBrush brush = new SolidColorBrush(color);
-                    brush.Freeze();
-                    return brush;
-                }
-
-                return Brushes.Transparent;
-            }
-
-            public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
-            {
-                throw new NotSupportedException();
-            }
-        }
-
-        // 색 문자열 → 배경에서 유도한 글자색 브러시. 해석 불가면 기본 글자색 상속.
-        private sealed class BadgeForegroundConverter : IValueConverter
-        {
-            public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
-            {
-                Color color;
-
-                if (ChipColorHelper.TryParseColor(value == null ? null : value.ToString(), out color))
-                {
-                    SolidColorBrush brush = new SolidColorBrush(ChipColorHelper.DeriveForeground(color));
-                    brush.Freeze();
-                    return brush;
-                }
-
-                return DependencyProperty.UnsetValue;
-            }
-
-            public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
-            {
-                throw new NotSupportedException();
-            }
-        }
-
-        // bool 또는 "Y"/"YES"/"TRUE"/"1" 계열 문자열을 참으로 해석한다.
-        private sealed class TruthyToBooleanConverter : IValueConverter
-        {
-            public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
-            {
-                if (value is bool)
-                {
-                    return (bool)value;
-                }
-
-                if (value == null || value == DBNull.Value)
-                {
-                    return false;
-                }
-
-                string text = value.ToString().Trim();
-
-                return text.Equals("Y", StringComparison.OrdinalIgnoreCase)
-                    || text.Equals("YES", StringComparison.OrdinalIgnoreCase)
-                    || text.Equals("TRUE", StringComparison.OrdinalIgnoreCase)
-                    || text == "1";
-            }
-
-            public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
-            {
-                throw new NotSupportedException();
             }
         }
 
@@ -874,9 +481,9 @@ namespace Modern.Lab.Controls.Wpf.Data
 
         // ===== 컬럼 자동 맞춤 (헤더 + 데이터 최대 폭) =====
 
-        // 각 컬럼 너비를 max(헤더 캡션 폭 + 글리프 여유, 데이터 최대 폭)으로
-        // 재계산해 고정 픽셀 너비로 넣는다. WPF DataGridLength.Auto는 가상화로
-        // 실체화된 행만 보고 계산해 스크롤 중 너비가 계속 변하므로 쓰지 않는다.
+        // 각 컬럼 너비를 헤더/데이터 실측 폭으로 재계산해 고정 픽셀 너비로 넣는다.
+        // 측정 엔진은 GridAutoFitMeasurer가 담당하고, 여기서는 적용 조건
+        // (AutoFitColumns 켜짐 + 명시적 컬럼 정의 존재)만 판정한다.
         private void AutoFitColumnWidths()
         {
             if (!this.AutoFitColumns || this.columnDefinitions == null)
@@ -884,171 +491,22 @@ namespace Modern.Lab.Controls.Wpf.Data
                 return;
             }
 
-            double pixelsPerDip = VisualTreeHelper.GetDpi(this).PixelsPerDip;
-            Typeface headerTypeface = new Typeface(this.FontFamily, FontStyles.Normal, FontWeights.SemiBold, FontStretches.Normal);
-            Typeface bodyTypeface = new Typeface(this.FontFamily, FontStyles.Normal, FontWeights.Normal, FontStretches.Normal);
-            double headerFontSize = (double)this.FindResource("Font.Size.Label");
-            double bodyFontSize = (double)this.FindResource("Font.Size.Body");
-
             // 장평이 적용된 텍스트는 실제 폭이 비율만큼 달라지므로 측정에도 곱한다.
-            double widthRatio = this.ResolvedFontWidthRatio();
-
-            int count = Math.Min(this.columnDefinitions.Count, this.InnerDataGrid.Columns.Count);
-
-            for (int index = 0; index < count; index++)
-            {
-                ModernDataGridColumn definition = this.columnDefinitions[index];
-
-                // 체크박스 컬럼은 내용 측정 대상이 아니다 — 정의 폭(없으면 최소 폭)을 유지한다.
-                if (definition.Kind == GridColumnKind.CheckBox)
-                {
-                    this.InnerDataGrid.Columns[index].Width =
-                        new DataGridLength(definition.Width > 0d ? definition.Width : autoFitMinWidth);
-                    continue;
-                }
-
-                double width = (MeasureText(definition.HeaderText, headerTypeface, headerFontSize, pixelsPerDip) * widthRatio)
-                    + autoFitCellPadding + autoFitSortGlyphReserve;
-
-                if (definition.Kind == GridColumnKind.Button)
-                {
-                    // 버튼 컬럼은 캡션 폭 기준 — 데이터 내용은 측정하지 않는다.
-                    double captionWidth = (MeasureText(definition.ButtonText, bodyTypeface, bodyFontSize, pixelsPerDip) * widthRatio)
-                        + autoFitCellPadding + autoFitButtonChromeReserve;
-
-                    if (captionWidth > width)
-                    {
-                        width = captionWidth;
-                    }
-                }
-                else
-                {
-                    // 배지 셀은 알약 좌우 패딩만큼 여유를 더한다.
-                    double reserve = definition.Kind == GridColumnKind.Badge ? autoFitBadgeReserve : 0d;
-
-                    // SemiBold 강조 컬럼은 실제 굵기 기준으로 잰다 (Regular보다 약간 넓음).
-                    Typeface cellTypeface = definition.TextSemiBold ? headerTypeface : bodyTypeface;
-
-                    foreach (string candidate in CollectLongestCellTexts(this.ItemsSource, definition))
-                    {
-                        double cellWidth = (MeasureText(candidate, cellTypeface, bodyFontSize, pixelsPerDip) * widthRatio)
-                            + autoFitCellPadding + reserve;
-
-                        if (cellWidth > width)
-                        {
-                            width = cellWidth;
-                        }
-                    }
-                }
-
-                if (width < autoFitMinWidth)
-                {
-                    width = autoFitMinWidth;
-                }
-
-                if (width > autoFitMaxWidth)
-                {
-                    width = autoFitMaxWidth;
-                }
-
-                this.InnerDataGrid.Columns[index].Width = new DataGridLength(Math.Ceiling(width));
-            }
-        }
-
-        // 한 컬럼의 셀 텍스트 중 "글자 수 상위" 후보만 모은다. 픽셀 폭은 글자 수와
-        // 단조 일치하지 않지만(글자별 폭 차이), 상위 여러 개를 함께 측정하면
-        // 실용적으로 안전하다 — 전체 행을 모두 픽셀 측정하는 비용을 피한다.
-        private static List<string> CollectLongestCellTexts(IEnumerable source, ModernDataGridColumn definition)
-        {
-            List<string> candidates = new List<string>();
-
-            if (source == null)
-            {
-                return candidates;
-            }
-
-            foreach (object row in source)
-            {
-                string text = FormatCellText(MemberPathReader.Read(row, definition.DataPropertyName), definition.Format);
-
-                if (text.Length == 0 || candidates.Contains(text))
-                {
-                    continue;
-                }
-
-                if (candidates.Count < autoFitCandidateCount)
-                {
-                    candidates.Add(text);
-                    continue;
-                }
-
-                // 가장 짧은 후보를 찾아 더 긴 텍스트로 교체한다.
-                int shortestIndex = 0;
-
-                for (int index = 1; index < candidates.Count; index++)
-                {
-                    if (candidates[index].Length < candidates[shortestIndex].Length)
-                    {
-                        shortestIndex = index;
-                    }
-                }
-
-                if (text.Length > candidates[shortestIndex].Length)
-                {
-                    candidates[shortestIndex] = text;
-                }
-            }
-
-            return candidates;
-        }
-
-        // 셀에 표시될 문자열을 만든다 — 컬럼 Format이 있으면 바인딩 StringFormat과
-        // 같은 규칙("{0:형식}")으로 적용하고, 실패하면 기본 문자열 표현을 쓴다.
-        private static string FormatCellText(object value, string format)
-        {
-            if (value == null || value == DBNull.Value)
-            {
-                return string.Empty;
-            }
-
-            if (!string.IsNullOrEmpty(format))
-            {
-                try
-                {
-                    return string.Format(CultureInfo.CurrentCulture, "{0:" + format + "}", value);
-                }
-                catch (FormatException)
-                {
-                    // 형식 오류는 기본 표현으로 폴백한다 (바인딩 표시와 동일한 완화).
-                }
-            }
-
-            return value.ToString();
-        }
-
-        private static double MeasureText(string text, Typeface typeface, double fontSize, double pixelsPerDip)
-        {
-            if (string.IsNullOrEmpty(text))
-            {
-                return 0d;
-            }
-
-            FormattedText formatted = new FormattedText(
-                text,
-                CultureInfo.CurrentCulture,
-                System.Windows.FlowDirection.LeftToRight,
-                typeface,
-                fontSize,
-                Brushes.Black,
-                pixelsPerDip);
-
-            return formatted.WidthIncludingTrailingWhitespace;
+            GridAutoFitMeasurer.ApplyAutoFitWidths(
+                this.InnerDataGrid,
+                this.columnDefinitions,
+                this.ItemsSource,
+                this,
+                this.ResolvedFontWidthRatio());
         }
 
         private void OnItemsCollectionChanged(object sender, NotifyCollectionChangedEventArgs e)
         {
             this.RefreshStatusBar();
             this.RefreshEmptyLabel();
+
+            // 소스 교체/행 변경에 맞춰 헤더 체크박스(전체 선택) 상태를 되비춘다.
+            this.RefreshHeaderCheckBoxes();
         }
 
         // 빈 상태 안내: 데이터 0건 + EmptyText 비어있지 않을 때만 표시한다.

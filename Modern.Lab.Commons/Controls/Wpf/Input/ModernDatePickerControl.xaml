@@ -15,36 +15,17 @@
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
                 <common:SharedResourceDictionary Source="/Modern.Lab.Commons;component/Themes/Tokens.xaml" />
+                <common:SharedResourceDictionary Source="/Modern.Lab.Commons;component/Themes/ControlParts.xaml" />
             </ResourceDictionary.MergedDictionaries>
         </ResourceDictionary>
     </UserControl.Resources>
 
     <!-- 마스크 입력 방식 날짜 필드: 숫자만 치면 yyyy-MM-dd로 자동 형식화되고
          (구분자는 코드가 삽입), 달력 버튼으로 팝업 선택도 가능하다.
-         WPF 기본 DatePicker는 직접 입력 파싱이 까다로워 사용하지 않는다. -->
+         WPF 기본 DatePicker는 직접 입력 파싱이 까다로워 사용하지 않는다.
+         필드 표면(hover/포커스/비활성 반응)은 공용 Parts.FieldBorderStyle을 쓴다. -->
     <Border x:Name="OuterBorder"
-            Height="{StaticResource Size.ControlHeight}"
-            CornerRadius="{StaticResource Radius.Sm}"
-            BorderThickness="1">
-        <Border.Style>
-            <Style TargetType="Border">
-                <Setter Property="Background" Value="{StaticResource Brush.Surface}" />
-                <Setter Property="BorderBrush" Value="{StaticResource Brush.Border}" />
-                <Style.Triggers>
-                    <DataTrigger Binding="{Binding IsMouseOver, ElementName=RootControl}" Value="True">
-                        <Setter Property="BorderBrush" Value="{StaticResource Brush.BorderHover}" />
-                    </DataTrigger>
-                    <!-- 포커스가 hover보다 우선: 나중에 선언되어 우선순위를 가진다 -->
-                    <DataTrigger Binding="{Binding IsKeyboardFocusWithin, ElementName=RootControl}" Value="True">
-                        <Setter Property="BorderBrush" Value="{StaticResource Brush.FocusBorder}" />
-                    </DataTrigger>
-                    <DataTrigger Binding="{Binding IsEnabled, ElementName=RootControl}" Value="False">
-                        <Setter Property="Background" Value="{StaticResource Brush.DisabledBackground}" />
-                        <Setter Property="BorderBrush" Value="{StaticResource Brush.BorderSubtle}" />
-                    </DataTrigger>
-                </Style.Triggers>
-            </Style>
-        </Border.Style>
+            Style="{StaticResource Parts.FieldBorderStyle}">
 
         <Grid>
             <Grid.ColumnDefinitions>
@@ -56,14 +37,9 @@
             <TextBlock x:Name="PlaceholderLabel"
                        Grid.Column="0"
                        Text="{Binding Placeholder, ElementName=RootControl}"
-                       Margin="{StaticResource Pad.Field}"
-                       VerticalAlignment="Center"
-                       FontSize="{StaticResource Font.Size.Body}"
-                       Foreground="{StaticResource Brush.TextPlaceholder}"
-                       LayoutTransform="{Binding Path=(common:FontWidthScaling.TextWidthTransform), RelativeSource={RelativeSource Self}}"
-                       IsHitTestVisible="False">
+                       Margin="{StaticResource Pad.Field}">
                 <TextBlock.Style>
-                    <Style TargetType="TextBlock">
+                    <Style TargetType="TextBlock" BasedOn="{StaticResource Parts.PlaceholderTextStyle}">
                         <Setter Property="Visibility" Value="Collapsed" />
                         <Style.Triggers>
                             <DataTrigger Binding="{Binding Text, ElementName=InnerTextBox}" Value="">
@@ -92,17 +68,9 @@
             <!-- 필수 미입력 점: Required이면서 값이 비어 있는 동안만 오른쪽에 표시 -->
             <Border x:Name="RequiredDot"
                     Grid.Column="0"
-                    Width="6"
-                    Height="6"
-                    CornerRadius="3"
-                    HorizontalAlignment="Right"
-                    VerticalAlignment="Center"
-                    Margin="0,0,6,0"
-                    Background="{StaticResource Brush.ErrorBorder}"
-                    IsHitTestVisible="False">
+                    Margin="0,0,6,0">
                 <Border.Style>
-                    <Style TargetType="Border">
-                        <Setter Property="Visibility" Value="Collapsed" />
+                    <Style TargetType="Border" BasedOn="{StaticResource Parts.RequiredDotStyle}">
                         <Style.Triggers>
                             <MultiDataTrigger>
                                 <MultiDataTrigger.Conditions>
@@ -124,7 +92,7 @@
                         <Border Background="Transparent" Padding="6,0,10,0">
                             <TextBlock x:Name="CalendarGlyph"
                                        Text="&#xE787;"
-                                       FontFamily="Segoe MDL2 Assets"
+                                       FontFamily="{StaticResource Font.Family.Icon}"
                                        FontSize="{StaticResource Font.Size.Icon}"
                                        VerticalAlignment="Center"
                                        Foreground="{StaticResource Brush.TextSecondary}" />

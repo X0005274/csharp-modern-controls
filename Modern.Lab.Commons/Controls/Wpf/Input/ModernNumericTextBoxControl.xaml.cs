@@ -75,6 +75,9 @@ namespace Modern.Lab.Controls.Wpf.Input
         // 마지막으로 ValueChanged를 통지한 값 — 같은 값이면 이벤트를 삼킨다.
         private decimal? lastRaisedValue;
 
+        // 유효 문자 판정 델리게이트 — 매 호출마다 새로 만들지 않도록 캐시한다.
+        private static readonly Func<char, bool> significantPredicate = IsSignificant;
+
         public ModernNumericTextBoxControl()
         {
             this.InitializeComponent();
@@ -178,7 +181,7 @@ namespace Modern.Lab.Controls.Wpf.Input
             string rawText = this.InnerTextBox.Text;
             int caret = this.InnerTextBox.CaretIndex;
 
-            int significantBeforeCaret = CountSignificant(rawText, caret);
+            int significantBeforeCaret = DigitMaskHelper.CountSignificant(rawText, caret, significantPredicate);
 
             bool negative;
             string integerDigits;
@@ -190,7 +193,7 @@ namespace Modern.Lab.Controls.Wpf.Input
 
             this.updatingText = true;
             this.InnerTextBox.Text = formatted;
-            this.InnerTextBox.CaretIndex = CaretIndexAfterSignificant(formatted, significantBeforeCaret);
+            this.InnerTextBox.CaretIndex = DigitMaskHelper.CaretIndexAfterSignificant(formatted, significantBeforeCaret, significantPredicate);
             this.updatingText = false;
 
             this.ApplyToValue(negative, integerDigits, decimalDigits);
@@ -304,7 +307,7 @@ namespace Modern.Lab.Controls.Wpf.Input
                 builder.Append('-');
             }
 
-            builder.Append(GroupDigits(integerDigits));
+            builder.Append(DigitMaskHelper.GroupDigits(integerDigits));
 
             if (hasDot)
             {
@@ -315,81 +318,10 @@ namespace Modern.Lab.Controls.Wpf.Input
             return builder.ToString();
         }
 
-        // 정수부 숫자에 뒤에서부터 3자리마다 콤마를 넣는다.
-        private static string GroupDigits(string digits)
-        {
-            if (digits.Length <= 3)
-            {
-                return digits;
-            }
-
-            StringBuilder builder = new StringBuilder();
-            int leading = digits.Length % 3;
-
-            if (leading > 0)
-            {
-                builder.Append(digits, 0, leading);
-            }
-
-            for (int i = leading; i < digits.Length; i += 3)
-            {
-                if (builder.Length > 0)
-                {
-                    builder.Append(',');
-                }
-
-                builder.Append(digits, i, 3);
-            }
-
-            return builder.ToString();
-        }
-
         // 유효 문자 = 숫자, '.', '-' (콤마는 표시용이라 제외)
         private static bool IsSignificant(char ch)
         {
             return char.IsDigit(ch) || ch == '.' || ch == '-';
-        }
-
-        private static int CountSignificant(string text, int endExclusive)
-        {
-            int count = 0;
-            int limit = Math.Min(endExclusive, text.Length);
-
-            for (int i = 0; i < limit; i++)
-            {
-                if (IsSignificant(text[i]))
-                {
-                    count++;
-                }
-            }
-
-            return count;
-        }
-
-        // 형식화된 텍스트에서 n번째 유효 문자 바로 뒤의 캐럿 위치를 구한다.
-        private static int CaretIndexAfterSignificant(string formatted, int significantCount)
-        {
-            if (significantCount <= 0)
-            {
-                return 0;
-            }
-
-            int seen = 0;
-
-            for (int i = 0; i < formatted.Length; i++)
-            {
-                if (IsSignificant(formatted[i]))
-                {
-                    seen++;
-
-                    if (seen == significantCount)
-                    {
-                        return i + 1;
-                    }
-                }
-            }
-
-            return formatted.Length;
         }
     }
 }

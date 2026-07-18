@@ -23,7 +23,10 @@ namespace Modern.Lab.WinForms.Controls.Layout
         private static Color SeparatorColor { get { return Modern.Lab.Theming.ModernTheme.BorderSubtle; } }
         private const int HeaderHeight = 32;
 
+        private static Color RightTextColor { get { return Modern.Lab.Theming.ModernTheme.TextSecondary; } }
+
         private string titleText;
+        private string titleRightText;
         private FontStyle titleFontStyle;
         private float titleFontSize;
         private bool titleAccent;
@@ -33,6 +36,7 @@ namespace Modern.Lab.WinForms.Controls.Layout
         public ModernGroupBox()
         {
             this.titleText = "그룹";
+            this.titleRightText = string.Empty;
             this.titleFontStyle = FontStyle.Regular;
             this.titleFontSize = 9f;
             this.Padding = new Padding(12, HeaderHeight + 8, 12, 12);
@@ -109,6 +113,28 @@ namespace Modern.Lab.WinForms.Controls.Layout
             }
         }
 
+        /// <summary>
+        /// 헤더 오른쪽 끝에 표시할 보조 텍스트 (기본 빈 문자열 = 표시 없음).
+        /// 조회 기준 일시("Days as of ...")처럼 타이틀을 보조하는 메타 정보를
+        /// 보조 텍스트 색(TextSecondary)으로 작게 표기하는 용도다.
+        /// </summary>
+        [Category("모던 컨트롤")]
+        [Description("헤더 오른쪽 끝에 표시할 보조 텍스트 (빈 문자열 = 표시 없음)")]
+        [Localizable(true)]
+        [DefaultValue("")]
+        public string TitleRightText
+        {
+            get
+            {
+                return this.titleRightText;
+            }
+            set
+            {
+                this.titleRightText = value ?? string.Empty;
+                this.Invalidate();
+            }
+        }
+
         /// <summary>헤더에 표시되는 타이틀(GroupBox.Text와 동일한 의미).</summary>
         [Category("모던 컨트롤")]
         [Description("헤더에 표시할 타이틀")]
@@ -161,6 +187,39 @@ namespace Modern.Lab.WinForms.Controls.Layout
                     e.Graphics.ScaleTransform((float)widthRatio, 1f);
                     e.Graphics.DrawString(this.titleText, titleFont, titleBrush, 12f / (float)widthRatio, textY);
                     e.Graphics.Restore(state);
+                }
+            }
+
+            // 헤더 오른쪽 보조 텍스트: 조회 기준 일시 등 메타 정보를 보조 텍스트
+            // 색으로 작게, 오른쪽 여백 12px에 맞춰 그린다 (타이틀과 같은 세로 중앙).
+            if (this.titleRightText.Length > 0)
+            {
+                using (Font rightFont = new Font("Segoe UI", 8.5f))
+                using (SolidBrush rightBrush = new SolidBrush(RightTextColor))
+                {
+                    SizeF rightSize = e.Graphics.MeasureString(this.titleRightText, rightFont);
+                    float rightY = (HeaderHeight - rightSize.Height) / 2f + 1f;
+
+                    double widthRatio = Modern.Lab.Theming.ModernTheme.ResolveFontWidthRatio(this.fontWidthRatio);
+
+                    if (System.Math.Abs(widthRatio - 1d) < 0.001)
+                    {
+                        e.Graphics.DrawString(
+                                this.titleRightText, rightFont, rightBrush,
+                                this.Width - 12f - rightSize.Width, rightY);
+                    }
+                    else
+                    {
+                        // 장평 적용 시 실제 그려지는 폭은 측정 폭 × 비율이므로,
+                        // 오른쪽 끝 위치를 변환 전 좌표계로 환산해 정렬을 유지한다.
+                        float scaledWidth = rightSize.Width * (float)widthRatio;
+                        System.Drawing.Drawing2D.GraphicsState state = e.Graphics.Save();
+                        e.Graphics.ScaleTransform((float)widthRatio, 1f);
+                        e.Graphics.DrawString(
+                                this.titleRightText, rightFont, rightBrush,
+                                (this.Width - 12f - scaledWidth) / (float)widthRatio, rightY);
+                        e.Graphics.Restore(state);
+                    }
                 }
             }
 

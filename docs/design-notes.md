@@ -146,7 +146,8 @@ protected override void OnPaint(PaintEventArgs e)
 **진짜 원인 — 바인딩 반영과 레이아웃의 순서**:
 
 모던 컨트롤은 값에 따른 시각 변화를 XAML의 **ElementName 바인딩 + DataTrigger**로
-처리한다. 예) `ModernLabelControl`의 `Kind`:
+처리한다. 예) `ModernLabelControl`의 `Kind` (당시 예시 — 라벨/배지는 이후 7장의
+GDI+ 전환으로 WPF 버전이 제거됐지만, 이 교훈은 호스팅되는 모든 컨트롤에 유효하다):
 
 ```xml
 <DataTrigger Binding="{Binding Kind, ElementName=RootControl}" Value="Title">

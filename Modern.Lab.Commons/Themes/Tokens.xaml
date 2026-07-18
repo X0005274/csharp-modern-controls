@@ -102,13 +102,20 @@
     <!-- 모달/로딩 배경용 오버레이 스크림(어둡고 반투명). -->
     <SolidColorBrush x:Key="Brush.Scrim" Color="#66101828" />
 
-    <!-- ColorAnimation 대상용 원시 색상 (애니메이션은 Brush가 아닌 Color가 필요) -->
+    <!-- ColorAnimation/그라디언트 대상용 원시 색상 (Brush가 아닌 Color가 필요한 자리) -->
     <Color x:Key="Color.Accent">#FF0078D4</Color>
+    <!-- AccentSoft: 액센트의 밝은 변형 — 스피너 그라디언트 끝색 등. 테마가
+         Color.Accent를 재정의하면 이 값도 같은 톤으로 함께 재정의한다. -->
+    <Color x:Key="Color.AccentSoft">#FF5EB0EE</Color>
     <Color x:Key="Color.TrackOff">#FFD1D5DB</Color>
 
     <!-- 5. 타이포그래피. 폰트: Segoe UI(Fluent 시스템 서체), 한글은 Malgun Gothic
          폴백. 위계는 크기 + 굵기로만 표현한다. -->
     <FontFamily x:Key="Font.Family">Segoe UI, Malgun Gothic</FontFamily>
+
+    <!-- 아이콘 글리프 폰트 — 셰브런/체크/캘린더 등 폰트 아이콘 전용.
+         컨트롤은 "Segoe MDL2 Assets"를 하드코딩하지 않고 이 토큰을 참조한다. -->
+    <FontFamily x:Key="Font.Family.Icon">Segoe MDL2 Assets</FontFamily>
 
     <!-- 타입 스케일 (장치 독립 단위; 12 DIU = 9pt, 16 DIU = 12pt).
          컨트롤은 FontSize를 하드코딩하지 않고 이 값을 참조한다. 본문/레이블은 밀도 높은
@@ -168,6 +175,13 @@
                       Opacity="0.12"
                       BlurRadius="14"
                       ShadowDepth="3"
+                      Direction="270" />
+    <!-- 로딩 오버레이 카드처럼 화면 위에 떠 있는 요소용 — 팝업보다 뚜렷한 깊이. -->
+    <DropShadowEffect x:Key="Shadow.Overlay"
+                      Color="#FF1E293B"
+                      Opacity="0.28"
+                      BlurRadius="22"
+                      ShadowDepth="4"
                       Direction="270" />
 
 </ResourceDictionary>

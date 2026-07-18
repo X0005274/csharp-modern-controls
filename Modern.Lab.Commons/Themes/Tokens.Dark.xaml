@@ -63,6 +63,7 @@
     <SolidColorBrush x:Key="Brush.Scrim" Color="#99000000" />
 
     <Color x:Key="Color.Accent">#FF4CC2FF</Color>
+    <Color x:Key="Color.AccentSoft">#FF9ADCFF</Color>
     <Color x:Key="Color.TrackOff">#FF5C5C5C</Color>
 
     <!-- Text.* 스타일도 재정의해야 한다 — 이 스타일은 Tokens.xaml 안에서 라이트 브러시를

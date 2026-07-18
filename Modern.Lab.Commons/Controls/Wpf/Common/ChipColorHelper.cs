@@ -35,6 +35,25 @@ namespace Modern.Lab.Controls.Wpf.Common
         }
 
         /// <summary>
+        /// 색 문자열("#0078D4", "Red" 등)을 Freeze된 SolidColorBrush로 해석한다.
+        /// 빈 값/해석 불가면 null을 반환하며 예외를 던지지 않는다 — 잘못된 색
+        /// 값이 화면 전체를 깨뜨리지 않게 호출 측이 기본색으로 폴백하게 한다.
+        /// </summary>
+        internal static Brush TryCreateBrush(string text)
+        {
+            Color color;
+
+            if (TryParseColor(text, out color))
+            {
+                SolidColorBrush brush = new SolidColorBrush(color);
+                brush.Freeze();
+                return brush;
+            }
+
+            return null;
+        }
+
+        /// <summary>
         /// 배경색에서 글자색을 유도한다: 색상(Hue)은 유지하고 명도만 반대쪽으로.
         /// - 밝은 배경 → 같은 색상의 진한 톤 (채도 보강 + 명도 0.30)
         /// - 어두운 배경 → 같은 색상의 아주 밝은 톤 (명도 0.95)

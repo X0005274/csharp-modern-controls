@@ -330,7 +330,9 @@ namespace Modern.Lab.Controls.Wpf.Selection
         // Item(원본 행)을 경유한다 — "Item.<컬럼명>".
         private DataTemplate BuildMultiColumnItemTemplate()
         {
-            string styleKey = this.ItemStyle == CheckItemStyle.Switch ? "ModernSwitchStyle" : "ModernCheckBoxStyle";
+            // 체크 스타일은 공용 파츠 사전(ControlParts.xaml)으로 이동했다 —
+            // Resources 인덱서는 병합 사전까지 탐색하므로 그대로 찾아진다.
+            string styleKey = this.ItemStyle == CheckItemStyle.Switch ? "ModernSwitchStyle" : "Parts.CheckBoxStyle";
 
             FrameworkElementFactory check = new FrameworkElementFactory(typeof(CheckBox));
             check.SetValue(FrameworkElement.StyleProperty, this.Resources[styleKey]);

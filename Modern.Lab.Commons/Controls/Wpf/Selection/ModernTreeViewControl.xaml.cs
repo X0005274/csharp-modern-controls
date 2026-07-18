@@ -351,7 +351,10 @@ namespace Modern.Lab.Controls.Wpf.Selection
 
                     if (!string.IsNullOrEmpty(this.ForeColorMemberPath))
                     {
-                        node.Foreground = CreateForegroundBrush(MemberPathReader.Read(row, this.ForeColorMemberPath));
+                        // 색 파싱은 ChipColorHelper 단일 관문 — 빈 값/해석 불가는 null로
+                        // 테마 기본색을 상속한다(예외 없음).
+                        node.Foreground = ChipColorHelper.TryCreateBrush(
+                            ToKeyString(MemberPathReader.Read(row, this.ForeColorMemberPath)));
                     }
 
                     if (!string.IsNullOrEmpty(this.IconMemberPath))
@@ -561,33 +564,6 @@ namespace Modern.Lab.Controls.Wpf.Selection
 
             node.BadgeBackground = (Brush)this.FindResource("Brush.HoverBackground");
             node.BadgeForeground = (Brush)this.FindResource("Brush.TextSecondary");
-        }
-
-        // 색 문자열("#DC2626", "Red" 등)을 고정(Frozen) Brush로 해석한다.
-        // 빈 값/해석 불가는 null — 테마 기본색을 상속한다(예외 없음).
-        private static Brush CreateForegroundBrush(object colorValue)
-        {
-            string colorText = ToKeyString(colorValue);
-
-            if (colorText.Length == 0)
-            {
-                return null;
-            }
-
-            try
-            {
-                Brush brush = (Brush)new BrushConverter().ConvertFromString(colorText);
-                brush.Freeze();
-                return brush;
-            }
-            catch (FormatException)
-            {
-                return null;
-            }
-            catch (NotSupportedException)
-            {
-                return null;
-            }
         }
 
         // 키 비교는 문자열 기준으로 한다 — DataTable의 박싱 타입 차이

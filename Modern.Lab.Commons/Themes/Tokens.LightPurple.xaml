@@ -30,6 +30,7 @@
     <SolidColorBrush x:Key="Brush.HoverBackground" Color="#FFF2ECFA" />
 
     <Color x:Key="Color.Accent">#FF5C2E91</Color>
+    <Color x:Key="Color.AccentSoft">#FF9A76C4</Color>
 
     <!-- 텍스트/시맨틱 — Win11 순정 값으로 고정. 라이트 기본 팔레트가 이전의
          연한 톤으로 되돌아가면서, 상속에 기대면 이 테마까지 함께 바뀌므로

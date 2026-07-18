@@ -78,6 +78,10 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </Page>
+    <Page Include="Themes\ControlParts.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
     <!-- Input -->
     <Page Include="Controls\Wpf\Input\ModernButtonControl.xaml">
       <Generator>MSBuild:Compile</Generator>
@@ -129,10 +133,6 @@
       <SubType>Designer</SubType>
     </Page>
     <!-- Display -->
-    <Page Include="Controls\Wpf\Display\ModernLabelControl.xaml">
-      <Generator>MSBuild:Compile</Generator>
-      <SubType>Designer</SubType>
-    </Page>
     <Page Include="Controls\Wpf\Display\ModernKpiCardControl.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
@@ -146,10 +146,6 @@
       <SubType>Designer</SubType>
     </Page>
     <Page Include="Controls\Wpf\Display\ModernBusyOverlayControl.xaml">
-      <Generator>MSBuild:Compile</Generator>
-      <SubType>Designer</SubType>
-    </Page>
-    <Page Include="Controls\Wpf\Display\ModernStatusBadgeControl.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </Page>
@@ -220,9 +216,6 @@
     </Compile>
     <!-- Display code-behind -->
     <Compile Include="Controls\Wpf\Display\LabelKind.cs" />
-    <Compile Include="Controls\Wpf\Display\ModernLabelControl.xaml.cs">
-      <DependentUpon>ModernLabelControl.xaml</DependentUpon>
-    </Compile>
     <Compile Include="Controls\Wpf\Display\ModernKpiCardControl.xaml.cs">
       <DependentUpon>ModernKpiCardControl.xaml</DependentUpon>
     </Compile>
@@ -238,9 +231,6 @@
     <Compile Include="Controls\Wpf\Display\ModernBusyOverlayControl.xaml.cs">
       <DependentUpon>ModernBusyOverlayControl.xaml</DependentUpon>
     </Compile>
-    <Compile Include="Controls\Wpf\Display\ModernStatusBadgeControl.xaml.cs">
-      <DependentUpon>ModernStatusBadgeControl.xaml</DependentUpon>
-    </Compile>
     <Compile Include="Controls\Wpf\Display\ToastKind.cs" />
     <Compile Include="Controls\Wpf\Display\ModernToastControl.xaml.cs">
       <DependentUpon>ModernToastControl.xaml</DependentUpon>
@@ -248,6 +238,10 @@
     <!-- Data code-behind -->
     <Compile Include="Controls\Wpf\Data\GridTextAlignment.cs" />
     <Compile Include="Controls\Wpf\Data\GridColumnKind.cs" />
+    <Compile Include="Controls\Wpf\Data\GridColumnFactory.cs" />
+    <Compile Include="Controls\Wpf\Data\GridAutoFitMeasurer.cs" />
+    <Compile Include="Controls\Wpf\Data\GridCellConverters.cs" />
+    <Compile Include="Controls\Wpf\Input\DigitMaskHelper.cs" />
     <Compile Include="Controls\Wpf\Data\GridButtonClickEventArgs.cs" />
     <Compile Include="Controls\Wpf\Data\GridCaptionCatalog.cs" />
     <Compile Include="Controls\Wpf\Data\ModernDataGridColumn.cs" />

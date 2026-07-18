@@ -845,6 +845,7 @@ this.grpStats.Text = "조회 통계";              // 헤더 타이틀 (SemiBold
 this.grpStats.Controls.Add(this.listDept);    // 자식은 일반 Panel처럼
 // 기본 Padding(12, 40, 12, 12)이 헤더 아래 공간을 확보
 this.grpDetail.TitleFontSize = 10f;           // 탭 헤더(10pt)와 위계를 맞출 때 (기본 9pt)
+this.grpItems.TitleRightText = "Days as of 2026-07-17 09:30:00";  // 헤더 오른쪽 보조 텍스트 (기준 일시 등)
 ```
 
 헤더가 필요 없으면 `ModernCardPanel`, 헤더가 필요하면 `ModernGroupBox`.
@@ -957,9 +958,9 @@ new ModernDataGridColumn("EVENT_TM", "Event\nTime")   // 2줄 헤더
 
 | Kind | 설명 | 함께 쓰는 속성 |
 |---|---|---|
-| `CheckBox` | bool 컬럼 양방향 체크박스 — 벌크 작업 대상 지정용. 읽기 전용 그리드에서도 클릭 한 번으로 토글되고 원본 행 값이 즉시 갱신된다 | — |
+| `CheckBox` | bool 컬럼 양방향 체크박스 — 벌크 작업 대상 지정용. 읽기 전용 그리드에서도 클릭 한 번으로 토글되고 원본 행 값이 즉시 갱신된다. 비주얼은 ModernCheckBox와 동일한 모던 체크(둥근 사각 + 액센트 채움 + 흰 체크 글리프) | `HeaderCheckBox` — true면 헤더에 **전체 선택/해제 체크박스** 표시 (기본 false). 클릭 시 현재 표시 중인 모든 행 일괄 설정, 상태는 전체(체크)/일부(대시)/없음(해제)을 되비춘다 |
 | `Badge` | 값을 색 알약(배지)으로 표시. 글자색은 배경색에서 자동 유도 | `BadgeColorMember` — 배경색(`"#FEE2E2"` 등) 컬럼 이름. 색이 비면 일반 텍스트 |
-| `Button` | 행 단위 액션 버튼(액센트 아웃라인). 클릭 시 그리드의 `CellButtonClick` 발생 | `ButtonText` — 캡션. `ButtonEnabledMember` — 행별 활성 여부 컬럼(bool 또는 `"Y"`/`"true"`/`"1"`; 비우면 항상 활성) |
+| `Button` | 행 단위 액션 버튼 — ModernButton Secondary와 같은 문법(평상시 흰 배경 + 회색 테두리 + 진한 글자, hover 시 옅은 파랑 틴트 + 액센트 테두리/글자, pressed 시 한 단계 진한 틴트). 클릭 시 그리드의 `CellButtonClick` 발생 | `ButtonText` — 캡션. `ButtonEnabledMember` — 행별 활성 여부 컬럼(bool 또는 `"Y"`/`"true"`/`"1"`; 비우면 항상 활성) |
 
 주의: 페이지 슬라이스처럼 **복사본 DataTable**을 바인딩하는 화면은 체크 변경을
 원본에 되돌리는 동기화가 필요하다 (`ColumnChanged` 구독 — Samples의
@@ -972,8 +973,8 @@ new ModernDataGridColumn("EMP_NO", "사번", 90),
 new ModernDataGridColumn("SALARY", "급여", 100) { TextAlignment = GridTextAlignment.Right, Format = "N0" },
 new ModernDataGridColumn("ELAPSED_DAYS", "Days", 70)
     { Kind = GridColumnKind.Badge, BadgeColorMember = "DAYS_COLOR", TextAlignment = GridTextAlignment.Center },
-new ModernDataGridColumn("LOGIS_YN", "Logistics", 100)
-    { Kind = GridColumnKind.Button, ButtonText = "Process", ButtonEnabledMember = "LOGIS_CAN" },
+new ModernDataGridColumn("REQ_ACTION", "Request", 100)
+    { Kind = GridColumnKind.Button, ButtonText = "Create", ButtonEnabledMember = "REQ_CAN" },
 new ModernDataGridColumn("NOTE", "비고")   // 마지막은 폭 생략으로 채움
 ```
 

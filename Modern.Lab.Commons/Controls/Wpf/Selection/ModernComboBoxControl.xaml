@@ -15,6 +15,7 @@
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
                 <common:SharedResourceDictionary Source="/Modern.Lab.Commons;component/Themes/Tokens.xaml" />
+                <common:SharedResourceDictionary Source="/Modern.Lab.Commons;component/Themes/ControlParts.xaml" />
             </ResourceDictionary.MergedDictionaries>
 
             <!-- 드롭다운 항목: hover/선택 상태는 토큰에서 가져온다 -->
@@ -44,35 +45,6 @@
                     </Setter.Value>
                 </Setter>
             </Style>
-
-            <!-- 필드 표면 + 셰브런. IsChecked가 드롭다운을 제어한다. -->
-            <ControlTemplate x:Key="ModernComboBoxToggleTemplate" TargetType="ToggleButton">
-                <Border x:Name="FieldBorder"
-                        CornerRadius="{StaticResource Radius.Sm}"
-                        Background="{StaticResource Brush.Surface}"
-                        BorderBrush="{StaticResource Brush.Border}"
-                        BorderThickness="1">
-                    <TextBlock Text="&#xE70D;"
-                               FontFamily="Segoe MDL2 Assets"
-                               FontSize="{StaticResource Font.Size.IconSm}"
-                               HorizontalAlignment="Right"
-                               VerticalAlignment="Center"
-                               Margin="0,0,12,0"
-                               Foreground="{StaticResource Brush.TextSecondary}" />
-                </Border>
-                <ControlTemplate.Triggers>
-                    <Trigger Property="IsMouseOver" Value="True">
-                        <Setter TargetName="FieldBorder" Property="BorderBrush" Value="{StaticResource Brush.BorderHover}" />
-                    </Trigger>
-                    <Trigger Property="IsChecked" Value="True">
-                        <Setter TargetName="FieldBorder" Property="BorderBrush" Value="{StaticResource Brush.FocusBorder}" />
-                    </Trigger>
-                    <Trigger Property="IsEnabled" Value="False">
-                        <Setter TargetName="FieldBorder" Property="Background" Value="{StaticResource Brush.DisabledBackground}" />
-                        <Setter TargetName="FieldBorder" Property="BorderBrush" Value="{StaticResource Brush.BorderSubtle}" />
-                    </Trigger>
-                </ControlTemplate.Triggers>
-            </ControlTemplate>
         </ResourceDictionary>
     </UserControl.Resources>
 
@@ -96,10 +68,11 @@
             <ComboBox.Template>
                 <ControlTemplate TargetType="ComboBox">
                     <Grid>
+                        <!-- 필드 표면 + 셰브런은 공용 파츠(Parts.FieldToggleTemplate)를 쓴다 -->
                         <ToggleButton x:Name="DropToggle"
                                       Focusable="False"
                                       ClickMode="Press"
-                                      Template="{StaticResource ModernComboBoxToggleTemplate}"
+                                      Template="{StaticResource Parts.FieldToggleTemplate}"
                                       IsChecked="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}" />
                         <!-- 선택 항목 표시 (히트 테스트 대상 아님; 클릭은 토글이 처리) -->
                         <ContentPresenter x:Name="ContentSite"
@@ -182,28 +155,16 @@
              표시 여부는 코드에서 관리한다(선택, 입력 텍스트, IME 조합이
              모두 영향을 준다). -->
         <TextBlock x:Name="PlaceholderOverlay"
+                   Style="{StaticResource Parts.PlaceholderTextStyle}"
                    Text="{Binding Placeholder, ElementName=RootControl}"
-                   Margin="13,0,32,0"
-                   VerticalAlignment="Center"
-                   FontSize="{StaticResource Font.Size.Body}"
-                   Foreground="{StaticResource Brush.TextPlaceholder}"
-                   LayoutTransform="{Binding Path=(common:FontWidthScaling.TextWidthTransform), RelativeSource={RelativeSource Self}}"
-                   IsHitTestVisible="False" />
+                   Margin="13,0,32,0" />
 
         <!-- 필수 미입력 점: Required이면서 값이 비어 있는 동안만 셰브런 왼쪽에 표시.
              빈 값 판정은 placeholder 표시 로직(선택·입력·IME 반영)을 그대로 따른다. -->
         <Border x:Name="RequiredDot"
-                Width="6"
-                Height="6"
-                CornerRadius="3"
-                HorizontalAlignment="Right"
-                VerticalAlignment="Center"
-                Margin="0,0,30,0"
-                Background="{StaticResource Brush.ErrorBorder}"
-                IsHitTestVisible="False">
+                Margin="0,0,30,0">
             <Border.Style>
-                <Style TargetType="Border">
-                    <Setter Property="Visibility" Value="Collapsed" />
+                <Style TargetType="Border" BasedOn="{StaticResource Parts.RequiredDotStyle}">
                     <Style.Triggers>
                         <MultiDataTrigger>
                             <MultiDataTrigger.Conditions>

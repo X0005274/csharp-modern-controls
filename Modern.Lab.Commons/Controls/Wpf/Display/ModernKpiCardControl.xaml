@@ -15,29 +15,14 @@
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
                 <common:SharedResourceDictionary Source="/Modern.Lab.Commons;component/Themes/Tokens.xaml" />
+                <common:SharedResourceDictionary Source="/Modern.Lab.Commons;component/Themes/ControlParts.xaml" />
             </ResourceDictionary.MergedDictionaries>
         </ResourceDictionary>
     </UserControl.Resources>
 
-    <!-- 카드 표면: 토큰 규칙(컨트롤 4 / 카드 8)에 따른 큰 반경.
+    <!-- 카드 표면: 공용 파츠(Parts.CardSurfaceStyle) — 큰 반경(카드 8),
          Flat=True이면 공용 카드 패널 위에서 쓰도록 크롬을 제거한다. -->
-    <Border>
-        <Border.Style>
-            <Style TargetType="Border">
-                <Setter Property="CornerRadius" Value="{StaticResource Radius.Lg}" />
-                <Setter Property="Background" Value="{StaticResource Brush.Surface}" />
-                <Setter Property="BorderBrush" Value="{StaticResource Brush.BorderSubtle}" />
-                <Setter Property="BorderThickness" Value="1" />
-                <Setter Property="Padding" Value="16,10" />
-                <Style.Triggers>
-                    <DataTrigger Binding="{Binding Flat, ElementName=RootControl}" Value="True">
-                        <Setter Property="Background" Value="Transparent" />
-                        <Setter Property="BorderThickness" Value="0" />
-                        <Setter Property="Padding" Value="0" />
-                    </DataTrigger>
-                </Style.Triggers>
-            </Style>
-        </Border.Style>
+    <Border Style="{StaticResource Parts.CardSurfaceStyle}">
         <StackPanel VerticalAlignment="Center">
             <TextBlock Text="{Binding Title, ElementName=RootControl}"
                        Style="{StaticResource Text.Label}"

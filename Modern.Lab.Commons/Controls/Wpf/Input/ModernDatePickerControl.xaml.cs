@@ -1,6 +1,5 @@
 using System;
 using System.Globalization;
-using System.Text;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -21,6 +20,9 @@ namespace Modern.Lab.Controls.Wpf.Input
     public partial class ModernDatePickerControl : UserControl
     {
         private const string DateFormat = "yyyy-MM-dd";
+
+        // 진행형 마스크의 그룹 자릿수: yyyy-MM-dd → 4-2-2.
+        private static readonly int[] maskGroupLengths = new int[] { 4, 2, 2 };
 
         /// <summary>선택된 날짜. null은 미선택(전체 조회)을 의미한다.</summary>
         public static readonly DependencyProperty SelectedDateProperty =
@@ -180,13 +182,13 @@ namespace Modern.Lab.Controls.Wpf.Input
             string rawText = this.InnerTextBox.Text;
             int caret = this.InnerTextBox.CaretIndex;
 
-            int digitsBeforeCaret = CountDigits(rawText, caret);
-            string digits = ExtractDigits(rawText, 8);
+            int digitsBeforeCaret = DigitMaskHelper.CountDigits(rawText, caret);
+            string digits = DigitMaskHelper.ExtractDigits(rawText, 8);
             string formatted = FormatDigits(digits);
 
             this.updatingText = true;
             this.InnerTextBox.Text = formatted;
-            this.InnerTextBox.CaretIndex = CaretIndexAfterDigits(formatted, digitsBeforeCaret);
+            this.InnerTextBox.CaretIndex = DigitMaskHelper.CaretIndexAfterDigits(formatted, digitsBeforeCaret);
             this.updatingText = false;
 
             this.ApplyDigitsToSelectedDate(digits);
@@ -241,83 +243,11 @@ namespace Modern.Lab.Controls.Wpf.Input
             }
         }
 
-        private static int CountDigits(string text, int endExclusive)
-        {
-            int count = 0;
-            int limit = Math.Min(endExclusive, text.Length);
-
-            for (int i = 0; i < limit; i++)
-            {
-                if (char.IsDigit(text[i]))
-                {
-                    count++;
-                }
-            }
-
-            return count;
-        }
-
-        private static string ExtractDigits(string text, int maxCount)
-        {
-            StringBuilder builder = new StringBuilder(maxCount);
-
-            foreach (char ch in text)
-            {
-                if (char.IsDigit(ch))
-                {
-                    builder.Append(ch);
-
-                    if (builder.Length >= maxCount)
-                    {
-                        break;
-                    }
-                }
-            }
-
-            return builder.ToString();
-        }
-
         // 숫자 나열을 진행형 마스크로 형식화한다:
         // "2015" → "2015", "201507" → "2015-07", "20150713" → "2015-07-13"
         private static string FormatDigits(string digits)
         {
-            if (digits.Length <= 4)
-            {
-                return digits;
-            }
-
-            if (digits.Length <= 6)
-            {
-                return digits.Substring(0, 4) + "-" + digits.Substring(4);
-            }
-
-            return digits.Substring(0, 4) + "-" + digits.Substring(4, 2) + "-" + digits.Substring(6);
-        }
-
-        // 형식화된 텍스트에서 n번째 숫자 바로 뒤의 캐럿 위치를 구한다.
-        private static int CaretIndexAfterDigits(string formatted, int digitCount)
-        {
-            if (digitCount <= 0)
-            {
-                return 0;
-            }
-
-            int seen = 0;
-
-            for (int i = 0; i < formatted.Length; i++)
-            {
-                if (char.IsDigit(formatted[i]))
-                {
-                    seen++;
-
-                    if (seen == digitCount)
-                    {
-                        return i + 1;
-                    }
-                }
-            }
-
-            return formatted.Length;
+            return DigitMaskHelper.FormatGroups(digits, '-', maskGroupLengths);
         }
     }
 }
