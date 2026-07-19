@@ -66,6 +66,16 @@ namespace Modern.Lab.Controls.Wpf.Input
                 typeof(ModernDropDownButtonControl),
                 new PropertyMetadata(ButtonKind.Secondary));
 
+        /// <summary>메뉴 팝업이 현재 열려 있는지 여부.</summary>
+        public static readonly DependencyProperty IsDropDownOpenProperty =
+            DependencyProperty.Register(
+                "IsDropDownOpen",
+                typeof(bool),
+                typeof(ModernDropDownButtonControl),
+                new FrameworkPropertyMetadata(
+                    false,
+                    FrameworkPropertyMetadataOptions.BindsTwoWayByDefault));
+
         private readonly ObservableCollection<DropDownButtonItem> menuItems;
 
         /// <summary>메뉴 항목이 클릭될 때 발생한다.</summary>
@@ -118,6 +128,13 @@ namespace Modern.Lab.Controls.Wpf.Input
         {
             get { return (ButtonKind)this.GetValue(KindProperty); }
             set { this.SetValue(KindProperty, value); }
+        }
+
+        /// <summary>메뉴 팝업이 현재 열려 있는지 여부.</summary>
+        public bool IsDropDownOpen
+        {
+            get { return (bool)this.GetValue(IsDropDownOpenProperty); }
+            private set { this.SetValue(IsDropDownOpenProperty, value); }
         }
 
         private static void OnDataShapeChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)

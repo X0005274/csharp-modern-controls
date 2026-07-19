@@ -15,6 +15,7 @@
 | `DisplayMember` / `ValueMember` | 메뉴 표시 텍스트 / 항목 값 컬럼 |
 | `EnabledMember` | 항목 실행 가능 여부 컬럼 (bool 또는 `"Y"`/`"true"`/`"1"`; 비우면 전부 활성). 비활성 항목은 회색 + 클릭 불가 — `ToolStripMenuItem.Enabled` 대체 |
 | `Kind` | 버튼 시각 종류 — `Secondary`(기본) / `Execute`(초록 채움) / `Excel`(초록 아웃라인; 엑셀 내보내기 포인트) — `ModernButton.Kind`와 같은 문법. 캡션 굵기도 `ModernButton`과 동일한 SemiBold |
+| `IsDropDownOpen` | 읽기 전용. 메뉴 팝업이 열려 있으면 true — 자동 갱신/재바인딩 화면은 true 동안 갱신을 보류해 사용 중인 메뉴를 유지 |
 | `ItemClicked` | 항목 클릭 시 발생 — `DropDownItemClickedEventArgs.Value`/`DisplayText` |
 | `Enabled` | 전파됨 |
 

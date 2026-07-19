@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 using Modern.Lab.Controls.Wpf.Data;
 using Modern.Lab.Controls.Wpf.Display;
@@ -90,6 +91,11 @@ namespace Modern.Lab.Samples
         // 모달 다이얼로그(작업준비 등)가 떠 있는 동안 자동 갱신을 멈추는 플래그 —
         // WinForms Timer는 모달 메시지 루프에서도 Tick이 계속 오기 때문이다.
         private bool dialogOpen;
+
+        // 장비/대기 Lot 재조회 진행 여부와 요청 버전 — 회사 인터페이스가
+        // 느려도 UI를 멈추지 않고, 뒤늦은 이전 응답은 화면에 반영하지 않는다.
+        private bool searchInProgress;
+        private int searchVersion;
 
         // 마지막 갱신 시각 — 장비 카드 타이틀 우측 인디케이터("Updated …
         // · next Ns")와 다음 갱신 카운트다운의 기준.
@@ -272,6 +278,11 @@ namespace Modern.Lab.Samples
         // 포트 진입점 공용 디스패처.
         private void ExecutePortAction(string key)
         {
+            if (!this.CanRunActionWhileRefreshing())
+            {
+                return;
+            }
+
             foreach (EquipmentAction action in this.portActions)
             {
                 if (action.Key == key)
@@ -337,6 +348,11 @@ namespace Modern.Lab.Samples
         // 두 진입점 공용 디스패처 — 어디서 눌러도 같은 실행 로직을 탄다.
         private void ExecuteEquipmentAction(string key)
         {
+            if (!this.CanRunActionWhileRefreshing())
+            {
+                return;
+            }
+
             foreach (EquipmentAction action in this.equipmentActions)
             {
                 if (action.Key == key)
@@ -656,12 +672,32 @@ namespace Modern.Lab.Samples
                 return false;
             }
 
+            if (this.searchInProgress || this.ddbActions.IsDropDownOpen
+                    || this.ddbPortActions.IsDropDownOpen)
+            {
+                return false;
+            }
+
             if (this.menuEqp.Visible || this.menuPort.Visible || this.menuLot.Visible)
             {
                 return false;
             }
 
             return true;
+        }
+
+        // 조회 스냅샷을 백그라운드에서 읽는 동안에는 데모 시뮬레이터/회사
+        // 서버 상태를 바꾸는 액션을 시작하지 않는다. 이 구간을 막아야 읽기와
+        // 처리 요청이 섞여 오래된 화면이나 경쟁 상태가 생기지 않는다.
+        private bool CanRunActionWhileRefreshing()
+        {
+            if (!this.searchInProgress)
+            {
+                return true;
+            }
+
+            this.toastMain.Show("Refresh is in progress. Try again shortly.", ToastKind.Info);
+            return false;
         }
 
         // 컨텍스트 메뉴 항목 클릭 — 공용 디스패처로 넘긴다.
@@ -675,9 +711,9 @@ namespace Modern.Lab.Samples
             }
         }
 
-        // 하단 Actions 드롭다운 항목 클릭 — 같은 디스패처를 탄다. 불가능한
-        // 처리는 실행 로직이 사유를 토스트로 알려준다 (드롭다운은 메뉴처럼
-        // 항목별 비활성을 지원하지 않는다).
+        // 하단 Actions 드롭다운 항목 클릭 — 같은 디스패처를 탄다. 항목별
+        // 활성은 UpdateActionStates의 CAN 컬럼으로 메뉴와 동일하게 제어하고,
+        // 서버 검증 실패 사유는 실행 로직이 토스트로 보완한다.
         private void OnActionMenuClicked(
                 object sender, Modern.Lab.Controls.Wpf.Input.DropDownItemClickedEventArgs e)
         {
@@ -716,7 +752,7 @@ namespace Modern.Lab.Samples
         // 처리(투입/시작/종료/반출) 성공 후에도 이 재조회 하나로 반영한다 —
         // 처리 시각·포트 이동은 서버가 적재하므로 화면은 결과를 보여줄 뿐이다.
         // focusEqpId: 재조회 후 되돌릴 장비 행 (null/""면 첫 행 선택).
-        private void ExecuteSearch(string focusEqpId)
+        private async void ExecuteSearch(string focusEqpId, string focusLotId = null)
         {
             string group = this.GetGroup();
 
@@ -725,42 +761,83 @@ namespace Modern.Lab.Samples
                 return;
             }
 
-            // ★ 회사 환경 교체 지점 — 장비 현황/대기 큐 조회를 회사 장비
-            //   인터페이스 호출로 바꾼다 (원본 컬럼 계약은 시뮬레이터 주석 참고).
-            this.equipmentData = EquipmentLotSimulator.GetEquipments(group);
-            this.lotData = EquipmentLotSimulator.GetWaitingLots(group);
+            this.searchVersion = this.searchVersion + 1;
+            int version = this.searchVersion;
+            this.searchInProgress = true;
 
-            EquipmentTablePresenter.ApplyEquipmentColumns(this.equipmentData);
-            EquipmentTablePresenter.ApplyLotColumns(this.lotData);
-
-            // 장비 바인딩의 첫 행 자동 선택이 SelectionChanged를 태우므로,
-            // 그 시점에 읽는 lotData를 먼저 준비해 두고 바인딩한다.
-            this.gridEqp.DataSource = this.equipmentData;
-            this.gridLots.DataSource = this.lotData;
-            this.gridRun.DataSource = EquipmentTablePresenter.BuildRunningLots(this.equipmentData);
-
-            if (!string.IsNullOrEmpty(focusEqpId))
+            try
             {
-                this.FocusEquipmentRow(focusEqpId);
+                // ★ 회사 환경 교체 지점 — 장비 현황/대기 큐 조회를 회사 장비
+                // 인터페이스 호출로 바꾼다. 두 조회는 서버 부하를 예측 가능하게
+                // 유지하도록 하나의 백그라운드 작업에서 순서대로 실행한다.
+                DataTable[] results = await Task.Run(() => new DataTable[]
+                {
+                    EquipmentLotSimulator.GetEquipments(group),
+                    EquipmentLotSimulator.GetWaitingLots(group)
+                });
+
+                if (this.IsDisposed || version != this.searchVersion)
+                {
+                    return;
+                }
+
+                this.equipmentData = results[0];
+                this.lotData = results[1];
+
+                EquipmentTablePresenter.ApplyEquipmentColumns(this.equipmentData);
+                EquipmentTablePresenter.ApplyLotColumns(this.lotData);
+
+                // 장비 바인딩의 첫 행 자동 선택이 SelectionChanged를 태우므로,
+                // 그 시점에 읽는 lotData를 먼저 준비해 두고 바인딩한다.
+                this.gridEqp.DataSource = this.equipmentData;
+                this.gridLots.DataSource = this.lotData;
+                this.gridRun.DataSource = EquipmentTablePresenter.BuildRunningLots(this.equipmentData);
+
+                if (!string.IsNullOrEmpty(focusEqpId))
+                {
+                    this.FocusEquipmentRow(focusEqpId);
+                }
+
+                this.UpdatePortPanel();
+                this.UpdateAssignability();
+                this.RefreshSummary();
+                this.UpdateRunningStats();
+                this.UpdateRunIndicator();
+
+                if (!string.IsNullOrEmpty(focusLotId))
+                {
+                    this.FocusLotRow(focusLotId);
+                }
+
+                // 갱신 시각 기록 + 자동 갱신 주기를 지금부터 다시 계산한다 —
+                // 수동 Refresh/처리 직후에 곧바로 자동 갱신이 겹치지 않게 한다.
+                this.lastRefreshTime = DateTime.Now;
+
+                if (this.timerRefresh.Enabled)
+                {
+                    this.timerRefresh.Stop();
+                    this.timerRefresh.Start();
+                }
+
+                this.UpdateRefreshIndicator();
             }
-
-            this.UpdatePortPanel();
-            this.UpdateAssignability();
-            this.RefreshSummary();
-            this.UpdateRunningStats();
-            this.UpdateRunIndicator();
-
-            // 갱신 시각 기록 + 자동 갱신 주기를 지금부터 다시 계산한다 —
-            // 수동 Refresh/처리 직후에 곧바로 자동 갱신이 겹치지 않게 한다.
-            this.lastRefreshTime = DateTime.Now;
-
-            if (this.timerRefresh.Enabled)
+            catch (Exception ex)
             {
-                this.timerRefresh.Stop();
-                this.timerRefresh.Start();
-            }
+                if (this.IsDisposed || version != this.searchVersion)
+                {
+                    return;
+                }
 
-            this.UpdateRefreshIndicator();
+                this.toastMain.Show("Server call failed: " + ex.Message, ToastKind.Error);
+            }
+            finally
+            {
+                if (!this.IsDisposed && version == this.searchVersion)
+                {
+                    this.searchInProgress = false;
+                    this.UpdateRefreshIndicator();
+                }
+            }
         }
 
         // 재조회 후 장비 행 포커스를 복원한다 (장비 리스트는 페이지가 없다).
@@ -1304,6 +1381,11 @@ namespace Modern.Lab.Samples
         // 포트 그리드 행 버튼(Cancel) — 메뉴와 같은 로직을 탄다.
         private void OnPortCellButtonClick(object sender, GridButtonClickEventArgs e)
         {
+            if (!this.CanRunActionWhileRefreshing())
+            {
+                return;
+            }
+
             if (e.DataPropertyName == "CANCEL_ACTION")
             {
                 this.CancelPortRow(e.Item as DataRowView);
@@ -1337,10 +1419,8 @@ namespace Modern.Lab.Samples
 
             this.toastMain.Show(
                     "Lot " + lotId + " cancelled — returned to top of the queue.", ToastKind.Success);
-            this.ExecuteSearch(eqpId);
-
             // 복귀한 Lot(큐 맨 위)으로 하이라이트를 옮겨 어디로 갔는지 보여준다.
-            this.FocusLotRow(lotId);
+            this.ExecuteSearch(eqpId, lotId);
         }
 
         // ===== 대기 Lot: 우선순위 ↑↓ 버튼 + 지정 투입 메뉴 =====
@@ -1350,6 +1430,11 @@ namespace Modern.Lab.Samples
         // ★ 회사 환경 교체 지점 — MoveLotPriority를 회사 인터페이스로.
         private void OnLotCellButtonClick(object sender, GridButtonClickEventArgs e)
         {
+            if (!this.CanRunActionWhileRefreshing())
+            {
+                return;
+            }
+
             DataRowView row = e.Item as DataRowView;
 
             if (row == null)
@@ -1382,8 +1467,7 @@ namespace Modern.Lab.Samples
 
             // 순서가 바뀐 것 자체가 피드백이라 토스트는 띄우지 않는다.
             // 하이라이트는 이동한 Lot을 따라가 시선이 끊기지 않게 한다.
-            this.ExecuteSearch(this.GetFocusedEqpId());
-            this.FocusLotRow(lotId);
+            this.ExecuteSearch(this.GetFocusedEqpId(), lotId);
         }
 
         // Lot 행 우클릭 메뉴가 열릴 때 — 지정 투입은 선택 장비가 투입 가능할
@@ -1413,6 +1497,11 @@ namespace Modern.Lab.Samples
         // 메뉴/행 버튼 공용. ★ 회사 환경 교체 지점 — AssignLot을 회사 인터페이스로.
         private void AssignLotRow(DataRowView row)
         {
+            if (!this.CanRunActionWhileRefreshing())
+            {
+                return;
+            }
+
             if (row == null)
             {
                 return;

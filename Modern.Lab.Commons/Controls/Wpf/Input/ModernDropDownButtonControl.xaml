@@ -25,6 +25,7 @@
         <ToggleButton x:Name="DropToggle"
                       Height="{StaticResource Size.ControlHeight}"
                       FontWeight="SemiBold"
+                      IsChecked="{Binding IsDropDownOpen, ElementName=RootControl, Mode=TwoWay}"
                       Focusable="False"
                       Cursor="Hand"
                       ClickMode="Release">
@@ -127,7 +128,7 @@
                Focusable="False"
                StaysOpen="False"
                PopupAnimation="Slide"
-               IsOpen="{Binding IsChecked, ElementName=DropToggle, Mode=TwoWay}">
+               IsOpen="{Binding IsDropDownOpen, ElementName=RootControl, Mode=TwoWay}">
             <Border Background="{StaticResource Brush.Surface}"
                     BorderBrush="{StaticResource Brush.Border}"
                     BorderThickness="1"

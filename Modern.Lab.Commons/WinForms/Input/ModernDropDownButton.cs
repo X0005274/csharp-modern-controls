@@ -57,6 +57,14 @@ namespace Modern.Lab.WinForms.Controls.Input
             }
         }
 
+        /// <summary>메뉴 팝업이 현재 열려 있는지 여부.</summary>
+        [Browsable(false)]
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+        public bool IsDropDownOpen
+        {
+            get { return this.Wpf != null && this.Wpf.IsDropDownOpen; }
+        }
+
         /// <summary>
         /// 항목 실행 가능 여부로 쓸 컬럼/속성 이름 (bool 또는 "Y"/"true"/"1").
         /// 비우면 모든 항목이 활성이다. 비활성 항목은 회색으로 표시되고

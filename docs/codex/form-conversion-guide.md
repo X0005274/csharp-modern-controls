@@ -64,7 +64,7 @@
 | 영역 구분 `Panel`/`GroupBox` (카드 룩) | `ModernCardPanel` | `Modern.Lab.WinForms.Controls.Layout` | 시각적 판단 필요 — 사람 승인 후 적용 |
 | 캡션/값 상세표 `TableLayoutPanel` | `ModernDetailTable` | `Modern.Lab.WinForms.Controls.Layout` | 사람 승인 후 적용 |
 | 상태 표시용 색 `Label` | `ModernStatusBadge` | `Modern.Lab.WinForms.Controls.Display` | |
-| `Button` + `ContextMenuStrip` | `ModernDropDownButton` | `Modern.Lab.WinForms.Controls.Input` | 캡션은 `ModernButton`과 같은 SemiBold가 기본이므로 별도 Font 지정 금지 |
+| `Button` + `ContextMenuStrip` | `ModernDropDownButton` | `Modern.Lab.WinForms.Controls.Input` | 캡션은 `ModernButton`과 같은 SemiBold가 기본이므로 별도 Font 지정 금지. 자동 갱신 화면은 `IsDropDownOpen`이 true인 동안 재바인딩을 보류 |
 | 완료/안내용 `MessageBox.Show` | `ModernToast` | `Modern.Lab.WinForms.Controls.Display` | **확인(예/아니오)을 받는 MessageBox는 그대로 둔다** |
 
 ### 2-2. 신규 개념 컨트롤 — 변환 작업에서는 도입하지 않는다

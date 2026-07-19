@@ -185,6 +185,7 @@ this.btnDelete.Text = "삭제";
 | `DataSource` / `DisplayMember` / `ValueMember` | 메뉴 항목 — 공통 데이터 계약과 동일 |
 | `EnabledMember` | 항목 실행 가능 여부 컬럼/속성 이름 (bool 또는 `"Y"`/`"true"`/`"1"`). 비우면 전부 활성. 비활성 항목은 회색으로 표시되고 클릭되지 않는다 — 컨텍스트 메뉴의 비활성 표시와 같은 의미. 활성 판정이 상태에 따라 변하면 값 갱신 후 `DataSource`를 다시 할당한다 |
 | `Kind` | 버튼 시각 종류 — `ButtonKind.Secondary`(기본, 흰 배경) / `Execute`(Success 초록 채움; 실행 버튼 강조) / `Excel`(초록 아웃라인; 엑셀 내보내기 포인트). 캡션은 `ModernButton`과 같은 SemiBold |
+| `IsDropDownOpen` | 읽기 전용 bool. 메뉴 팝업이 열려 있으면 true — 자동 갱신 화면은 열려 있는 동안 재바인딩을 보류하는 데 사용 |
 | `ItemClicked` | 항목 클릭 시 발생. `e.Value`(코드) / `e.DisplayText`(명칭) 제공 |
 
 ```csharp
