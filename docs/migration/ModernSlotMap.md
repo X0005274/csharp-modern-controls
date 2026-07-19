@@ -15,8 +15,8 @@
 - 채워진 셀 클릭 = `CellClicked` 이벤트만 발생(선택 상태는 폼이 관리). 상세는
   호버 툴팁. 선택 표시는 `SetSelectedKeys`(스테이징 강조)·`SetClickKey`(클릭
   강조)로 폼이 직접 준다 — 둘이 겹친 셀은 유닛/번호 글씨 색이 바뀌어 결합을 나타낸다.
-- 미리보기는 `SetPreview`로 "자리 키 → 유닛 ID" 맵을 받아 그 자리에 "→ ID"로
-  하이라이트한다(서버 배치 계획을 그대로 사용 → 미리보기 = 이동 결과). 계획된
+- 미리보기는 `SetPreview`로 "자리 키 → 유닛 ID" 맵을 받아 그 자리에 "→ ID"와
+  옅은 틴트·점선 외곽선으로 표시한다(서버 배치 계획을 그대로 사용 → 미리보기 = 이동 결과). 계획된
   자리가 부족하면 구획 집계가 빨간 "need n more"가 된다.
 - **드래그앤드롭**: 원본 맵 `EnableDragOut = true`(선택된 셀을 끌면 선택
   전체가 함께 감), 대상 맵 `AcceptDrops = true` → 놓으면 `UnitsDropped`
@@ -35,7 +35,7 @@
 | `SetSelectedKeys(string[])` | 지정 키들만 스테이징 강조(강한 액센트, 이벤트 없음) |
 | `SetClickKey(string)` | 클릭 강조 셀 지정(약한 색, null이면 없음) — 스테이징 셀과 겹치면 유닛/번호 글씨 색이 바뀌어 결합을 나타낸다. 하단 상세 그리드가 있으면 해당 행 선택도 동기화된다 |
 | `ClearSelection()` | 선택 전체 해제 |
-| `SetPreview(Dictionary<string,string>)` | "자리 키(`SLOT\|N` / `STUB\|N` / `LCC\|N\|핑거`) → 들어올 유닛 ID" 미리보기 맵 (null = 해제). 그 자리가 비면 "→ ID"로 표기·하이라이트 — 화면이 서버 배치 계획을 그대로 넘겨 미리보기와 실제 이동 결과가 일치한다 |
+| `SetPreview(Dictionary<string,string>)` | "자리 키(`SLOT\|N` / `STUB\|N` / `LCC\|N\|핑거`) → 들어올 유닛 ID" 미리보기 맵 (null = 해제). 그 자리가 비면 "→ ID"와 옅은 틴트·점선 외곽선으로 표기해 확정 전 계획을 구분한다 — 화면이 서버 배치 계획을 그대로 넘겨 미리보기와 실제 이동 결과가 일치한다 |
 | `CellClicked` | 채움 셀 클릭 시 — `e.Key`(클릭된 셀 키). 선택 상태는 바꾸지 않으니 폼이 `SetSelectedKeys`/`SetClickKey`로 표시를 관리한다 |
 | `SelectionChanged` | 선택 변경 시 (재구성/프로그램 해제) |
 | `UnitsDropped` | 드롭 수신 시 — `e.Keys`(끌려온 셀 키들) + `e.AnchorKey`(놓은 자리 셀 키; 셀 밖이면 빈 문자열 = 앞에서부터) |

@@ -6,6 +6,7 @@ using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Shapes;
 using Modern.Lab.Controls.Wpf.Common;
 
 namespace Modern.Lab.Controls.Wpf.Display
@@ -77,6 +78,7 @@ namespace Modern.Lab.Controls.Wpf.Display
             internal SlotMapCell Cell;
             internal Border Outer;
             internal Border Token;
+            internal Rectangle PreviewOutline;
             internal Border LabelChip;
             internal TextBlock LabelText;
             internal TextBlock UnitText;
@@ -613,7 +615,7 @@ namespace Modern.Lab.Controls.Wpf.Display
                 visual.UnitText = unit;
 
                 content.Children.Add(token);
-                outer.Child = content;
+                outer.Child = this.WrapWithPreviewOutline(visual, content);
                 outer.ToolTip = !string.IsNullOrEmpty(cell.ToolTip)
                         ? cell.ToolTip
                         : (string.IsNullOrEmpty(cell.UnitId) ? null : (object)cell.UnitId);
@@ -696,9 +698,28 @@ namespace Modern.Lab.Controls.Wpf.Display
             }
 
             frame.Child = content2;
-            outer.Child = frame;
+            outer.Child = this.WrapWithPreviewOutline(visual, frame);
             outer.ToolTip = this.BuildSubToolTip(cell);
             return visual;
+        }
+
+        // 미리보기 셀에는 실제 수납 데이터와 다른 "확정 전 계획" 표식을 겹친다.
+        // Rectangle은 입력을 받지 않아 기존 클릭/드래그 동작을 바꾸지 않는다.
+        private Grid WrapWithPreviewOutline(CellVisual visual, UIElement content)
+        {
+            Grid layer = new Grid();
+            layer.Children.Add(content);
+
+            Rectangle outline = new Rectangle();
+            outline.Margin = new Thickness(1d);
+            outline.StrokeThickness = 1.5d;
+            outline.StrokeDashArray = new DoubleCollection { 2d, 2d };
+            outline.IsHitTestVisible = false;
+            outline.Visibility = Visibility.Collapsed;
+            visual.PreviewOutline = outline;
+            layer.Children.Add(outline);
+
+            return layer;
         }
 
         // 핑거 도트(이름 글자) + 삽입 위치 틱을 담은 Grid를 만든다 — 미니 행
@@ -1181,6 +1202,12 @@ namespace Modern.Lab.Controls.Wpf.Display
 
             // 이 셀에 걸린 미리보기 존재 여부(번호 칩 하이라이트 판정용).
             bool previewed = this.CellHasPreview(cell);
+
+            // 계획된 유닛은 옅은 표면 틴트와 점선 외곽선을 함께 쓴다. 색만으로
+            // 구분하지 않아도 실제 수납 데이터와 확정 전 계획을 빠르게 구별한다.
+            visual.Outer.Background = previewed ? info : Brushes.Transparent;
+            visual.PreviewOutline.Stroke = accent;
+            visual.PreviewOutline.Visibility = previewed ? Visibility.Visible : Visibility.Collapsed;
 
             // 결합(staged+clicked)일 때 쓸 유닛 글씨 색 — 스테이징된 셀을
             // 마우스로 클릭하면 셀 바깥 포인트(링) 없이 **글씨 색만** 바꿔

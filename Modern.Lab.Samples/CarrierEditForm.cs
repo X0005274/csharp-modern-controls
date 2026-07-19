@@ -292,6 +292,7 @@ namespace Modern.Lab.Samples
             bool clickedStaged = clickedSource && this.stagedKeys.Contains(this.clickSourceKey);
             bool anyStaged = this.stagedKeys.Count > 0;
             bool hasStagedUnits = this.stagedUnits != null && this.stagedUnits.Rows.Count > 0;
+            int stagedCount = hasStagedUnits ? this.stagedUnits.Rows.Count : 0;
 
             bool selRight = clickedSource && !clickedStaged;
             bool allRight = sourceHasUnits;
@@ -311,6 +312,40 @@ namespace Modern.Lab.Samples
             this.btnSplit.Enabled = hasStagedUnits && hasTarget && targetFilled == 0;
             this.btnMerge.Enabled = hasStagedUnits && hasTarget && targetFilled > 0 && targetFilled < targetCap;
             this.btnScrap.Enabled = anyStaged;
+
+            // 화면의 주 동작은 현재 이동 계획에 따라 하나만 액센트로 강조한다.
+            // 동작 조건과 이벤트는 기존과 같고, 이 메서드는 시각적 위계만 조정한다.
+            this.targetCard.TitleAccent = anyStaged;
+            this.lblTransferHint.Text = stagedCount > 0
+                    ? stagedCount.ToString("N0") + " staged"
+                    : "stage units";
+            this.btnSplit.Kind = this.btnSplit.Enabled
+                    ? Modern.Lab.Controls.Wpf.Input.ButtonKind.Primary
+                    : Modern.Lab.Controls.Wpf.Input.ButtonKind.Secondary;
+            this.btnMerge.Kind = this.btnMerge.Enabled
+                    ? Modern.Lab.Controls.Wpf.Input.ButtonKind.Primary
+                    : Modern.Lab.Controls.Wpf.Input.ButtonKind.Secondary;
+            this.btnSplit.Text = stagedCount > 0
+                    ? "Split " + stagedCount.ToString("N0") + " units"
+                    : "Split";
+            this.btnMerge.Text = stagedCount > 0
+                    ? "Merge " + stagedCount.ToString("N0") + " units"
+                    : "Merge";
+
+            if (stagedCount == 0)
+            {
+                this.lblActionStatus.Text = "Select a source unit, then stage the move with → or ⇒.";
+            }
+            else if (!hasTarget)
+            {
+                this.lblActionStatus.Text = stagedCount.ToString("N0")
+                        + " units staged · Select a target carrier to continue.";
+            }
+            else
+            {
+                this.lblActionStatus.Text = stagedCount.ToString("N0") + " units staged · Target has "
+                        + (targetCap - targetFilled).ToString("N0") + " open positions.";
+            }
         }
 
         // 카드 제목 (왼쪽) — "역할 — 캐리어". 채움 집계는 우측 서브타이틀,

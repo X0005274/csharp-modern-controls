@@ -47,6 +47,8 @@ namespace Modern.Lab.Samples
             this.sourceCard = new Modern.Lab.WinForms.Controls.Layout.ModernGroupBox();
             this.mapSource = new Modern.Lab.WinForms.Controls.Display.ModernSlotMap();
             this.centerPanel = new System.Windows.Forms.Panel();
+            this.lblTransfer = new Modern.Lab.WinForms.Controls.Display.ModernLabel();
+            this.lblTransferHint = new Modern.Lab.WinForms.Controls.Display.ModernLabel();
             this.btnAllRight = new Modern.Lab.WinForms.Controls.Input.ModernButton();
             this.btnSelRight = new Modern.Lab.WinForms.Controls.Input.ModernButton();
             this.btnSelLeft = new Modern.Lab.WinForms.Controls.Input.ModernButton();
@@ -60,6 +62,7 @@ namespace Modern.Lab.Samples
             this.gapBottom = new System.Windows.Forms.Panel();
             this.bottomPanel = new System.Windows.Forms.Panel();
             this.actionCard = new Modern.Lab.WinForms.Controls.Layout.ModernCardPanel();
+            this.lblActionStatus = new Modern.Lab.WinForms.Controls.Display.ModernLabel();
             this.btnSplit = new Modern.Lab.WinForms.Controls.Input.ModernButton();
             this.btnMerge = new Modern.Lab.WinForms.Controls.Input.ModernButton();
             this.btnScrap = new Modern.Lab.WinForms.Controls.Input.ModernButton();
@@ -131,23 +134,23 @@ namespace Modern.Lab.Samples
             this.searchCard.Location = new System.Drawing.Point(12, 48);
             this.searchCard.Name = "searchCard";
             this.searchCard.Padding = new System.Windows.Forms.Padding(12, 8, 12, 8);
-            this.searchCard.Size = new System.Drawing.Size(1516, 56);
+            this.searchCard.Size = new System.Drawing.Size(1516, 72);
             this.searchCard.TabIndex = 2;
             //
             // lblType
             //
             this.lblType.Kind = Modern.Lab.Controls.Wpf.Display.LabelKind.Label;
-            this.lblType.Location = new System.Drawing.Point(12, 12);
+            this.lblType.Location = new System.Drawing.Point(12, 8);
             this.lblType.Name = "lblType";
-            this.lblType.Size = new System.Drawing.Size(40, 32);
+            this.lblType.Size = new System.Drawing.Size(120, 18);
             this.lblType.TabIndex = 0;
-            this.lblType.Text = "Type";
+            this.lblType.Text = "Carrier type";
             this.lblType.Child = null;
             //
             // cboType
             //
             this.cboType.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
-            this.cboType.Location = new System.Drawing.Point(56, 12);
+            this.cboType.Location = new System.Drawing.Point(12, 32);
             this.cboType.Name = "cboType";
             this.cboType.Size = new System.Drawing.Size(120, 32);
             this.cboType.TabIndex = 1;
@@ -157,17 +160,17 @@ namespace Modern.Lab.Samples
             // lblCarrier
             //
             this.lblCarrier.Kind = Modern.Lab.Controls.Wpf.Display.LabelKind.Label;
-            this.lblCarrier.Location = new System.Drawing.Point(196, 12);
+            this.lblCarrier.Location = new System.Drawing.Point(156, 8);
             this.lblCarrier.Name = "lblCarrier";
-            this.lblCarrier.Size = new System.Drawing.Size(56, 32);
+            this.lblCarrier.Size = new System.Drawing.Size(190, 18);
             this.lblCarrier.TabIndex = 2;
-            this.lblCarrier.Text = "Source";
+            this.lblCarrier.Text = "Source carrier";
             this.lblCarrier.Child = null;
             //
             // cboSource
             //
             this.cboSource.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
-            this.cboSource.Location = new System.Drawing.Point(256, 12);
+            this.cboSource.Location = new System.Drawing.Point(156, 32);
             this.cboSource.Name = "cboSource";
             this.cboSource.Size = new System.Drawing.Size(190, 32);
             this.cboSource.TabIndex = 3;
@@ -180,17 +183,17 @@ namespace Modern.Lab.Samples
             // 높이·같은 정보(맵 + 아이템/채움 집계)를 갖게 한다. 담긴
             // 아이템 ID는 각 카드 타이틀 우측에 표기된다.
             this.lblTarget.Kind = Modern.Lab.Controls.Wpf.Display.LabelKind.Label;
-            this.lblTarget.Location = new System.Drawing.Point(474, 12);
+            this.lblTarget.Location = new System.Drawing.Point(366, 8);
             this.lblTarget.Name = "lblTarget";
-            this.lblTarget.Size = new System.Drawing.Size(52, 32);
+            this.lblTarget.Size = new System.Drawing.Size(190, 18);
             this.lblTarget.TabIndex = 4;
-            this.lblTarget.Text = "Target";
+            this.lblTarget.Text = "Target carrier";
             this.lblTarget.Child = null;
             //
             // cboTarget
             //
             this.cboTarget.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
-            this.cboTarget.Location = new System.Drawing.Point(530, 12);
+            this.cboTarget.Location = new System.Drawing.Point(366, 32);
             this.cboTarget.Name = "cboTarget";
             this.cboTarget.Size = new System.Drawing.Size(190, 32);
             this.cboTarget.TabIndex = 5;
@@ -200,18 +203,19 @@ namespace Modern.Lab.Samples
             // btnRefresh
             //
             this.btnRefresh.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
-            this.btnRefresh.Location = new System.Drawing.Point(1424, 12);
+            this.btnRefresh.Location = new System.Drawing.Point(1424, 20);
             this.btnRefresh.Name = "btnRefresh";
             this.btnRefresh.Size = new System.Drawing.Size(80, 32);
             this.btnRefresh.TabIndex = 4;
-            this.btnRefresh.Text = "Refresh";
+            this.btnRefresh.Text = "↻";
+            this.btnRefresh.TopLabel = "Refresh";
             this.btnRefresh.Click += new System.EventHandler(this.OnRefreshClick);
             this.btnRefresh.Child = null;
             //
             // gapSearch
             //
             this.gapSearch.Dock = System.Windows.Forms.DockStyle.Top;
-            this.gapSearch.Location = new System.Drawing.Point(12, 104);
+            this.gapSearch.Location = new System.Drawing.Point(12, 120);
             this.gapSearch.Name = "gapSearch";
             this.gapSearch.Size = new System.Drawing.Size(1516, 8);
             this.gapSearch.TabIndex = 3;
@@ -220,18 +224,18 @@ namespace Modern.Lab.Samples
             //
             this.midPanel.Controls.Add(this.tableMid);
             this.midPanel.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.midPanel.Location = new System.Drawing.Point(12, 112);
+            this.midPanel.Location = new System.Drawing.Point(12, 128);
             this.midPanel.Name = "midPanel";
-            this.midPanel.Size = new System.Drawing.Size(1516, 676);
+            this.midPanel.Size = new System.Drawing.Size(1516, 660);
             this.midPanel.TabIndex = 4;
             //
             // tableMid
             //
-            // 좌(50%) | 중앙 이동 아이콘 열(56px 고정) | 우(50%) — 리사이즈
+            // 좌(50%) | 중앙 이동 레일(76px 고정) | 우(50%) — 리사이즈
             // 시에도 좌/우 카드가 항상 같은 폭으로 함께 늘어난다.
             this.tableMid.ColumnCount = 3;
             this.tableMid.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 50F));
-            this.tableMid.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Absolute, 56F));
+            this.tableMid.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Absolute, 76F));
             this.tableMid.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 50F));
             this.tableMid.Controls.Add(this.sourceCard, 0, 0);
             this.tableMid.Controls.Add(this.centerPanel, 1, 0);
@@ -241,7 +245,7 @@ namespace Modern.Lab.Samples
             this.tableMid.Name = "tableMid";
             this.tableMid.RowCount = 1;
             this.tableMid.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 100F));
-            this.tableMid.Size = new System.Drawing.Size(1516, 676);
+            this.tableMid.Size = new System.Drawing.Size(1516, 660);
             this.tableMid.TabIndex = 0;
             //
             // sourceCard
@@ -253,10 +257,10 @@ namespace Modern.Lab.Samples
             this.sourceCard.Location = new System.Drawing.Point(0, 0);
             this.sourceCard.Name = "sourceCard";
             this.sourceCard.Padding = new System.Windows.Forms.Padding(8, 40, 8, 8);
-            this.sourceCard.Size = new System.Drawing.Size(688, 676);
+            this.sourceCard.Size = new System.Drawing.Size(678, 660);
             this.sourceCard.TabIndex = 0;
-            this.sourceCard.Text = "Source";
-            this.sourceCard.TitleAccent = true;
+            this.sourceCard.Text = "Source carrier";
+            this.sourceCard.TitleAccent = false;
             //
             // badgeSourceItem
             //
@@ -279,7 +283,7 @@ namespace Modern.Lab.Samples
             this.mapSource.EnableDragOut = false;
             this.mapSource.Location = new System.Drawing.Point(8, 40);
             this.mapSource.Name = "mapSource";
-            this.mapSource.Size = new System.Drawing.Size(680, 628);
+            this.mapSource.Size = new System.Drawing.Size(662, 612);
             this.mapSource.TabIndex = 0;
             this.mapSource.CellClicked += new System.EventHandler<Modern.Lab.Controls.Wpf.Display.SlotMapCellEventArgs>(this.OnSourceCellClicked);
             this.mapSource.CellRightClick += new System.EventHandler<Modern.Lab.Controls.Wpf.Display.SlotMapCellEventArgs>(this.OnSourceCellRightClick);
@@ -287,19 +291,39 @@ namespace Modern.Lab.Samples
             //
             // centerPanel
             //
-            // 가운데 이동 아이콘 열 — 위 두 개는 좌→우 미리보기(⇒ 전체 / →
-            // 선택; 대상에 "→ ID"가 위부터 순차로 뜨고 Split/Merge가 확정).
-            // 아래 두 개는 우→좌 미리보기 취소: ← = 클릭한 스테이징 하나만 빼기,
-            // ⇐ = 미리보기 전체 취소. 확정된 데이터는 건드리지 않는다.
+            // 가운데 이동 레일 — 위는 대상에 추가할 이동 계획, 아래는 계획 취소다.
+            // 가운데 라벨은 이 열이 실제 이동이 아니라 "확정 전 계획"임을 분명히 한다.
+            this.centerPanel.Controls.Add(this.lblTransfer);
+            this.centerPanel.Controls.Add(this.lblTransferHint);
             this.centerPanel.Controls.Add(this.btnAllRight);
             this.centerPanel.Controls.Add(this.btnSelRight);
             this.centerPanel.Controls.Add(this.btnSelLeft);
             this.centerPanel.Controls.Add(this.btnAllLeft);
             this.centerPanel.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.centerPanel.Location = new System.Drawing.Point(688, 0);
+            this.centerPanel.Location = new System.Drawing.Point(678, 0);
             this.centerPanel.Name = "centerPanel";
-            this.centerPanel.Size = new System.Drawing.Size(56, 676);
+            this.centerPanel.Size = new System.Drawing.Size(76, 660);
             this.centerPanel.TabIndex = 1;
+            //
+            // lblTransfer
+            //
+            this.lblTransfer.Kind = Modern.Lab.Controls.Wpf.Display.LabelKind.Label;
+            this.lblTransfer.Location = new System.Drawing.Point(8, 218);
+            this.lblTransfer.Name = "lblTransfer";
+            this.lblTransfer.Size = new System.Drawing.Size(60, 18);
+            this.lblTransfer.TabIndex = 0;
+            this.lblTransfer.Text = "PLAN";
+            this.lblTransfer.Child = null;
+            //
+            // lblTransferHint
+            //
+            this.lblTransferHint.Kind = Modern.Lab.Controls.Wpf.Display.LabelKind.Helper;
+            this.lblTransferHint.Location = new System.Drawing.Point(8, 238);
+            this.lblTransferHint.Name = "lblTransferHint";
+            this.lblTransferHint.Size = new System.Drawing.Size(60, 18);
+            this.lblTransferHint.TabIndex = 1;
+            this.lblTransferHint.Text = "stage";
+            this.lblTransferHint.Child = null;
             //
             // btnAllRight
             //
@@ -308,10 +332,10 @@ namespace Modern.Lab.Samples
             this.btnAllRight.Kind = Modern.Lab.Controls.Wpf.Input.ButtonKind.Secondary;
             this.btnAllRight.GlyphSize = 20D;
             this.btnAllRight.TopLabel = "All";
-            this.btnAllRight.Location = new System.Drawing.Point(4, 244);
+            this.btnAllRight.Location = new System.Drawing.Point(14, 264);
             this.btnAllRight.Name = "btnAllRight";
             this.btnAllRight.Size = new System.Drawing.Size(48, 44);
-            this.btnAllRight.TabIndex = 0;
+            this.btnAllRight.TabIndex = 2;
             this.btnAllRight.Text = "»";
             this.btnAllRight.Click += new System.EventHandler(this.OnMoveAllRight);
             this.btnAllRight.Child = null;
@@ -323,10 +347,10 @@ namespace Modern.Lab.Samples
             this.btnSelRight.Kind = Modern.Lab.Controls.Wpf.Input.ButtonKind.Secondary;
             this.btnSelRight.GlyphSize = 20D;
             this.btnSelRight.TopLabel = "Selected";
-            this.btnSelRight.Location = new System.Drawing.Point(4, 292);
+            this.btnSelRight.Location = new System.Drawing.Point(14, 312);
             this.btnSelRight.Name = "btnSelRight";
             this.btnSelRight.Size = new System.Drawing.Size(48, 44);
-            this.btnSelRight.TabIndex = 1;
+            this.btnSelRight.TabIndex = 3;
             this.btnSelRight.Text = "›";
             this.btnSelRight.Click += new System.EventHandler(this.OnMoveSelRight);
             this.btnSelRight.Child = null;
@@ -338,10 +362,10 @@ namespace Modern.Lab.Samples
             this.btnSelLeft.Kind = Modern.Lab.Controls.Wpf.Input.ButtonKind.Secondary;
             this.btnSelLeft.GlyphSize = 20D;
             this.btnSelLeft.TopLabel = "Selected";
-            this.btnSelLeft.Location = new System.Drawing.Point(4, 352);
+            this.btnSelLeft.Location = new System.Drawing.Point(14, 376);
             this.btnSelLeft.Name = "btnSelLeft";
             this.btnSelLeft.Size = new System.Drawing.Size(48, 44);
-            this.btnSelLeft.TabIndex = 2;
+            this.btnSelLeft.TabIndex = 4;
             this.btnSelLeft.Text = "‹";
             this.btnSelLeft.Click += new System.EventHandler(this.OnMoveSelLeft);
             this.btnSelLeft.Child = null;
@@ -353,29 +377,29 @@ namespace Modern.Lab.Samples
             this.btnAllLeft.Kind = Modern.Lab.Controls.Wpf.Input.ButtonKind.Secondary;
             this.btnAllLeft.GlyphSize = 20D;
             this.btnAllLeft.TopLabel = "All";
-            this.btnAllLeft.Location = new System.Drawing.Point(4, 400);
+            this.btnAllLeft.Location = new System.Drawing.Point(14, 424);
             this.btnAllLeft.Name = "btnAllLeft";
             this.btnAllLeft.Size = new System.Drawing.Size(48, 44);
-            this.btnAllLeft.TabIndex = 3;
+            this.btnAllLeft.TabIndex = 5;
             this.btnAllLeft.Text = "«";
             this.btnAllLeft.Click += new System.EventHandler(this.OnMoveAllLeft);
             this.btnAllLeft.Child = null;
             //
             // targetCard
             //
-            // 좌/우 카드는 같은 높이·같은 제목 스타일(TitleAccent)로 대칭이다 —
-            // 폭은 tableMid의 50% 열이 리사이즈에도 동일하게 유지한다.
+            // 대상 카드만 이동 계획이 생겼을 때 액센트로 강조한다. 평상시에는
+            // 원본과 동일한 중립 헤더라 "아직 확정 전" 상태를 과장하지 않는다.
             this.targetCard.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(255)))), ((int)(((byte)(255)))), ((int)(((byte)(255)))));
             this.targetCard.Controls.Add(this.badgeTargetItem);
             this.targetCard.Controls.Add(this.mapTarget);
             this.targetCard.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.targetCard.Location = new System.Drawing.Point(828, 0);
+            this.targetCard.Location = new System.Drawing.Point(754, 0);
             this.targetCard.Name = "targetCard";
             this.targetCard.Padding = new System.Windows.Forms.Padding(8, 40, 8, 8);
-            this.targetCard.Size = new System.Drawing.Size(688, 676);
+            this.targetCard.Size = new System.Drawing.Size(678, 660);
             this.targetCard.TabIndex = 2;
-            this.targetCard.Text = "Target";
-            this.targetCard.TitleAccent = true;
+            this.targetCard.Text = "Target carrier";
+            this.targetCard.TitleAccent = false;
             //
             // mapTarget
             //
@@ -386,7 +410,7 @@ namespace Modern.Lab.Samples
             this.mapTarget.Dock = System.Windows.Forms.DockStyle.Fill;
             this.mapTarget.Location = new System.Drawing.Point(8, 40);
             this.mapTarget.Name = "mapTarget";
-            this.mapTarget.Size = new System.Drawing.Size(672, 628);
+            this.mapTarget.Size = new System.Drawing.Size(662, 612);
             this.mapTarget.TabIndex = 0;
             this.mapTarget.CellClicked += new System.EventHandler<Modern.Lab.Controls.Wpf.Display.SlotMapCellEventArgs>(this.OnTargetCellClicked);
             this.mapTarget.CellRightClick += new System.EventHandler<Modern.Lab.Controls.Wpf.Display.SlotMapCellEventArgs>(this.OnTargetCellRightClick);
@@ -415,7 +439,7 @@ namespace Modern.Lab.Samples
             //
             // bottomPanel
             //
-            // 하단 실행 카드 — Split/Merge/Scrap 라벨 버튼 (원본 기준 처리).
+            // 하단 실행 바 — 이동 계획 요약과 확정 액션을 한 영역에 둔다.
             this.bottomPanel.Controls.Add(this.actionCard);
             this.bottomPanel.Dock = System.Windows.Forms.DockStyle.Bottom;
             this.bottomPanel.Location = new System.Drawing.Point(12, 740);
@@ -426,24 +450,36 @@ namespace Modern.Lab.Samples
             // actionCard
             //
             this.actionCard.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(255)))), ((int)(((byte)(255)))), ((int)(((byte)(255)))));
+            this.actionCard.Controls.Add(this.lblActionStatus);
             this.actionCard.Controls.Add(this.btnSplit);
             this.actionCard.Controls.Add(this.btnMerge);
             this.actionCard.Controls.Add(this.btnScrap);
-            this.actionCard.Dock = System.Windows.Forms.DockStyle.Right;
-            this.actionCard.Location = new System.Drawing.Point(1236, 0);
+            this.actionCard.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.actionCard.Location = new System.Drawing.Point(0, 0);
             this.actionCard.Name = "actionCard";
-            this.actionCard.Size = new System.Drawing.Size(280, 56);
+            this.actionCard.Size = new System.Drawing.Size(1516, 56);
             this.actionCard.TabIndex = 0;
+            //
+            // lblActionStatus
+            //
+            this.lblActionStatus.Kind = Modern.Lab.Controls.Wpf.Display.LabelKind.Helper;
+            this.lblActionStatus.Location = new System.Drawing.Point(12, 16);
+            this.lblActionStatus.Name = "lblActionStatus";
+            this.lblActionStatus.Size = new System.Drawing.Size(940, 24);
+            this.lblActionStatus.TabIndex = 0;
+            this.lblActionStatus.Text = "Select a source unit, then stage the move with → or ⇒.";
+            this.lblActionStatus.Child = null;
             //
             // btnSplit
             //
             // Split — 회사 비즈(캐리어 분할 전문) 호출 지점. 대상이 비어
             // 있을 때의 표준 동선이라 committing 액션으로 강조(Primary).
             this.btnSplit.Kind = Modern.Lab.Controls.Wpf.Input.ButtonKind.Primary;
-            this.btnSplit.Location = new System.Drawing.Point(12, 12);
+            this.btnSplit.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
+            this.btnSplit.Location = new System.Drawing.Point(1024, 12);
             this.btnSplit.Name = "btnSplit";
-            this.btnSplit.Size = new System.Drawing.Size(80, 32);
-            this.btnSplit.TabIndex = 0;
+            this.btnSplit.Size = new System.Drawing.Size(116, 32);
+            this.btnSplit.TabIndex = 1;
             this.btnSplit.Text = "Split";
             this.btnSplit.Click += new System.EventHandler(this.OnSplitClick);
             this.btnSplit.Child = null;
@@ -452,11 +488,12 @@ namespace Modern.Lab.Samples
             //
             // Merge — 회사 비즈(캐리어 병합 전문) 호출 지점. 대상이 차 있을
             // 때의 표준 동선이라 committing 액션으로 강조(Execute 초록).
-            this.btnMerge.Kind = Modern.Lab.Controls.Wpf.Input.ButtonKind.Execute;
-            this.btnMerge.Location = new System.Drawing.Point(100, 12);
+            this.btnMerge.Kind = Modern.Lab.Controls.Wpf.Input.ButtonKind.Secondary;
+            this.btnMerge.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
+            this.btnMerge.Location = new System.Drawing.Point(1148, 12);
             this.btnMerge.Name = "btnMerge";
-            this.btnMerge.Size = new System.Drawing.Size(80, 32);
-            this.btnMerge.TabIndex = 1;
+            this.btnMerge.Size = new System.Drawing.Size(116, 32);
+            this.btnMerge.TabIndex = 2;
             this.btnMerge.Text = "Merge";
             this.btnMerge.Click += new System.EventHandler(this.OnMergeClick);
             this.btnMerge.Child = null;
@@ -464,10 +501,11 @@ namespace Modern.Lab.Samples
             // btnScrap
             //
             this.btnScrap.Kind = Modern.Lab.Controls.Wpf.Input.ButtonKind.Danger;
-            this.btnScrap.Location = new System.Drawing.Point(188, 12);
+            this.btnScrap.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
+            this.btnScrap.Location = new System.Drawing.Point(1272, 12);
             this.btnScrap.Name = "btnScrap";
             this.btnScrap.Size = new System.Drawing.Size(80, 32);
-            this.btnScrap.TabIndex = 2;
+            this.btnScrap.TabIndex = 3;
             this.btnScrap.Text = "Scrap";
             this.btnScrap.Click += new System.EventHandler(this.OnScrapClick);
             this.btnScrap.Child = null;
@@ -566,6 +604,8 @@ namespace Modern.Lab.Samples
         private Modern.Lab.WinForms.Controls.Layout.ModernGroupBox sourceCard;
         private Modern.Lab.WinForms.Controls.Display.ModernSlotMap mapSource;
         private System.Windows.Forms.Panel centerPanel;
+        private Modern.Lab.WinForms.Controls.Display.ModernLabel lblTransfer;
+        private Modern.Lab.WinForms.Controls.Display.ModernLabel lblTransferHint;
         private Modern.Lab.WinForms.Controls.Input.ModernButton btnAllRight;
         private Modern.Lab.WinForms.Controls.Input.ModernButton btnSelRight;
         private Modern.Lab.WinForms.Controls.Input.ModernButton btnSelLeft;
@@ -575,6 +615,7 @@ namespace Modern.Lab.Samples
         private System.Windows.Forms.Panel gapBottom;
         private System.Windows.Forms.Panel bottomPanel;
         private Modern.Lab.WinForms.Controls.Layout.ModernCardPanel actionCard;
+        private Modern.Lab.WinForms.Controls.Display.ModernLabel lblActionStatus;
         private Modern.Lab.WinForms.Controls.Input.ModernButton btnSplit;
         private Modern.Lab.WinForms.Controls.Input.ModernButton btnMerge;
         private Modern.Lab.WinForms.Controls.Input.ModernButton btnScrap;
