@@ -6,7 +6,6 @@ using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Media;
-using System.Windows.Shapes;
 using Modern.Lab.Controls.Wpf.Common;
 
 namespace Modern.Lab.Controls.Wpf.Display
@@ -78,13 +77,13 @@ namespace Modern.Lab.Controls.Wpf.Display
             internal SlotMapCell Cell;
             internal Border Outer;
             internal Border Token;
-            internal Rectangle PreviewOutline;
             internal Border LabelChip;
             internal TextBlock LabelText;
             internal TextBlock UnitText;
             internal List<Border> DotBorders;
             internal List<TextBlock> DotTexts;
             internal List<TextBlock> SubUnitTexts;
+            internal List<System.Windows.Shapes.Rectangle> MarkerTicks;
         }
 
         private SlotMapSection[] sections;
@@ -100,6 +99,10 @@ namespace Modern.Lab.Controls.Wpf.Display
         // ID. 해당 자리가 비어 있으면 "→ ID"로 표기한다. 화면(폼)이 서버 배치
         // 계획을 그대로 받아 주므로 미리보기와 실제 이동 결과가 일치한다.
         private System.Collections.Generic.Dictionary<string, string> previewMap;
+
+        // 미리보기 LCC 핑거의 삽입 위치 — 자리 키 → Top/Left/Right. 유닛 ID
+        // 맵과 분리해 기존 SetPreview 호출과 호환하면서 방향을 함께 표시한다.
+        private System.Collections.Generic.Dictionary<string, string> previewMarkerMap;
 
         // 복합 셀(LCC 등)의 하위 유닛 ID 표시 방식 — 켬: 핑거당 미니 행(도트 +
         // 유닛 ID), 끔: A~E 배지를 크게 한 줄(5개)로만. SubCells가 있는 구획
@@ -195,6 +198,7 @@ namespace Modern.Lab.Controls.Wpf.Display
             this.selectedKeys.Clear();
             this.clickKey = null;
             this.previewMap = null;
+            this.previewMarkerMap = null;
             this.RebuildVisualTree();
 
             if (hadSelection)
@@ -252,6 +256,15 @@ namespace Modern.Lab.Controls.Wpf.Display
         public void SetPreview(System.Collections.Generic.Dictionary<string, string> map)
         {
             this.previewMap = map;
+            this.previewMarkerMap = null;
+            this.RefreshAllVisuals();
+        }
+
+        /// <summary>미리보기 LCC 핑거의 삽입 위치 맵(자리 키 → Top/Left/Right).
+        /// null이면 미리보기 방향 표기를 해제한다.</summary>
+        public void SetPreviewMarkers(System.Collections.Generic.Dictionary<string, string> markers)
+        {
+            this.previewMarkerMap = markers;
             this.RefreshAllVisuals();
         }
 
@@ -615,7 +628,7 @@ namespace Modern.Lab.Controls.Wpf.Display
                 visual.UnitText = unit;
 
                 content.Children.Add(token);
-                outer.Child = this.WrapWithPreviewOutline(visual, content);
+                outer.Child = content;
                 outer.ToolTip = !string.IsNullOrEmpty(cell.ToolTip)
                         ? cell.ToolTip
                         : (string.IsNullOrEmpty(cell.UnitId) ? null : (object)cell.UnitId);
@@ -644,6 +657,7 @@ namespace Modern.Lab.Controls.Wpf.Display
             visual.DotBorders = new List<Border>();
             visual.DotTexts = new List<TextBlock>();
             visual.SubUnitTexts = new List<TextBlock>();
+            visual.MarkerTicks = new List<System.Windows.Shapes.Rectangle>();
 
             if (this.showSubCellUnitIds)
             {
@@ -657,7 +671,9 @@ namespace Modern.Lab.Controls.Wpf.Display
 
                     Border dot;
                     TextBlock letter;
-                    Grid dotGrid = this.BuildFingerDotGrid(sub, 15d, 8d, out dot, out letter);
+                    System.Windows.Shapes.Rectangle markerTick;
+                    Grid dotGrid = this.BuildFingerDotGrid(
+                            sub, 15d, 8d, out dot, out letter, out markerTick);
                     row.Children.Add(dotGrid);
 
                     TextBlock subUnit = new TextBlock();
@@ -672,6 +688,7 @@ namespace Modern.Lab.Controls.Wpf.Display
                     visual.DotBorders.Add(dot);
                     visual.DotTexts.Add(letter);
                     visual.SubUnitTexts.Add(subUnit);
+                    visual.MarkerTicks.Add(markerTick);
                 }
             }
             else
@@ -686,11 +703,14 @@ namespace Modern.Lab.Controls.Wpf.Display
                 {
                     Border dot;
                     TextBlock letter;
-                    Grid dotGrid = this.BuildFingerDotGrid(sub, 22d, 11d, out dot, out letter);
+                    System.Windows.Shapes.Rectangle markerTick;
+                    Grid dotGrid = this.BuildFingerDotGrid(
+                            sub, 22d, 11d, out dot, out letter, out markerTick);
                     dotGrid.Margin = new Thickness(1d, 0d, 1d, 0d);
                     badges.Children.Add(dotGrid);
                     visual.DotBorders.Add(dot);
                     visual.DotTexts.Add(letter);
+                    visual.MarkerTicks.Add(markerTick);
                     // 이 레이아웃엔 유닛 ID 글씨가 없다(SubUnitTexts 비움).
                 }
 
@@ -698,35 +718,17 @@ namespace Modern.Lab.Controls.Wpf.Display
             }
 
             frame.Child = content2;
-            outer.Child = this.WrapWithPreviewOutline(visual, frame);
+            outer.Child = frame;
             outer.ToolTip = this.BuildSubToolTip(cell);
             return visual;
-        }
-
-        // 미리보기 셀에는 실제 수납 데이터와 다른 "확정 전 계획" 표식을 겹친다.
-        // Rectangle은 입력을 받지 않아 기존 클릭/드래그 동작을 바꾸지 않는다.
-        private Grid WrapWithPreviewOutline(CellVisual visual, UIElement content)
-        {
-            Grid layer = new Grid();
-            layer.Children.Add(content);
-
-            Rectangle outline = new Rectangle();
-            outline.Margin = new Thickness(1d);
-            outline.StrokeThickness = 1.5d;
-            outline.StrokeDashArray = new DoubleCollection { 2d, 2d };
-            outline.IsHitTestVisible = false;
-            outline.Visibility = Visibility.Collapsed;
-            visual.PreviewOutline = outline;
-            layer.Children.Add(outline);
-
-            return layer;
         }
 
         // 핑거 도트(이름 글자) + 삽입 위치 틱을 담은 Grid를 만든다 — 미니 행
         // (작게)과 A~E 배지 한 줄(크게) 두 레이아웃이 크기만 달리해 공유한다.
         private Grid BuildFingerDotGrid(
                 SlotMapSubCell sub, double dotSize, double letterSize,
-                out Border dot, out TextBlock letter)
+                out Border dot, out TextBlock letter,
+                out System.Windows.Shapes.Rectangle markerTick)
         {
             Grid dotGrid = new Grid();
 
@@ -745,36 +747,53 @@ namespace Modern.Lab.Controls.Wpf.Display
             dot.Child = letter;
             dotGrid.Children.Add(dot);
 
-            // 삽입 위치 틱 — 도트 가장자리의 2px 액센트 바 (채움 자리만).
-            if (!string.IsNullOrEmpty(sub.UnitId) && !string.IsNullOrEmpty(sub.Marker))
-            {
-                System.Windows.Shapes.Rectangle tick = new System.Windows.Shapes.Rectangle();
-                tick.Fill = (Brush)this.FindResource("Brush.Accent");
-                tick.IsHitTestVisible = false;
-
-                if (sub.Marker == "Top")
-                {
-                    tick.Height = 2d;
-                    tick.VerticalAlignment = VerticalAlignment.Top;
-                    tick.Margin = new Thickness(3d, 1d, 3d, 0d);
-                }
-                else if (sub.Marker == "Left")
-                {
-                    tick.Width = 2d;
-                    tick.HorizontalAlignment = HorizontalAlignment.Left;
-                    tick.Margin = new Thickness(1d, 3d, 0d, 3d);
-                }
-                else
-                {
-                    tick.Width = 2d;
-                    tick.HorizontalAlignment = HorizontalAlignment.Right;
-                    tick.Margin = new Thickness(0d, 3d, 1d, 3d);
-                }
-
-                dotGrid.Children.Add(tick);
-            }
+            // 삽입 위치 틱은 빈 핑거의 미리보기에서도 갱신할 수 있게 항상 만든다.
+            markerTick = new System.Windows.Shapes.Rectangle();
+            markerTick.IsHitTestVisible = false;
+            this.ConfigureMarkerTick(markerTick, sub.Marker, false);
+            dotGrid.Children.Add(markerTick);
 
             return dotGrid;
+        }
+
+        // 핑거 가장자리의 삽입 위치 틱을 배치한다. 미리보기는 3px로 키워
+        // 실제 수납 전에도 Top/Left/Right 방향이 눈에 들어오게 한다.
+        private void ConfigureMarkerTick(
+                System.Windows.Shapes.Rectangle tick, string marker, bool preview)
+        {
+            tick.Width = double.NaN;
+            tick.Height = double.NaN;
+            tick.Margin = new Thickness(0d);
+            tick.HorizontalAlignment = HorizontalAlignment.Stretch;
+            tick.VerticalAlignment = VerticalAlignment.Stretch;
+            tick.Fill = (Brush)this.FindResource("Brush.Accent");
+            tick.Visibility = string.IsNullOrEmpty(marker) ? Visibility.Collapsed : Visibility.Visible;
+
+            if (string.IsNullOrEmpty(marker))
+            {
+                return;
+            }
+
+            double thickness = preview ? 3d : 2d;
+
+            if (marker == "Top")
+            {
+                tick.Height = thickness;
+                tick.VerticalAlignment = VerticalAlignment.Top;
+                tick.Margin = new Thickness(3d, 1d, 3d, 0d);
+            }
+            else if (marker == "Left")
+            {
+                tick.Width = thickness;
+                tick.HorizontalAlignment = HorizontalAlignment.Left;
+                tick.Margin = new Thickness(1d, 3d, 0d, 3d);
+            }
+            else
+            {
+                tick.Width = thickness;
+                tick.HorizontalAlignment = HorizontalAlignment.Right;
+                tick.Margin = new Thickness(0d, 3d, 1d, 3d);
+            }
         }
 
         // 고정 자리 번호 칩 — 파랑 틴트 배경 + Info 텍스트의 작은 배지로
@@ -1203,14 +1222,9 @@ namespace Modern.Lab.Controls.Wpf.Display
             // 이 셀에 걸린 미리보기 존재 여부(번호 칩 하이라이트 판정용).
             bool previewed = this.CellHasPreview(cell);
 
-            // 계획된 유닛은 옅은 표면 틴트를 쓴다. 점선 외곽선은 LCC 같은
-            // 복합 셀에서만 덧씌운다. FOUP/STUB 단일 슬롯은 행 간격이 촘촘해
-            // 점선이 번호 칩·토큰 테두리와 겹치므로 틴트와 "→ ID"만 유지한다.
+            // 계획된 유닛은 옅은 표면 틴트를 쓴다. LCC도 단일 슬롯과 같은
+            // 액센트 실선 테두리를 쓰므로 표시 문법이 일관된다.
             visual.Outer.Background = previewed ? info : Brushes.Transparent;
-            visual.PreviewOutline.Stroke = accent;
-            visual.PreviewOutline.Visibility = previewed && cell.SubCells != null
-                    ? Visibility.Visible
-                    : Visibility.Collapsed;
 
             // 결합(staged+clicked)일 때 쓸 유닛 글씨 색 — 스테이징된 셀을
             // 마우스로 클릭하면 셀 바깥 포인트(링) 없이 **글씨 색만** 바꿔
@@ -1281,13 +1295,16 @@ namespace Modern.Lab.Controls.Wpf.Display
 
             // 복합 수납 — 틀은 중립(미니 행이 상태를 나타냄), 선택만 테두리로.
             visual.Token.Background = surface;
-            visual.Token.BorderBrush = selected ? emphasis : (cell.Filled ? borderBrush : borderSubtle);
+            visual.Token.BorderBrush = selected || previewed
+                    ? emphasis
+                    : (cell.Filled ? borderBrush : borderSubtle);
 
             for (int index = 0; index < cell.SubCells.Count; index++)
             {
                 SlotMapSubCell sub = cell.SubCells[index];
                 Border dot = visual.DotBorders[index];
                 TextBlock letter = visual.DotTexts[index];
+                System.Windows.Shapes.Rectangle markerTick = visual.MarkerTicks[index];
                 // 배지(한 줄) 레이아웃엔 유닛 ID 글씨가 없다 — subUnit은 null일 수 있다.
                 TextBlock subUnit = index < visual.SubUnitTexts.Count
                         ? visual.SubUnitTexts[index]
@@ -1309,6 +1326,7 @@ namespace Modern.Lab.Controls.Wpf.Display
                             ? custom
                             : (Brush)this.FindResource("Brush.SelectedBackground");
                     dot.BorderBrush = borderBrush;
+                    this.ConfigureMarkerTick(markerTick, sub.Marker, false);
                     // 도트 글자는 도트 배경(아이템 색)에서 대비색 유도. 옆의
                     // 유닛 ID 텍스트는 셀 표면(Surface) 위라 기본 텍스트색.
                     letter.Foreground = this.DeriveTextBrush(
@@ -1327,6 +1345,8 @@ namespace Modern.Lab.Controls.Wpf.Display
                     dot.Background = info;
                     dot.BorderBrush = accent;
                     letter.Foreground = accent;
+                    this.ConfigureMarkerTick(
+                            markerTick, this.SubPreviewMarker(cell.Key, sub.Name), true);
 
                     if (subUnit != null)
                     {
@@ -1339,6 +1359,7 @@ namespace Modern.Lab.Controls.Wpf.Display
                     dot.Background = neutral;
                     dot.BorderBrush = borderSubtle;
                     letter.Foreground = textDisabled;
+                    this.ConfigureMarkerTick(markerTick, string.Empty, false);
 
                     if (subUnit != null)
                     {
@@ -1385,6 +1406,19 @@ namespace Modern.Lab.Controls.Wpf.Display
             string incoming;
             this.previewMap.TryGetValue(cell.Key, out incoming);
             return incoming;
+        }
+
+        // 복합 셀의 미리보기 삽입 위치 (없으면 빈 문자열).
+        private string SubPreviewMarker(string cellKey, string subName)
+        {
+            if (this.previewMarkerMap == null || string.IsNullOrEmpty(cellKey))
+            {
+                return string.Empty;
+            }
+
+            string marker;
+            this.previewMarkerMap.TryGetValue(SubPreviewKey(cellKey, subName), out marker);
+            return marker ?? string.Empty;
         }
     }
 }

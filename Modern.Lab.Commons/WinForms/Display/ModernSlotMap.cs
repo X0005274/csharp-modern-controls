@@ -172,6 +172,16 @@ namespace Modern.Lab.WinForms.Controls.Display
             }
         }
 
+        /// <summary>LCC 미리보기의 자리 키 → 삽입 위치(Top/Left/Right) 맵.
+        /// 비어 있는 대상 핑거에도 이동 후의 삽입 방향을 표시한다.</summary>
+        public void SetPreviewMarkers(System.Collections.Generic.Dictionary<string, string> markers)
+        {
+            if (this.Wpf != null)
+            {
+                this.Wpf.SetPreviewMarkers(markers);
+            }
+        }
+
         private void OnInnerSelectionChanged(object sender, EventArgs e)
         {
             EventHandler handler = this.SelectionChanged;

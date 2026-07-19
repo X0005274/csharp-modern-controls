@@ -811,7 +811,8 @@ this.badgeCount.Shape = Modern.Lab.WinForms.Controls.Display.BadgeShape.Rounded;
 | `AllowSelection` | 채워진 셀 클릭 선택 허용 (기본 true) — 대상(보기 전용) 맵은 false |
 | `EnableDragOut` / `AcceptDrops` | 드래그앤드롭 — 원본 맵에서 끌기 허용 / 대상 맵에서 드롭 수용 (둘 다 기본 false) |
 | `SelectedKeys` / `ClearSelection()` | 선택된 셀 키(`SlotMapCell.Key`) 배열 / 전체 해제 |
-| `SetPreview(Dictionary<string,string>)` | 자리 키(`"SLOT\|7"` / `"STUB\|3"` / `"LCC\|3\|A"`) → 들어올 유닛 ID 미리보기 맵 — 그 자리가 비면 "→ ID" 표기 + 번호 칩 하이라이트 + 옅은 틴트로 확정 전 계획을 구분한다. 점선 외곽선은 LCC 같은 복합 셀에만 표시한다. 계획된 자리가 부족하면 "need n more" (null = 해제). 화면이 서버 배치 계획을 그대로 넘겨 주므로 미리보기와 실제 이동 결과가 일치한다 |
+| `SetPreview(Dictionary<string,string>)` | 자리 키(`"SLOT\|7"` / `"STUB\|3"` / `"LCC\|3\|A"`) → 들어올 유닛 ID 미리보기 맵 — 그 자리가 비면 "→ ID" 표기 + 번호 칩 하이라이트 + 옅은 틴트로 확정 전 계획을 구분한다. LCC 프레임도 단일 슬롯과 같은 액센트 실선으로 강조된다. 계획된 자리가 부족하면 "need n more" (null = 해제). 화면이 서버 배치 계획을 그대로 넘겨 주므로 미리보기와 실제 이동 결과가 일치한다 |
+| `SetPreviewMarkers(Dictionary<string,string>)` | LCC 미리보기의 자리 키 → 삽입 위치(`Top`/`Left`/`Right`) 맵. `SetPreview` 뒤에 설정하면 비어 있는 대상 핑거에도 3px 액센트 틱으로 방향을 표시한다 (null = 해제) |
 | `SetSelectedKeys(string[])` / `SetClickKey(string)` | 스테이징 강조(강한 액센트) / 클릭 강조(약한 색) 지정 — 둘이 겹친 셀은 유닛/번호 글씨 색으로 결합 표시. 이벤트 없음 |
 | `SelectionChanged` | 선택 변경 시 |
 | `UnitsDropped` | 드롭 수신 시 — 끌려온 셀 키들 + 놓은 자리(앵커) 셀 키. 검증/이동은 폼이 서버 호출로 |

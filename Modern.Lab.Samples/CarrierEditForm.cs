@@ -599,6 +599,7 @@ namespace Modern.Lab.Samples
             {
                 this.stagedUnits = null;
                 this.mapTarget.SetPreview(null);
+                this.mapTarget.SetPreviewMarkers(null);
                 return;
             }
 
@@ -607,8 +608,51 @@ namespace Modern.Lab.Samples
             this.stagedUnits = this.CollectUnitsByKeys(this.sourceData, keys);
 
             // ★ 서버 배치 계획을 그대로 미리보기에 쓴다 — 실제 이동과 일치.
-            this.mapTarget.SetPreview(CarrierEditSimulator.PlanPreview(
-                    this.GetSelectedType(), this.SourceId(), this.TargetId(), this.stagedUnits));
+            System.Collections.Generic.Dictionary<string, string> preview =
+                    CarrierEditSimulator.PlanPreview(
+                            this.GetSelectedType(), this.SourceId(), this.TargetId(), this.stagedUnits);
+            this.mapTarget.SetPreview(preview);
+            this.mapTarget.SetPreviewMarkers(this.BuildPreviewMarkers(this.stagedUnits, preview));
+        }
+
+        // 대상 미리보기 키는 서버 배치 계획의 대상 자리이고, INS_POS는 원본 유닛의
+        // 속성이다. 유닛 ID를 매개로 둘을 연결해 LCC 미리보기에서도 Top/Left/Right
+        // 삽입 위치 틱을 실제 이동 결과와 똑같이 그린다.
+        private System.Collections.Generic.Dictionary<string, string> BuildPreviewMarkers(
+                DataTable units, System.Collections.Generic.Dictionary<string, string> preview)
+        {
+            System.Collections.Generic.Dictionary<string, string> markers =
+                    new System.Collections.Generic.Dictionary<string, string>(StringComparer.Ordinal);
+            System.Collections.Generic.Dictionary<string, string> markerByUnitId =
+                    new System.Collections.Generic.Dictionary<string, string>(StringComparer.Ordinal);
+
+            if (units == null || preview == null)
+            {
+                return markers;
+            }
+
+            foreach (DataRow row in units.Rows)
+            {
+                string unitId = PendingTablePresenter.CellText(row, "UNIT_ID");
+                string marker = PendingTablePresenter.CellText(row, "INS_POS");
+
+                if (unitId.Length > 0 && marker.Length > 0)
+                {
+                    markerByUnitId[unitId] = marker;
+                }
+            }
+
+            foreach (System.Collections.Generic.KeyValuePair<string, string> entry in preview)
+            {
+                string marker;
+
+                if (markerByUnitId.TryGetValue(entry.Value, out marker))
+                {
+                    markers[entry.Key] = marker;
+                }
+            }
+
+            return markers;
         }
 
         // 선택 표시 렌더 — 스테이징(강한 색)은 원본에, 클릭(약간 다른 색)은 각
@@ -638,6 +682,7 @@ namespace Modern.Lab.Samples
             this.mapTarget.SetSelectedKeys(new string[0]);
             this.mapSource.SetPreview(null);
             this.mapTarget.SetPreview(null);
+            this.mapTarget.SetPreviewMarkers(null);
             this.mapSource.SetClickKey(null);
             this.mapTarget.SetClickKey(null);
             this.UpdateActionStates();
