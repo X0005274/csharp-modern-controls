@@ -54,6 +54,10 @@ namespace Modern.Lab.Samples
         // 자동완성 요청 버전 — 오래된 응답이 최신 후보를 덮어쓰지 않게 한다.
         private int autoCompleteVersion;
 
+        // 트리 검색 요청 버전 — 빠른 재검색/Reset 뒤 오래된 트리 응답이
+        // 최신 조회 결과를 덮어쓰지 않게 한다.
+        private int searchVersion;
+
         // 트리 선택(이력/웨이퍼 조회) 버전 — 빠른 재선택 시 오래된 응답을 버린다.
         private int selectionVersion;
 
@@ -321,6 +325,13 @@ namespace Modern.Lab.Samples
         // Reset: 조건과 결과를 모두 비운다. Item ID가 필수라 빈 조건 재조회는 없다.
         private void OnResetClick(object sender, EventArgs e)
         {
+            // 진행 중인 검색/자동완성 응답을 모두 무효화한다. Reset 뒤 늦게
+            // 도착한 응답이 비워 둔 화면을 다시 채우면 안 된다.
+            this.searchVersion = this.searchVersion + 1;
+            this.autoCompleteVersion = this.autoCompleteVersion + 1;
+            this.autoCompleteTimer.Stop();
+            this.txtItemId.CloseSuggestions();
+            this.busyMain.Busy = false;
             this.txtItemId.Text = string.Empty;
             this.cboType.CheckedValues = null;
             this.treeData = null;
@@ -375,13 +386,20 @@ namespace Modern.Lab.Samples
 
             string[] subProdTypes = this.GetCheckedTypes();
 
+            // 새 검색이 시작되면 이전 Item/Unit 상세 응답도 최신 화면에
+            // 반영될 수 없다. 트리 응답과 함께 모두 버전으로 구분한다.
+            this.searchVersion = this.searchVersion + 1;
+            int version = this.searchVersion;
+            this.selectionVersion = this.selectionVersion + 1;
+            this.unitHistoryVersion = this.unitHistoryVersion + 1;
+
             this.busyMain.Busy = true;
 
             try
             {
                 DataTable tree = await Task.Run(() => this.RequestItemTree(keyword, subProdTypes));
 
-                if (this.IsDisposed)
+                if (this.IsDisposed || version != this.searchVersion)
                 {
                     return;
                 }
@@ -408,7 +426,7 @@ namespace Modern.Lab.Samples
             }
             catch (Exception ex)
             {
-                if (this.IsDisposed)
+                if (this.IsDisposed || version != this.searchVersion)
                 {
                     return;
                 }
@@ -613,7 +631,9 @@ namespace Modern.Lab.Samples
             }
             catch (Exception ex)
             {
-                if (this.IsDisposed)
+                // 최신 선택의 요청만 로딩 상태와 오류 메시지를 바꾼다.
+                // 오래된 요청은 새 선택이 관리 중이므로 조용히 버린다.
+                if (this.IsDisposed || version != this.selectionVersion)
                 {
                     return;
                 }
@@ -695,7 +715,8 @@ namespace Modern.Lab.Samples
             }
             catch (Exception ex)
             {
-                if (this.IsDisposed)
+                // 이전 Unit 선택의 오류를 현재 선택에 표시하지 않는다.
+                if (this.IsDisposed || version != this.unitHistoryVersion)
                 {
                     return;
                 }
@@ -753,6 +774,10 @@ namespace Modern.Lab.Samples
 
         private void ClearSelection()
         {
+            // 비우는 순간부터 기존 Item/Unit 상세 응답은 유효하지 않다.
+            this.selectionVersion = this.selectionVersion + 1;
+            this.unitHistoryVersion = this.unitHistoryVersion + 1;
+
             this.detailCard.Text = "Selection";
             this.badgeType.Text = "-";
             this.badgeType.Color = string.Empty;
@@ -776,7 +801,6 @@ namespace Modern.Lab.Samples
             this.ApplyLifecycleForActiveTab();
 
             // Unit History 탭도 함께 비운다. 탭 제목은 대상 ID 표기 전 기본값으로.
-            this.unitHistoryVersion = this.unitHistoryVersion + 1;
             this.gridUnitHistory.DataSource = null;
             this.gridUnitHistory.StatusText = string.Empty;
             this.tabHistory.SetTabTitle(0, "Item History");
