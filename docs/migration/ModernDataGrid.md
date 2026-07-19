@@ -34,7 +34,7 @@
 | `ModernDataGridColumn.HeaderCheckBox` | CheckBox 컬럼 전용 (기본 false). true면 헤더 캡션 대신 **전체 선택/해제 체크박스**가 올라간다 — 클릭 시 현재 그리드에 표시 중인 모든 행(페이지 화면이면 현재 페이지)의 값을 일괄 설정하고, 행 값 상태에 따라 체크(전체)/해제(없음)/중간(일부)으로 자동 갱신. `DataGridView` 헤더 체크박스 커스텀 그리기 코드 대체 |
 | `CellButtonClick` | 버튼 컬럼 셀 클릭 이벤트 — `e.Item`(클릭 행 `DataRowView`) + `e.DataPropertyName`(버튼 컬럼 이름). `DataGridView`의 `CellContentClick` + 버튼 컬럼 대체 |
 | 행 우클릭 + `ContextMenuStrip` | 행 위에서 우클릭하면 **그 행이 먼저 현재 행으로 선택**된 뒤 컨트롤에 지정한 `ContextMenuStrip`이 커서 위치에 뜬다 — 메뉴 핸들러는 `SelectedItem`을 대상으로 처리하면 된다. 행 밖(헤더/빈 영역) 우클릭에는 뜨지 않는다 |
-| `AllowColumnFilters` | 컬럼 헤더 깔때기 값 필터(엑셀식 고유 값 체크리스트, **기본 true**). 화면 뷰만 거르고 원본 데이터는 그대로 — `DataGridView`에서 직접 구현하던 헤더 필터 커스텀 코드 대체. 재조회(`DataSource` 재할당) 후에도 필터 선택 유지. 깔때기는 헤더 셀 맨 오른쪽 고정, 정렬 글리프가 그 왼쪽 |
+| `AllowColumnFilters` | 컬럼 헤더 깔때기 값 필터(엑셀식 고유 값 체크리스트, **기본 true**). 팝업 검색창은 자동완성 후보와 한글 초성 매칭을 제공하고, 검색 중에도 기존 체크 선택은 유지된다. 화면 뷰만 거르고 원본 데이터는 그대로 — `DataGridView`에서 직접 구현하던 헤더 필터 커스텀 코드 대체. 재조회(`DataSource` 재할당) 후에도 필터 선택 유지. 깔때기는 헤더 셀 맨 오른쪽 고정, 정렬 글리프가 그 왼쪽 |
 | `FilterValueSource` / `ColumnFiltersChanged` / `MatchesColumnFilters(row)` | **페이지 슬라이스 화면의 필터 연동 3종** — 페이지 조각을 바인딩하는 화면은 ① `FilterValueSource`에 전체 결과 `DataTable`을 지정해 깔때기 체크리스트에 전체 값이 나오게 하고, ② `ColumnFiltersChanged` 이벤트에서 전체 결과를 `MatchesColumnFilters(row)`로 걸러 표시 행 목록과 페이지 수를 재계산한다 (Samples의 `PendingRequestForm` 참고). 페이징 없는 화면은 셋 다 필요 없다 |
 | `SelectedItem` | 선택 행 (`DataTable` 소스일 때 `DataRowView`) — 기존 `CurrentRow.DataBoundItem` 대체 |
 | `AutoFitColumns` | true면 각 컬럼 너비를 **헤더 캡션과 데이터 내용 중 더 넓은 쪽**에 맞춰 자동 계산 (`ConfigureColumns` 컬럼에만 적용, 컬럼 정의의 `Width`는 무시 — 단 CheckBox/Button/Badge 컬럼은 정의 폭·캡션 기준). `DataSource`가 바뀔 때마다 재계산되며 하한 48px / 상한 600px. 사용자의 마우스 폭 조절은 그대로 가능 |

@@ -9,6 +9,7 @@ using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Data;
 using System.Windows.Media;
+using Modern.Lab.Controls.Wpf.Input;
 
 namespace Modern.Lab.Controls.Wpf.Data
 {
@@ -16,7 +17,8 @@ namespace Modern.Lab.Controls.Wpf.Data
     /// ModernDataGridControl의 컬럼 값 필터 컨트롤러 — AllowColumnFilters가
     /// 켜지면 텍스트/배지 컬럼에 GridFilterAttach.Filterable을 설정해 헤더
     /// 템플릿의 깔때기 버튼(헤더 셀 맨 오른쪽 고정, 정렬 글리프 바로 다음)이
-    /// 나타나고, 클릭 시 그 컬럼의 고유 값 체크리스트 팝업이 열린다. 체크를
+    /// 나타나고, 클릭 시 그 컬럼의 고유 값 체크리스트 팝업이 열린다. 팝업의
+    /// 검색 입력은 자동완성·초성 매칭으로 체크할 값을 빠르게 찾게 한다. 체크를
     /// 바꾸는 즉시 반영(엑셀식 값 필터)되며, 필터가 걸린 컬럼은 깔때기가
     /// 액센트색(IsActive)으로 칠해진다.
     ///
@@ -49,6 +51,8 @@ namespace Modern.Lab.Controls.Wpf.Data
         private string popupColumn;
         private StackPanel popupList;
         private CheckBox popupAll;
+        private ModernTextBoxControl popupSearch;
+        private List<string> popupValues;
         private bool suppressPopupEvents;
 
         /// <summary>값 필터 상태가 바뀔 때(체크/해제/Clear) 발생한다 — 페이징
@@ -163,14 +167,22 @@ namespace Modern.Lab.Controls.Wpf.Data
             this.popup.IsOpen = true;
         }
 
-        // 팝업 내용: "(All)" + 고유 값 체크리스트(스크롤) + Clear Filter.
+        // 팝업 내용: 초성 자동완성 검색 + "(All)" + 고유 값 체크리스트(스크롤)
+        // + Clear Filter. 검색은 체크 상태를 건드리지 않고 목록만 좁힌다.
         private UIElement BuildPopupContent(string columnName)
         {
             List<string> values = this.CollectDistinctValues(columnName);
             HashSet<string> selected;
             this.selections.TryGetValue(columnName, out selected);
+            this.popupValues = values;
 
             this.suppressPopupEvents = true;
+
+            this.popupSearch = new ModernTextBoxControl();
+            this.popupSearch.Placeholder = "Search values";
+            this.popupSearch.AutoCompleteItemsSource = values;
+            this.popupSearch.Margin = new Thickness(0d, 0d, 0d, 8d);
+            this.popupSearch.TextChanged += this.OnPopupSearchTextChanged;
 
             this.popupAll = new CheckBox();
             this.popupAll.Content = "(All)";
@@ -181,18 +193,7 @@ namespace Modern.Lab.Controls.Wpf.Data
             this.popupAll.Unchecked += this.OnAllToggled;
 
             this.popupList = new StackPanel();
-
-            foreach (string value in values)
-            {
-                CheckBox item = new CheckBox();
-                item.Content = value.Length == 0 ? "(Blanks)" : value;
-                item.Tag = value;
-                item.Margin = new Thickness(2d);
-                item.IsChecked = selected == null || selected.Contains(value);
-                item.Checked += this.OnValueToggled;
-                item.Unchecked += this.OnValueToggled;
-                this.popupList.Children.Add(item);
-            }
+            this.RebuildPopupValueItems(selected);
 
             this.suppressPopupEvents = false;
 
@@ -209,6 +210,7 @@ namespace Modern.Lab.Controls.Wpf.Data
             clear.Click += this.OnClearClick;
 
             StackPanel layout = new StackPanel();
+            layout.Children.Add(this.popupSearch);
             layout.Children.Add(this.popupAll);
             layout.Children.Add(new Separator());
             layout.Children.Add(scroll);
@@ -227,6 +229,51 @@ namespace Modern.Lab.Controls.Wpf.Data
             System.Windows.Documents.TextElement.SetForeground(
                     card, (Brush)this.resourceSource.FindResource("Brush.TextPrimary"));
             return card;
+        }
+
+        // 검색 입력이 바뀌면 체크 상태는 유지한 채 보이는 고유 값만 다시 만든다.
+        // ModernTextBoxControl이 같은 후보 목록을 제안하고, 여기서도 같은 초성
+        // 매처를 써 추천 선택/직접 입력의 결과가 일관되게 보이게 한다.
+        private void OnPopupSearchTextChanged(object sender, EventArgs e)
+        {
+            HashSet<string> selected;
+            this.selections.TryGetValue(this.popupColumn, out selected);
+            this.RebuildPopupValueItems(selected);
+        }
+
+        private void RebuildPopupValueItems(HashSet<string> selected)
+        {
+            string keyword = this.popupSearch == null ? string.Empty : this.popupSearch.Text;
+            int matchCount = 0;
+
+            this.popupList.Children.Clear();
+
+            foreach (string value in this.popupValues)
+            {
+                if (!HangulTextMatcher.Contains(value, keyword))
+                {
+                    continue;
+                }
+
+                CheckBox item = new CheckBox();
+                item.Content = value.Length == 0 ? "(Blanks)" : value;
+                item.Tag = value;
+                item.Margin = new Thickness(2d);
+                item.IsChecked = selected == null || selected.Contains(value);
+                item.Checked += this.OnValueToggled;
+                item.Unchecked += this.OnValueToggled;
+                this.popupList.Children.Add(item);
+                matchCount = matchCount + 1;
+            }
+
+            if (matchCount == 0)
+            {
+                TextBlock empty = new TextBlock();
+                empty.Text = "No matching values";
+                empty.Margin = new Thickness(2d);
+                empty.Foreground = (Brush)this.resourceSource.FindResource("Brush.TextSecondary");
+                this.popupList.Children.Add(empty);
+            }
         }
 
         // "(All)": 체크 = 필터 해제(전체), 해제 = 아무 값도 선택 안 함(전체 숨김).
@@ -266,7 +313,8 @@ namespace Modern.Lab.Controls.Wpf.Data
             this.RaiseFiltersChanged();
         }
 
-        // 값 체크 변경: 전부 체크면 필터 해제, 아니면 체크된 값만 표시.
+        // 값 체크 변경: 검색으로 일부 값만 보일 때도 보이지 않는 값의 선택 상태는
+        // 유지한다. 전체 고유 값이 체크되면 필터를 해제한다.
         private void OnValueToggled(object sender, RoutedEventArgs e)
         {
             if (this.suppressPopupEvents)
@@ -274,8 +322,18 @@ namespace Modern.Lab.Controls.Wpf.Data
                 return;
             }
 
-            HashSet<string> selected = new HashSet<string>(StringComparer.Ordinal);
-            bool allChecked = true;
+            HashSet<string> existing;
+            HashSet<string> selected;
+            this.selections.TryGetValue(this.popupColumn, out existing);
+
+            if (existing == null)
+            {
+                selected = new HashSet<string>(this.popupValues, StringComparer.Ordinal);
+            }
+            else
+            {
+                selected = new HashSet<string>(existing, StringComparer.Ordinal);
+            }
 
             foreach (object child in this.popupList.Children)
             {
@@ -292,9 +350,11 @@ namespace Modern.Lab.Controls.Wpf.Data
                 }
                 else
                 {
-                    allChecked = false;
+                    selected.Remove((string)item.Tag);
                 }
             }
+
+            bool allChecked = selected.Count == this.popupValues.Count;
 
             if (allChecked)
             {
