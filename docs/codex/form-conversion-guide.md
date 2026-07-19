@@ -55,7 +55,7 @@
 | `DateTimePicker` (날짜) | `ModernDatePicker` | `Modern.Lab.WinForms.Controls.Input` | |
 | `DateTimePicker` (yyyy-MM) / 년·월 콤보 2개 | `ModernMonthPicker` | `Modern.Lab.WinForms.Controls.Input` | |
 | `GroupBox`/`Panel` + `RadioButton` 묶음 | `ModernRadioGroup` | `Modern.Lab.WinForms.Controls.Selection` | 라디오 여러 개 → 컨트롤 하나로 합침 |
-| `DataGridView` (읽기 전용 조회) | `ModernDataGrid` | `Modern.Lab.WinForms.Controls.Data` | **셀 편집 화면은 부적합 — 3-1단계에서 판정** |
+| `DataGridView` (읽기 전용 조회) | `ModernDataGrid` | `Modern.Lab.WinForms.Controls.Data` | **셀 편집 화면은 부적합 — 3-1단계에서 판정**. `Kind = Badge`는 같은 컬럼의 가장 긴 표시값 기준으로 폭이 자동 통일되므로, 셀마다 여백 문자열이나 폭 보정 코드를 넣지 않는다 |
 | FarPoint Spread 8 (`AxfpSpread`) | `ModernSpreadGrid` | `Modern.Lab.WinForms.Controls.Data` | 아래 2-3 참고 |
 | `TreeView` (계층 선택) | `ModernTreeView` | `Modern.Lab.WinForms.Controls.Selection` | |
 | `TabControl` | `ModernTabControl`(+`ModernTabPage`) | `Modern.Lab.WinForms.Controls.Layout` | |
@@ -64,7 +64,7 @@
 | 영역 구분 `Panel`/`GroupBox` (카드 룩) | `ModernCardPanel` | `Modern.Lab.WinForms.Controls.Layout` | 시각적 판단 필요 — 사람 승인 후 적용 |
 | 캡션/값 상세표 `TableLayoutPanel` | `ModernDetailTable` | `Modern.Lab.WinForms.Controls.Layout` | 사람 승인 후 적용 |
 | 상태 표시용 색 `Label` | `ModernStatusBadge` | `Modern.Lab.WinForms.Controls.Display` | |
-| `Button` + `ContextMenuStrip` | `ModernDropDownButton` | `Modern.Lab.WinForms.Controls.Input` | |
+| `Button` + `ContextMenuStrip` | `ModernDropDownButton` | `Modern.Lab.WinForms.Controls.Input` | 캡션은 `ModernButton`과 같은 SemiBold가 기본이므로 별도 Font 지정 금지 |
 | 완료/안내용 `MessageBox.Show` | `ModernToast` | `Modern.Lab.WinForms.Controls.Display` | **확인(예/아니오)을 받는 MessageBox는 그대로 둔다** |
 
 ### 2-2. 신규 개념 컨트롤 — 변환 작업에서는 도입하지 않는다
@@ -74,6 +74,23 @@
 `ModernSlotMap`(캐리어 수납 구조 슬롯 맵) 등은 기존 폼에
 대응물이 없는 **신규 컨트롤**이다. 변환 작업의 목표는 "동작 동일 + 외형 현대화"이므로,
 사람이 명시적으로 요청한 경우에만 추가한다.
+
+### 2-2-1. Carrier Editor 같은 수납 편집 화면 — 명시 요청 시에만
+
+`ModernSlotMap`을 써야 하는 캐리어 수납 편집 화면은 반드시
+`docs/migration/ModernSlotMap.md`를 먼저 읽고, 샘플
+`Modern.Lab.Samples/CarrierEditForm`을 참조한다. 기존 화면을 단순 변환하는
+작업에는 추가하지 않는다.
+
+- LCC처럼 하나의 위치(`POS`)에 여러 핑거(`FINGER`)가 딸린 데이터는 **조회 행
+  순서에 의존하지 말고 `POS`로 먼저 묶어** `SlotMapCell` 하나와 그 안의
+  `SlotMapSubCell`들로 만든다.
+- 이동 미리보기는 화면에서 빈 자리를 다시 계산하지 않는다. 서버가 확정한 배치
+  계획을 `SetPreview`에 그대로 전달하고, LCC 삽입 방향은 같은 계획의
+  `Top`/`Left`/`Right` 값을 `SetPreviewMarkers`에 전달한다. 즉 **미리보기와
+  실제 이동 결과는 반드시 같아야 한다.**
+- `SetPreviewMarkers`는 LCC 대상 핑거에만 쓴다. 단순 슬롯/STUB에는 별도 점선
+  테두리나 방향 마커를 추가하지 않는다.
 
 ### 2-3. FarPoint Spread 8 → ModernSpreadGrid (특수)
 
