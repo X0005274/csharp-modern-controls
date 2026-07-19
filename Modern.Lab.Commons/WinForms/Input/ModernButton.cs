@@ -25,6 +25,7 @@ namespace Modern.Lab.WinForms.Controls.Input
         private Modern.Lab.Controls.Wpf.Input.ButtonKind fallbackKind;
         private string fallbackIconGlyph;
         private double fallbackFontSize;
+        private string fallbackTopLabel;
 
         /// <summary>적절한 기본 크기로 컨트롤을 생성한다.</summary>
         public ModernButton()
@@ -34,6 +35,7 @@ namespace Modern.Lab.WinForms.Controls.Input
             this.fallbackKind = Modern.Lab.Controls.Wpf.Input.ButtonKind.Primary;
             this.fallbackIconGlyph = string.Empty;
             this.fallbackFontSize = 0d;
+            this.fallbackTopLabel = string.Empty;
 
             if (this.Wpf != null)
             {
@@ -153,6 +155,35 @@ namespace Modern.Lab.WinForms.Controls.Input
                 if (this.Wpf != null)
                 {
                     this.Wpf.FontSizeOverride = value;
+                }
+
+                this.InvalidateDesignTimePreview();
+            }
+        }
+
+        /// <summary>글리프/캡션 위에 붙는 아주 작은 상단 라벨(비어 있으면 숨김) —
+        /// 아이콘형 버튼에 "All"/"Selected" 같은 부가 설명을 얹을 때 쓴다.</summary>
+        [Category("모던 컨트롤")]
+        [Description("글리프/캡션 위 상단 소형 라벨 (비어 있으면 숨김)")]
+        [DefaultValue("")]
+        public string TopLabel
+        {
+            get
+            {
+                if (this.Wpf != null)
+                {
+                    return this.Wpf.TopLabel;
+                }
+
+                return this.fallbackTopLabel;
+            }
+            set
+            {
+                this.fallbackTopLabel = value ?? string.Empty;
+
+                if (this.Wpf != null)
+                {
+                    this.Wpf.TopLabel = value ?? string.Empty;
                 }
 
                 this.InvalidateDesignTimePreview();

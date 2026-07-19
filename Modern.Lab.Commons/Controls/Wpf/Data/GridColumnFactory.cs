@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
@@ -117,12 +118,52 @@ namespace Modern.Lab.Controls.Wpf.Data
                 elementStyle.Setters.Add(new Setter(TextBlock.FontWeightProperty, FontWeights.SemiBold));
             }
 
+            // 잘린 셀에만 전체 텍스트 툴팁 — 컬럼 폭이 좁아 "…"로 잘리면 호버 시
+            // 전체 값을 보여 준다. ToolTip은 셀 자신의 Text에 바인딩하고, 실제로
+            // 잘리지 않았으면 ToolTipOpening에서 취소해 불필요한 툴팁을 막는다.
+            elementStyle.Setters.Add(new Setter(TextBlock.TextTrimmingProperty, TextTrimming.CharacterEllipsis));
+            elementStyle.Setters.Add(new Setter(
+                TextBlock.ToolTipProperty,
+                new Binding("Text") { RelativeSource = new RelativeSource(RelativeSourceMode.Self) }));
+            elementStyle.Setters.Add(new EventSetter(
+                ToolTipService.ToolTipOpeningEvent, new ToolTipEventHandler(OnCellToolTipOpening)));
+
             if (elementStyle.Setters.Count > 0)
             {
                 column.ElementStyle = elementStyle;
             }
 
             return column;
+        }
+
+        // 셀 텍스트가 실제로 잘렸을 때만 툴팁을 연다 — 안 잘렸으면 취소.
+        private static void OnCellToolTipOpening(object sender, ToolTipEventArgs e)
+        {
+            TextBlock text = sender as TextBlock;
+
+            if (text == null || !IsTextTrimmed(text))
+            {
+                e.Handled = true;
+            }
+        }
+
+        // TextBlock의 전체 텍스트 폭이 실제 표시 폭보다 크면(=잘림) true.
+        private static bool IsTextTrimmed(TextBlock text)
+        {
+            if (string.IsNullOrEmpty(text.Text) || text.ActualWidth <= 0d)
+            {
+                return false;
+            }
+
+            Typeface typeface = new Typeface(
+                text.FontFamily, text.FontStyle, text.FontWeight, text.FontStretch);
+
+            FormattedText formatted = new FormattedText(
+                text.Text, CultureInfo.CurrentCulture, text.FlowDirection, typeface,
+                text.FontSize, Brushes.Black, VisualTreeHelper.GetDpi(text).PixelsPerDip);
+
+            double available = text.ActualWidth - text.Padding.Left - text.Padding.Right;
+            return formatted.WidthIncludingTrailingWhitespace > available + 0.5d;
         }
 
         // 체크박스 컬럼: bool 컬럼에 양방향 바인딩. 그리드가 읽기 전용이어도

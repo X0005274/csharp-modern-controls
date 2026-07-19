@@ -25,6 +25,12 @@ namespace Modern.Lab.Samples
         /// </summary>
         private void InitializeComponent()
         {
+            this.components = new System.ComponentModel.Container();
+            this.moveMenu = new System.Windows.Forms.ContextMenuStrip(this.components);
+            this.miMoveSelRight = new System.Windows.Forms.ToolStripMenuItem();
+            this.miMoveAllRight = new System.Windows.Forms.ToolStripMenuItem();
+            this.miMoveSelLeft = new System.Windows.Forms.ToolStripMenuItem();
+            this.miMoveAllLeft = new System.Windows.Forms.ToolStripMenuItem();
             this.titlePanel = new System.Windows.Forms.Panel();
             this.lblTitle = new Modern.Lab.WinForms.Controls.Display.ModernLabel();
             this.badgeEnv = new Modern.Lab.WinForms.Controls.Display.ModernStatusBadge();
@@ -276,6 +282,7 @@ namespace Modern.Lab.Samples
             this.mapSource.Size = new System.Drawing.Size(680, 628);
             this.mapSource.TabIndex = 0;
             this.mapSource.CellClicked += new System.EventHandler<Modern.Lab.Controls.Wpf.Display.SlotMapCellEventArgs>(this.OnSourceCellClicked);
+            this.mapSource.CellRightClick += new System.EventHandler<Modern.Lab.Controls.Wpf.Display.SlotMapCellEventArgs>(this.OnSourceCellRightClick);
             this.mapSource.Child = null;
             //
             // centerPanel
@@ -300,11 +307,12 @@ namespace Modern.Lab.Samples
             this.btnAllRight.Anchor = System.Windows.Forms.AnchorStyles.Top;
             this.btnAllRight.Kind = Modern.Lab.Controls.Wpf.Input.ButtonKind.Secondary;
             this.btnAllRight.GlyphSize = 20D;
-            this.btnAllRight.Location = new System.Drawing.Point(8, 262);
+            this.btnAllRight.TopLabel = "All";
+            this.btnAllRight.Location = new System.Drawing.Point(4, 244);
             this.btnAllRight.Name = "btnAllRight";
-            this.btnAllRight.Size = new System.Drawing.Size(40, 36);
+            this.btnAllRight.Size = new System.Drawing.Size(48, 44);
             this.btnAllRight.TabIndex = 0;
-            this.btnAllRight.Text = "⇒";
+            this.btnAllRight.Text = "»";
             this.btnAllRight.Click += new System.EventHandler(this.OnMoveAllRight);
             this.btnAllRight.Child = null;
             //
@@ -314,11 +322,12 @@ namespace Modern.Lab.Samples
             this.btnSelRight.Anchor = System.Windows.Forms.AnchorStyles.Top;
             this.btnSelRight.Kind = Modern.Lab.Controls.Wpf.Input.ButtonKind.Secondary;
             this.btnSelRight.GlyphSize = 20D;
-            this.btnSelRight.Location = new System.Drawing.Point(8, 300);
+            this.btnSelRight.TopLabel = "Selected";
+            this.btnSelRight.Location = new System.Drawing.Point(4, 292);
             this.btnSelRight.Name = "btnSelRight";
-            this.btnSelRight.Size = new System.Drawing.Size(40, 36);
+            this.btnSelRight.Size = new System.Drawing.Size(48, 44);
             this.btnSelRight.TabIndex = 1;
-            this.btnSelRight.Text = "→";
+            this.btnSelRight.Text = "›";
             this.btnSelRight.Click += new System.EventHandler(this.OnMoveSelRight);
             this.btnSelRight.Child = null;
             //
@@ -328,11 +337,12 @@ namespace Modern.Lab.Samples
             this.btnSelLeft.Anchor = System.Windows.Forms.AnchorStyles.Top;
             this.btnSelLeft.Kind = Modern.Lab.Controls.Wpf.Input.ButtonKind.Secondary;
             this.btnSelLeft.GlyphSize = 20D;
-            this.btnSelLeft.Location = new System.Drawing.Point(8, 350);
+            this.btnSelLeft.TopLabel = "Selected";
+            this.btnSelLeft.Location = new System.Drawing.Point(4, 352);
             this.btnSelLeft.Name = "btnSelLeft";
-            this.btnSelLeft.Size = new System.Drawing.Size(40, 36);
+            this.btnSelLeft.Size = new System.Drawing.Size(48, 44);
             this.btnSelLeft.TabIndex = 2;
-            this.btnSelLeft.Text = "←";
+            this.btnSelLeft.Text = "‹";
             this.btnSelLeft.Click += new System.EventHandler(this.OnMoveSelLeft);
             this.btnSelLeft.Child = null;
             //
@@ -342,11 +352,12 @@ namespace Modern.Lab.Samples
             this.btnAllLeft.Anchor = System.Windows.Forms.AnchorStyles.Top;
             this.btnAllLeft.Kind = Modern.Lab.Controls.Wpf.Input.ButtonKind.Secondary;
             this.btnAllLeft.GlyphSize = 20D;
-            this.btnAllLeft.Location = new System.Drawing.Point(8, 388);
+            this.btnAllLeft.TopLabel = "All";
+            this.btnAllLeft.Location = new System.Drawing.Point(4, 400);
             this.btnAllLeft.Name = "btnAllLeft";
-            this.btnAllLeft.Size = new System.Drawing.Size(40, 36);
+            this.btnAllLeft.Size = new System.Drawing.Size(48, 44);
             this.btnAllLeft.TabIndex = 3;
-            this.btnAllLeft.Text = "⇐";
+            this.btnAllLeft.Text = "«";
             this.btnAllLeft.Click += new System.EventHandler(this.OnMoveAllLeft);
             this.btnAllLeft.Child = null;
             //
@@ -378,6 +389,7 @@ namespace Modern.Lab.Samples
             this.mapTarget.Size = new System.Drawing.Size(672, 628);
             this.mapTarget.TabIndex = 0;
             this.mapTarget.CellClicked += new System.EventHandler<Modern.Lab.Controls.Wpf.Display.SlotMapCellEventArgs>(this.OnTargetCellClicked);
+            this.mapTarget.CellRightClick += new System.EventHandler<Modern.Lab.Controls.Wpf.Display.SlotMapCellEventArgs>(this.OnTargetCellRightClick);
             this.mapTarget.Child = null;
             //
             // badgeTargetItem
@@ -469,6 +481,39 @@ namespace Modern.Lab.Samples
             this.toastMain.Visible = false;
             this.toastMain.Child = null;
             //
+            // moveMenu — 맵 오른쪽 클릭 시 뜨는 이동 컨텍스트 메뉴 (이동 버튼과 동일 동작).
+            //
+            this.moveMenu.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
+                this.miMoveSelRight,
+                this.miMoveAllRight,
+                this.miMoveSelLeft,
+                this.miMoveAllLeft});
+            this.moveMenu.Name = "moveMenu";
+            //
+            // miMoveSelRight
+            //
+            this.miMoveSelRight.Name = "miMoveSelRight";
+            this.miMoveSelRight.Text = "Move Selected  ›";
+            this.miMoveSelRight.Click += new System.EventHandler(this.OnMoveSelRight);
+            //
+            // miMoveAllRight
+            //
+            this.miMoveAllRight.Name = "miMoveAllRight";
+            this.miMoveAllRight.Text = "Move All  »";
+            this.miMoveAllRight.Click += new System.EventHandler(this.OnMoveAllRight);
+            //
+            // miMoveSelLeft
+            //
+            this.miMoveSelLeft.Name = "miMoveSelLeft";
+            this.miMoveSelLeft.Text = "Cancel Selected  ‹";
+            this.miMoveSelLeft.Click += new System.EventHandler(this.OnMoveSelLeft);
+            //
+            // miMoveAllLeft
+            //
+            this.miMoveAllLeft.Name = "miMoveAllLeft";
+            this.miMoveAllLeft.Text = "Cancel All  «";
+            this.miMoveAllLeft.Click += new System.EventHandler(this.OnMoveAllLeft);
+            //
             // CarrierEditForm
             //
             this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
@@ -538,5 +583,10 @@ namespace Modern.Lab.Samples
         private Modern.Lab.WinForms.Controls.Display.ModernLabel lblTarget;
         private Modern.Lab.WinForms.Controls.Selection.ModernComboBox cboTarget;
         private Modern.Lab.WinForms.Controls.Display.ModernToast toastMain;
+        private System.Windows.Forms.ContextMenuStrip moveMenu;
+        private System.Windows.Forms.ToolStripMenuItem miMoveSelRight;
+        private System.Windows.Forms.ToolStripMenuItem miMoveAllRight;
+        private System.Windows.Forms.ToolStripMenuItem miMoveSelLeft;
+        private System.Windows.Forms.ToolStripMenuItem miMoveAllLeft;
     }
 }

@@ -271,20 +271,46 @@ namespace Modern.Lab.Samples
             this.targetCard.TitleRightText = BuildFilledText(this.targetData);
             this.UpdateItemBadge(this.badgeTargetItem, this.targetData);
             this.PositionTitleBadge(this.targetCard, this.badgeTargetItem);
-            this.UpdateActionButtons();
+            this.UpdateActionStates();
         }
 
-        // 대상(우측) 채움 상태에 따라 Split/Merge 버튼을 켠다 — 대상이 비어
-        // 있으면 Split(분할 배치), 일부 채워져 있으면 Merge(기존에 병합)만
-        // 활성화한다. (가득 찬 캐리어는 애초에 대상 드롭다운에 나오지 않는다.)
-        private void UpdateActionButtons()
+        // 현재 상태에서 **가능한 동작만** 활성화한다 — 이동 버튼(»/›/‹/«),
+        // 컨텍스트 메뉴 항목, Split/Merge/Scrap 모두 여기서 켜고 끈다.
+        //  · › 선택 이동  : 원본에서 클릭한(아직 스테이징 안 된) 셀이 있을 때
+        //  · » 전체 이동  : 원본에 유닛이 있을 때
+        //  · ‹ 선택 취소  : 클릭한 원본 셀이 스테이징돼 있을 때(미리보기에서 빼기)
+        //  · « 전체 취소  : 스테이징이 하나라도 있을 때
+        //  · Split/Merge : 스테이징이 있고 대상이 각각 빈/일부 채움일 때
+        //  · Scrap       : 스테이징(선택)된 원본 유닛이 있을 때
+        private void UpdateActionStates()
         {
-            int filled = CarrierTablePresenter.CountFilled(this.targetData);
-            int capacity = this.targetData != null ? this.targetData.Rows.Count : 0;
-            bool hasTarget = this.TargetId().Length > 0 && capacity > 0;
+            int targetFilled = CarrierTablePresenter.CountFilled(this.targetData);
+            int targetCap = this.targetData != null ? this.targetData.Rows.Count : 0;
+            bool hasTarget = this.TargetId().Length > 0 && targetCap > 0;
+            bool sourceHasUnits = CarrierTablePresenter.CountFilled(this.sourceData) > 0;
+            bool clickedSource = !string.IsNullOrEmpty(this.clickSourceKey);
+            bool clickedStaged = clickedSource && this.stagedKeys.Contains(this.clickSourceKey);
+            bool anyStaged = this.stagedKeys.Count > 0;
+            bool hasStagedUnits = this.stagedUnits != null && this.stagedUnits.Rows.Count > 0;
 
-            this.btnSplit.Enabled = hasTarget && filled == 0;
-            this.btnMerge.Enabled = hasTarget && filled > 0 && filled < capacity;
+            bool selRight = clickedSource && !clickedStaged;
+            bool allRight = sourceHasUnits;
+            bool selLeft = clickedStaged;
+            bool allLeft = anyStaged;
+
+            this.btnSelRight.Enabled = selRight;
+            this.btnAllRight.Enabled = allRight;
+            this.btnSelLeft.Enabled = selLeft;
+            this.btnAllLeft.Enabled = allLeft;
+
+            this.miMoveSelRight.Enabled = selRight;
+            this.miMoveAllRight.Enabled = allRight;
+            this.miMoveSelLeft.Enabled = selLeft;
+            this.miMoveAllLeft.Enabled = allLeft;
+
+            this.btnSplit.Enabled = hasStagedUnits && hasTarget && targetFilled == 0;
+            this.btnMerge.Enabled = hasStagedUnits && hasTarget && targetFilled > 0 && targetFilled < targetCap;
+            this.btnScrap.Enabled = anyStaged;
         }
 
         // 카드 제목 (왼쪽) — "역할 — 캐리어". 채움 집계는 우측 서브타이틀,
@@ -412,7 +438,7 @@ namespace Modern.Lab.Samples
             SlotMapSection stubs = new SlotMapSection();
             stubs.Title = "STUB";
             stubs.Columns = 3;
-            stubs.CellFontSize = 9d;
+            stubs.CellFontSize = 12d;
 
             SlotMapSection lccs = new SlotMapSection();
             lccs.Title = "LCC";
@@ -506,6 +532,29 @@ namespace Modern.Lab.Samples
             this.RenderSelections();
         }
 
+        // 원본 맵 오른쪽 클릭 — 커서 아래 셀을 클릭 선택으로 잡고 이동
+        // 컨텍스트 메뉴를 띄운다(메뉴 항목은 이동 버튼과 동일 동작).
+        private void OnSourceCellRightClick(object sender, SlotMapCellEventArgs e)
+        {
+            if (!string.IsNullOrEmpty(e.Key))
+            {
+                this.OnSourceCellClicked(sender, e);
+            }
+
+            this.moveMenu.Show(System.Windows.Forms.Cursor.Position);
+        }
+
+        // 대상 맵 오른쪽 클릭 — 커서 아래 셀을 클릭 선택으로 잡고 같은 메뉴를 띄운다.
+        private void OnTargetCellRightClick(object sender, SlotMapCellEventArgs e)
+        {
+            if (!string.IsNullOrEmpty(e.Key))
+            {
+                this.OnTargetCellClicked(sender, e);
+            }
+
+            this.moveMenu.Show(System.Windows.Forms.Cursor.Position);
+        }
+
         // 스테이징된 원본 셀들의 미리보기를 **대상(우측)** 에 다시 그린다 —
         // 대상의 빈 자리를 위에서부터 순차로 채운다(front-first). 좌측(원본)에는
         // 미리보기가 없다.
@@ -538,6 +587,8 @@ namespace Modern.Lab.Samples
 
             this.mapSource.SetClickKey(this.clickSourceKey);
             this.mapTarget.SetClickKey(this.clickTargetKey);
+
+            this.UpdateActionStates();
         }
 
         // 모든 선택/미리보기/스테이징/클릭 표시를 비운다 (미리보기만 취소 —
@@ -554,6 +605,7 @@ namespace Modern.Lab.Samples
             this.mapTarget.SetPreview(null);
             this.mapSource.SetClickKey(null);
             this.mapTarget.SetClickKey(null);
+            this.UpdateActionStates();
         }
 
         // 이동 성공 후 도착 맵에서 "방금 옮긴 유닛"만 선택(강조)한다 — 어디로

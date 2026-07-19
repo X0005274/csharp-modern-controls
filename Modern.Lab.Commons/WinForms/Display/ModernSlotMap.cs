@@ -33,6 +33,10 @@ namespace Modern.Lab.WinForms.Controls.Display
         /// 키들과 놓은 자리(앵커) 셀 키. 검증/이동은 폼이 서버 호출로 한다.</summary>
         public event EventHandler<SlotMapDropEventArgs> UnitsDropped;
 
+        /// <summary>맵에서 오른쪽 클릭할 때 발생한다 — 커서 아래 채움 셀 키
+        /// (셀 밖이면 빈 문자열). 폼이 이동 컨텍스트 메뉴를 띄운다.</summary>
+        public event EventHandler<SlotMapCellEventArgs> CellRightClick;
+
         public ModernSlotMap()
         {
             if (this.Wpf != null)
@@ -40,6 +44,7 @@ namespace Modern.Lab.WinForms.Controls.Display
                 this.Wpf.SelectionChanged += this.OnInnerSelectionChanged;
                 this.Wpf.CellClicked += this.OnInnerCellClicked;
                 this.Wpf.UnitsDropped += this.OnInnerUnitsDropped;
+                this.Wpf.CellRightClick += this.OnInnerCellRightClick;
             }
         }
 
@@ -190,6 +195,16 @@ namespace Modern.Lab.WinForms.Controls.Display
         private void OnInnerUnitsDropped(object sender, SlotMapDropEventArgs e)
         {
             EventHandler<SlotMapDropEventArgs> handler = this.UnitsDropped;
+
+            if (handler != null)
+            {
+                handler(this, e);
+            }
+        }
+
+        private void OnInnerCellRightClick(object sender, SlotMapCellEventArgs e)
+        {
+            EventHandler<SlotMapCellEventArgs> handler = this.CellRightClick;
 
             if (handler != null)
             {

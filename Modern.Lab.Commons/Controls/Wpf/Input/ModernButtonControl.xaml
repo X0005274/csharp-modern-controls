@@ -212,30 +212,50 @@
         </ResourceDictionary>
     </UserControl.Resources>
 
-    <!-- 실제 버튼: 선택적 아이콘 + 표시 텍스트; Click은 다시 노출된다. -->
+    <!-- 실제 버튼: (선택) 상단 소형 라벨 + [아이콘 + 표시 텍스트] 한 줄.
+         TopLabel이 있으면 글리프 위에 아주 작은 라벨이 붙는다. Click은 다시 노출. -->
     <Button x:Name="InnerButton"
             Style="{StaticResource ModernButtonStyle}"
             Click="InnerButton_Click">
-        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-            <TextBlock x:Name="IconText"
-                       FontFamily="{StaticResource Font.Family.Icon}"
-                       FontSize="{StaticResource Font.Size.Body}"
-                       VerticalAlignment="Center"
-                       Margin="0,0,8,0"
-                       Text="{Binding IconGlyph, ElementName=RootControl}">
+        <StackPanel Orientation="Vertical" VerticalAlignment="Center" HorizontalAlignment="Center">
+            <TextBlock x:Name="TopLabelText"
+                       FontSize="8"
+                       Opacity="0.8"
+                       HorizontalAlignment="Center"
+                       TextAlignment="Center"
+                       Margin="0,0,0,-1"
+                       Text="{Binding TopLabel, ElementName=RootControl}">
                 <TextBlock.Style>
                     <Style TargetType="TextBlock">
                         <Style.Triggers>
-                            <DataTrigger Binding="{Binding IconGlyph, ElementName=RootControl}" Value="">
+                            <DataTrigger Binding="{Binding TopLabel, ElementName=RootControl}" Value="">
                                 <Setter Property="Visibility" Value="Collapsed" />
                             </DataTrigger>
                         </Style.Triggers>
                     </Style>
                 </TextBlock.Style>
             </TextBlock>
-            <TextBlock x:Name="CaptionText"
-                       Text="{Binding Text, ElementName=RootControl}" VerticalAlignment="Center"
-                       LayoutTransform="{Binding Path=(common:FontWidthScaling.TextWidthTransform), RelativeSource={RelativeSource Self}}" />
+            <StackPanel Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Center">
+                <TextBlock x:Name="IconText"
+                           FontFamily="{StaticResource Font.Family.Icon}"
+                           FontSize="{StaticResource Font.Size.Body}"
+                           VerticalAlignment="Center"
+                           Margin="0,0,8,0"
+                           Text="{Binding IconGlyph, ElementName=RootControl}">
+                    <TextBlock.Style>
+                        <Style TargetType="TextBlock">
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IconGlyph, ElementName=RootControl}" Value="">
+                                    <Setter Property="Visibility" Value="Collapsed" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TextBlock.Style>
+                </TextBlock>
+                <TextBlock x:Name="CaptionText"
+                           Text="{Binding Text, ElementName=RootControl}" VerticalAlignment="Center"
+                           LayoutTransform="{Binding Path=(common:FontWidthScaling.TextWidthTransform), RelativeSource={RelativeSource Self}}" />
+            </StackPanel>
         </StackPanel>
     </Button>
 </UserControl>

@@ -45,6 +45,16 @@ namespace Modern.Lab.Controls.Wpf.Input
                 typeof(ModernButtonControl),
                 new PropertyMetadata(0d, OnFontSizeOverrideChanged));
 
+        /// <summary>글리프/캡션 위에 붙는 아주 작은 상단 라벨(비어 있으면 숨김).
+        /// 아이콘형 버튼에 "All"/"Selected" 같은 부가 설명을 얹을 때 쓴다.
+        /// 값이 있으면 버튼 높이를 내용에 맞춰 늘린다(고정 높이 해제).</summary>
+        public static readonly DependencyProperty TopLabelProperty =
+            DependencyProperty.Register(
+                "TopLabel",
+                typeof(string),
+                typeof(ModernButtonControl),
+                new PropertyMetadata(string.Empty, OnTopLabelChanged));
+
         /// <summary>
         /// 버튼이 클릭될 때 발생한다. 내부 버튼의 Click을 전달한다.
         /// </summary>
@@ -53,7 +63,7 @@ namespace Modern.Lab.Controls.Wpf.Input
         public ModernButtonControl()
         {
             this.InitializeComponent();
-            this.Loaded += delegate { this.ApplyFontSize(); };
+            this.Loaded += delegate { this.ApplyFontSize(); this.ApplyTopLabel(); };
         }
 
         private static void OnFontSizeOverrideChanged(
@@ -62,16 +72,39 @@ namespace Modern.Lab.Controls.Wpf.Input
             ((ModernButtonControl)d).ApplyFontSize();
         }
 
+        private static void OnTopLabelChanged(
+            DependencyObject d, DependencyPropertyChangedEventArgs e)
+        {
+            ((ModernButtonControl)d).ApplyTopLabel();
+        }
+
+        // 상단 라벨이 있으면 고정 높이(Size.ControlHeight)를 풀어 두 줄(라벨+
+        // 글리프)이 잘리지 않게 내용 높이로 늘린다. 없으면 스타일 기본 높이.
+        private void ApplyTopLabel()
+        {
+            bool hasTop = !string.IsNullOrEmpty(this.TopLabel);
+            this.InnerButton.Height = hasTop
+                ? double.NaN
+                : (double)this.FindResource("Size.ControlHeight");
+        }
+
         // 캡션/아이콘 글자 크기를 재정의 값(>0)으로, 아니면 토큰 기본값
         // (Font.Size.Body)으로 맞춘다. 아이콘 글리프도 함께 커진다.
         private void ApplyFontSize()
         {
-            double size = this.FontSizeOverride > 0d
+            bool icon = this.FontSizeOverride > 0d;
+            double size = icon
                 ? this.FontSizeOverride
                 : (double)this.FindResource("Font.Size.Body");
 
             this.CaptionText.FontSize = size;
             this.IconText.FontSize = size;
+
+            // 아이콘형(큰 글리프) 버튼은 텍스트용 좌우 패딩(Pad.Button=16)이 과해
+            // 좁은 버튼에서 화살표/기호가 잘린다 — 좌우 패딩을 줄여 온전히 보이게 한다.
+            this.InnerButton.Padding = icon
+                ? new Thickness(4d, 0d, 4d, 0d)
+                : (Thickness)this.FindResource("Pad.Button");
         }
 
         /// <summary>버튼에 표시되는 캡션.</summary>
@@ -100,6 +133,13 @@ namespace Modern.Lab.Controls.Wpf.Input
         {
             get { return (double)this.GetValue(FontSizeOverrideProperty); }
             set { this.SetValue(FontSizeOverrideProperty, value); }
+        }
+
+        /// <summary>글리프/캡션 위에 붙는 아주 작은 상단 라벨(비어 있으면 숨김).</summary>
+        public string TopLabel
+        {
+            get { return (string)this.GetValue(TopLabelProperty); }
+            set { this.SetValue(TopLabelProperty, value); }
         }
 
         // 내부 버튼의 Click을 이 컨트롤의 Click으로 다시 발생시킨다.

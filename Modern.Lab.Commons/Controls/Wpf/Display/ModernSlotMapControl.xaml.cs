@@ -67,6 +67,10 @@ namespace Modern.Lab.Controls.Wpf.Display
         /// <summary>드롭을 받을 때 발생한다 — 끌려온 셀 키들과 앵커 셀 키.</summary>
         public event EventHandler<SlotMapDropEventArgs> UnitsDropped;
 
+        /// <summary>맵에서 오른쪽 클릭할 때 발생한다 — 커서 아래 채움 셀의 키
+        /// (셀 밖이면 빈 문자열). 화면이 이동 컨텍스트 메뉴를 띄우는 데 쓴다.</summary>
+        public event EventHandler<SlotMapCellEventArgs> CellRightClick;
+
         // 셀 시각 요소 묶음 — 선택/미리보기 상태 변경 시 다시 칠할 대상.
         private sealed class CellVisual
         {
@@ -95,6 +99,16 @@ namespace Modern.Lab.Controls.Wpf.Display
         // 계획을 그대로 받아 주므로 미리보기와 실제 이동 결과가 일치한다.
         private System.Collections.Generic.Dictionary<string, string> previewMap;
 
+        // 복합 셀(LCC 등)의 하위 유닛 ID 표시 방식 — 켬: 핑거당 미니 행(도트 +
+        // 유닛 ID), 끔: A~E 배지를 크게 한 줄(5개)로만. SubCells가 있는 구획
+        // 헤더의 "Lamella ID" 스위치로 토글한다(단일 셀 FOUP 슬롯/STUB은 무관).
+        private bool showSubCellUnitIds = true;
+
+        // OFF 모드 하단 상세 그리드 — 맵 클릭과 선택을 동기화한다. 트리 재구성
+        // 때마다 다시 만들어지므로 참조를 갱신한다.
+        private Modern.Lab.Controls.Wpf.Data.ModernDataGridControl detailGrid;
+        private bool syncingGridSelection;
+
         // 드래그 시작 판정 — 마우스 다운 셀과 좌표를 기억해 두고, 이동 거리가
         // 시스템 임계값을 넘으면 드래그로, 그대로 떼면 클릭(선택 토글)으로 본다.
         private CellVisual pressCandidate;
@@ -103,6 +117,24 @@ namespace Modern.Lab.Controls.Wpf.Display
         public ModernSlotMapControl()
         {
             this.InitializeComponent();
+            this.PreviewMouseRightButtonUp += this.OnMapRightButtonUp;
+        }
+
+        // 맵 오른쪽 클릭 — 커서 아래 채움 셀 키를 실어 CellRightClick를 발생시킨다
+        // (셀 밖이면 빈 문자열). 화면이 이동 컨텍스트 메뉴를 띄운다.
+        private void OnMapRightButtonUp(object sender, MouseButtonEventArgs e)
+        {
+            EventHandler<SlotMapCellEventArgs> handler = this.CellRightClick;
+
+            if (handler == null)
+            {
+                return;
+            }
+
+            CellVisual visual = FindCellVisual(e.OriginalSource as DependencyObject);
+            string key = visual != null && visual.Cell.Filled ? visual.Cell.Key : string.Empty;
+            handler(this, new SlotMapCellEventArgs(key));
+            e.Handled = true;
         }
 
         /// <summary>셀 클릭 선택 허용 여부 (기본 true).</summary>
@@ -195,6 +227,7 @@ namespace Modern.Lab.Controls.Wpf.Display
         {
             this.clickKey = key;
             this.RefreshAllVisuals();
+            this.SyncDetailGridSelection(key);
         }
 
         /// <summary>선택을 모두 해제한다.</summary>
@@ -228,6 +261,7 @@ namespace Modern.Lab.Controls.Wpf.Display
             this.sectionVisuals.Clear();
             this.sectionCountTexts.Clear();
             this.pressCandidate = null;
+            this.detailGrid = null;
 
             if (this.sections == null)
             {
@@ -239,7 +273,188 @@ namespace Modern.Lab.Controls.Wpf.Display
                 this.SectionHost.Children.Add(this.BuildSection(this.sections[index]));
             }
 
+            // "Lamella ID" 스위치가 꺼진 상태(배지 한 줄 레이아웃)에서는 맵에
+            // 유닛 ID가 안 보이므로, 하단에 LCC 칩 상세 그리드를 덧붙인다.
+            if (!this.showSubCellUnitIds)
+            {
+                UIElement detail = this.BuildLccDetailGrid();
+
+                if (detail != null)
+                {
+                    this.SectionHost.Children.Add(detail);
+                }
+            }
+
             this.RefreshAllVisuals();
+        }
+
+        // OFF 모드용 하단 상세 그리드 — 채워진 유닛을 표준 모던 그리드
+        // (ModernDataGridControl)로 나열한다. STUB/LCC를 Type로 구분하고,
+        // Type별 순번(Seq)을 매긴다. 채워진 유닛이 없으면 null.
+        private UIElement BuildLccDetailGrid()
+        {
+            System.Data.DataTable table = new System.Data.DataTable();
+            table.Columns.Add("TYPE", typeof(string));
+            table.Columns.Add("SEQ", typeof(int));
+            table.Columns.Add("POS", typeof(string));
+            table.Columns.Add("FINGER", typeof(string));
+            table.Columns.Add("UNIT_ID", typeof(string));
+            table.Columns.Add("INSERT", typeof(string));
+
+            System.Collections.Generic.Dictionary<string, int> seq =
+                    new System.Collections.Generic.Dictionary<string, int>(StringComparer.Ordinal);
+
+            foreach (SlotMapSection section in this.sections)
+            {
+                if (section.Cells == null)
+                {
+                    continue;
+                }
+
+                foreach (SlotMapCell cell in section.Cells)
+                {
+                    string kind = KindOf(cell.Key);
+
+                    if (cell.SubCells == null)
+                    {
+                        if (!string.IsNullOrEmpty(cell.UnitId))
+                        {
+                            table.Rows.Add(kind, NextSeq(seq, kind), cell.Label,
+                                    string.Empty, cell.UnitId, string.Empty);
+                        }
+
+                        continue;
+                    }
+
+                    foreach (SlotMapSubCell sub in cell.SubCells)
+                    {
+                        if (!string.IsNullOrEmpty(sub.UnitId))
+                        {
+                            table.Rows.Add(kind, NextSeq(seq, kind), cell.Label,
+                                    sub.Name, sub.UnitId, sub.Marker ?? string.Empty);
+                        }
+                    }
+                }
+            }
+
+            if (table.Rows.Count == 0)
+            {
+                return null;
+            }
+
+            Modern.Lab.Controls.Wpf.Data.ModernDataGridControl grid =
+                    new Modern.Lab.Controls.Wpf.Data.ModernDataGridControl();
+            grid.AutoGenerateColumns = false;
+            grid.AutoFitColumns = true;
+            grid.ShowStatusBar = false;
+            grid.MaxHeight = 220d;
+            grid.Margin = new Thickness(0d, 6d, 0d, 0d);
+
+            grid.ApplyColumns(new System.Collections.Generic.List<Modern.Lab.Controls.Wpf.Data.ModernDataGridColumn>
+            {
+                new Modern.Lab.Controls.Wpf.Data.ModernDataGridColumn("SEQ", "Seq"),
+                new Modern.Lab.Controls.Wpf.Data.ModernDataGridColumn("TYPE", "Type"),
+                new Modern.Lab.Controls.Wpf.Data.ModernDataGridColumn("POS", "Pos"),
+                new Modern.Lab.Controls.Wpf.Data.ModernDataGridColumn("FINGER", "Finger"),
+                new Modern.Lab.Controls.Wpf.Data.ModernDataGridColumn("UNIT_ID", "Unit ID"),
+                new Modern.Lab.Controls.Wpf.Data.ModernDataGridColumn("INSERT", "Insert")
+            });
+
+            grid.ItemsSource = table.DefaultView;
+            grid.SelectionChanged += this.OnDetailGridSelectionChanged;
+            this.detailGrid = grid;
+            return grid;
+        }
+
+        // 하단 그리드 행 선택 → 맵 셀 클릭으로 알린다(선택 동기화). 화면이
+        // 클릭 셀을 잡아 SetClickKey로 되돌려 주면 그리드 선택도 유지된다.
+        private void OnDetailGridSelectionChanged(object sender, EventArgs e)
+        {
+            if (this.syncingGridSelection || this.detailGrid == null)
+            {
+                return;
+            }
+
+            System.Data.DataRowView row = this.detailGrid.SelectedItem as System.Data.DataRowView;
+
+            if (row == null)
+            {
+                return;
+            }
+
+            string key = (row["TYPE"] ?? string.Empty).ToString()
+                    + "|" + (row["POS"] ?? string.Empty).ToString();
+
+            EventHandler<SlotMapCellEventArgs> handler = this.CellClicked;
+
+            if (handler != null)
+            {
+                handler(this, new SlotMapCellEventArgs(key));
+            }
+        }
+
+        // 클릭 셀 키에 맞춰 하단 그리드 행을 선택한다(맵→그리드 동기화).
+        private void SyncDetailGridSelection(string key)
+        {
+            if (this.detailGrid == null)
+            {
+                return;
+            }
+
+            System.Data.DataView view = this.detailGrid.ItemsSource as System.Data.DataView;
+
+            if (view == null)
+            {
+                return;
+            }
+
+            this.syncingGridSelection = true;
+
+            try
+            {
+                System.Data.DataRowView match = null;
+
+                if (!string.IsNullOrEmpty(key))
+                {
+                    foreach (System.Data.DataRowView candidate in view)
+                    {
+                        string candidateKey = (candidate["TYPE"] ?? string.Empty).ToString()
+                                + "|" + (candidate["POS"] ?? string.Empty).ToString();
+
+                        if (candidateKey == key)
+                        {
+                            match = candidate;
+                            break;
+                        }
+                    }
+                }
+
+                this.detailGrid.SelectedItem = match;
+            }
+            finally
+            {
+                this.syncingGridSelection = false;
+            }
+        }
+
+        // 셀 키("KIND|POS")에서 종류(KIND)를 뽑는다.
+        private static string KindOf(string key)
+        {
+            if (string.IsNullOrEmpty(key))
+            {
+                return string.Empty;
+            }
+
+            int bar = key.IndexOf('|');
+            return bar > 0 ? key.Substring(0, bar) : key;
+        }
+
+        // 종류별 1부터의 순번을 매긴다.
+        private static int NextSeq(System.Collections.Generic.Dictionary<string, int> seq, string kind)
+        {
+            int next = (seq.ContainsKey(kind) ? seq[kind] : 0) + 1;
+            seq[kind] = next;
+            return next;
         }
 
         private UIElement BuildSection(SlotMapSection section)
@@ -258,7 +473,31 @@ namespace Modern.Lab.Controls.Wpf.Display
             title.FontSize = (double)this.FindResource("Font.Size.Label");
             title.FontWeight = FontWeights.SemiBold;
             title.Foreground = (Brush)this.FindResource("Brush.TextSecondary");
-            header.Children.Add(title);
+            title.VerticalAlignment = VerticalAlignment.Center;
+
+            // SubCells가 있는 구획(LCC 등)은 제목 옆에 "칩 ID" 스위치를 둔다 —
+            // 끄면 하위 유닛 ID 글씨 없이(도트/삽입위치/색만) 보여 준다.
+            if (SectionHasSubCells(section))
+            {
+                StackPanel titleRow = new StackPanel();
+                titleRow.Orientation = Orientation.Horizontal;
+                titleRow.Children.Add(title);
+
+                Modern.Lab.Controls.Wpf.Input.ModernToggleSwitchControl idSwitch =
+                        new Modern.Lab.Controls.Wpf.Input.ModernToggleSwitchControl();
+                idSwitch.Text = "Lamella ID";
+                idSwitch.IsChecked = this.showSubCellUnitIds;
+                idSwitch.VerticalAlignment = VerticalAlignment.Center;
+                idSwitch.Margin = new Thickness(10d, 0d, 0d, 0d);
+                idSwitch.CheckedChanged += this.OnSubCellIdSwitchChanged;
+                titleRow.Children.Add(idSwitch);
+
+                header.Children.Add(titleRow);
+            }
+            else
+            {
+                header.Children.Add(title);
+            }
 
             TextBlock count = new TextBlock();
             count.FontSize = (double)this.FindResource("Font.Size.Label");
@@ -285,6 +524,42 @@ namespace Modern.Lab.Controls.Wpf.Display
             this.sectionVisuals.Add(visuals);
             panel.Children.Add(grid);
             return panel;
+        }
+
+        // 구획에 복합(하위 자리) 셀이 하나라도 있는가 — LCC 구획 판정.
+        private static bool SectionHasSubCells(SlotMapSection section)
+        {
+            if (section.Cells == null)
+            {
+                return false;
+            }
+
+            foreach (SlotMapCell cell in section.Cells)
+            {
+                if (cell.SubCells != null)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        // "Lamella ID" 스위치 토글 — 하위 유닛 ID 표시 방식을 바꾼다. 켜면
+        // 핑거당 미니 행(도트 + 유닛 ID), 끄면 A~E 배지를 크게 한 줄로만 보여
+        // 준다. 레이아웃이 다르므로 시각 트리를 다시 구성한다(상태는 유지).
+        private void OnSubCellIdSwitchChanged(object sender, EventArgs e)
+        {
+            Modern.Lab.Controls.Wpf.Input.ModernToggleSwitchControl idSwitch =
+                    sender as Modern.Lab.Controls.Wpf.Input.ModernToggleSwitchControl;
+
+            if (idSwitch == null)
+            {
+                return;
+            }
+
+            this.showSubCellUnitIds = idSwitch.IsChecked;
+            this.RebuildVisualTree();
         }
 
         private CellVisual BuildCell(SlotMapCell cell, double cellFontSize)
@@ -345,7 +620,9 @@ namespace Modern.Lab.Controls.Wpf.Display
                 return visual;
             }
 
-            // 복합 수납 — 번호 눈금 + 핑거당 미니 행(이름 도트 + 유닛 ID).
+            // 복합 수납 — 번호 눈금 + 핑거 표현. "Lamella ID" 스위치에 따라
+            // 두 레이아웃: 켬 = 핑거당 미니 행(도트 + 유닛 ID), 끔 = A~E 배지를
+            // 크게 한 줄(5개)로.
             Border frame = new Border();
             frame.CornerRadius = new CornerRadius(4d);
             frame.BorderThickness = new Thickness(1.5d);
@@ -366,80 +643,117 @@ namespace Modern.Lab.Controls.Wpf.Display
             visual.DotTexts = new List<TextBlock>();
             visual.SubUnitTexts = new List<TextBlock>();
 
-            foreach (SlotMapSubCell sub in cell.SubCells)
+            if (this.showSubCellUnitIds)
             {
-                Grid row = new Grid();
-                row.Margin = new Thickness(0d, 0d, 0d, 1d);
-                row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-                row.ColumnDefinitions.Add(new ColumnDefinition());
-
-                Grid dotGrid = new Grid();
-
-                Border dot = new Border();
-                dot.Width = 15d;
-                dot.Height = 15d;
-                dot.CornerRadius = new CornerRadius(3d);
-                dot.BorderThickness = new Thickness(1d);
-                dot.VerticalAlignment = VerticalAlignment.Center;
-
-                TextBlock letter = new TextBlock();
-                letter.Text = sub.Name;
-                letter.FontSize = 8d;
-                letter.HorizontalAlignment = HorizontalAlignment.Center;
-                letter.VerticalAlignment = VerticalAlignment.Center;
-                dot.Child = letter;
-                dotGrid.Children.Add(dot);
-
-                // 삽입 위치 틱 — 도트 가장자리의 2px 액센트 바 (채움 자리만).
-                if (!string.IsNullOrEmpty(sub.UnitId) && !string.IsNullOrEmpty(sub.Marker))
+                // 켬 — 핑거당 미니 행: [이름 도트 | 유닛 ID].
+                foreach (SlotMapSubCell sub in cell.SubCells)
                 {
-                    System.Windows.Shapes.Rectangle tick = new System.Windows.Shapes.Rectangle();
-                    tick.Fill = (Brush)this.FindResource("Brush.Accent");
-                    tick.IsHitTestVisible = false;
+                    Grid row = new Grid();
+                    row.Margin = new Thickness(0d, 0d, 0d, 1d);
+                    row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+                    row.ColumnDefinitions.Add(new ColumnDefinition());
 
-                    if (sub.Marker == "Top")
-                    {
-                        tick.Height = 2d;
-                        tick.VerticalAlignment = VerticalAlignment.Top;
-                        tick.Margin = new Thickness(3d, 1d, 3d, 0d);
-                    }
-                    else if (sub.Marker == "Left")
-                    {
-                        tick.Width = 2d;
-                        tick.HorizontalAlignment = HorizontalAlignment.Left;
-                        tick.Margin = new Thickness(1d, 3d, 0d, 3d);
-                    }
-                    else
-                    {
-                        tick.Width = 2d;
-                        tick.HorizontalAlignment = HorizontalAlignment.Right;
-                        tick.Margin = new Thickness(0d, 3d, 1d, 3d);
-                    }
+                    Border dot;
+                    TextBlock letter;
+                    Grid dotGrid = this.BuildFingerDotGrid(sub, 15d, 8d, out dot, out letter);
+                    row.Children.Add(dotGrid);
 
-                    dotGrid.Children.Add(tick);
+                    TextBlock subUnit = new TextBlock();
+                    subUnit.FontSize = 9d;
+                    subUnit.TextTrimming = TextTrimming.CharacterEllipsis;
+                    subUnit.VerticalAlignment = VerticalAlignment.Center;
+                    subUnit.Margin = new Thickness(4d, 0d, 0d, 0d);
+                    Grid.SetColumn(subUnit, 1);
+                    row.Children.Add(subUnit);
+
+                    content2.Children.Add(row);
+                    visual.DotBorders.Add(dot);
+                    visual.DotTexts.Add(letter);
+                    visual.SubUnitTexts.Add(subUnit);
+                }
+            }
+            else
+            {
+                // 끔 — A~E 배지를 크게 한 줄로 가운데 정렬해 나열(유닛 ID 없음).
+                StackPanel badges = new StackPanel();
+                badges.Orientation = Orientation.Horizontal;
+                badges.HorizontalAlignment = HorizontalAlignment.Center;
+                badges.Margin = new Thickness(0d, 1d, 0d, 1d);
+
+                foreach (SlotMapSubCell sub in cell.SubCells)
+                {
+                    Border dot;
+                    TextBlock letter;
+                    Grid dotGrid = this.BuildFingerDotGrid(sub, 22d, 11d, out dot, out letter);
+                    dotGrid.Margin = new Thickness(1d, 0d, 1d, 0d);
+                    badges.Children.Add(dotGrid);
+                    visual.DotBorders.Add(dot);
+                    visual.DotTexts.Add(letter);
+                    // 이 레이아웃엔 유닛 ID 글씨가 없다(SubUnitTexts 비움).
                 }
 
-                row.Children.Add(dotGrid);
-
-                TextBlock subUnit = new TextBlock();
-                subUnit.Text = sub.UnitId;
-                subUnit.FontSize = 9d;
-                subUnit.TextTrimming = TextTrimming.CharacterEllipsis;
-                subUnit.VerticalAlignment = VerticalAlignment.Center;
-                subUnit.Margin = new Thickness(4d, 0d, 0d, 0d);
-                Grid.SetColumn(subUnit, 1);
-                row.Children.Add(subUnit);
-
-                content2.Children.Add(row);
-                visual.DotBorders.Add(dot);
-                visual.DotTexts.Add(letter);
-                visual.SubUnitTexts.Add(subUnit);
+                content2.Children.Add(badges);
             }
 
             frame.Child = content2;
             outer.Child = frame;
-            outer.ToolTip = BuildSubToolTip(cell);
+            outer.ToolTip = this.BuildSubToolTip(cell);
             return visual;
+        }
+
+        // 핑거 도트(이름 글자) + 삽입 위치 틱을 담은 Grid를 만든다 — 미니 행
+        // (작게)과 A~E 배지 한 줄(크게) 두 레이아웃이 크기만 달리해 공유한다.
+        private Grid BuildFingerDotGrid(
+                SlotMapSubCell sub, double dotSize, double letterSize,
+                out Border dot, out TextBlock letter)
+        {
+            Grid dotGrid = new Grid();
+
+            dot = new Border();
+            dot.Width = dotSize;
+            dot.Height = dotSize;
+            dot.CornerRadius = new CornerRadius(3d);
+            dot.BorderThickness = new Thickness(1d);
+            dot.VerticalAlignment = VerticalAlignment.Center;
+
+            letter = new TextBlock();
+            letter.Text = sub.Name;
+            letter.FontSize = letterSize;
+            letter.HorizontalAlignment = HorizontalAlignment.Center;
+            letter.VerticalAlignment = VerticalAlignment.Center;
+            dot.Child = letter;
+            dotGrid.Children.Add(dot);
+
+            // 삽입 위치 틱 — 도트 가장자리의 2px 액센트 바 (채움 자리만).
+            if (!string.IsNullOrEmpty(sub.UnitId) && !string.IsNullOrEmpty(sub.Marker))
+            {
+                System.Windows.Shapes.Rectangle tick = new System.Windows.Shapes.Rectangle();
+                tick.Fill = (Brush)this.FindResource("Brush.Accent");
+                tick.IsHitTestVisible = false;
+
+                if (sub.Marker == "Top")
+                {
+                    tick.Height = 2d;
+                    tick.VerticalAlignment = VerticalAlignment.Top;
+                    tick.Margin = new Thickness(3d, 1d, 3d, 0d);
+                }
+                else if (sub.Marker == "Left")
+                {
+                    tick.Width = 2d;
+                    tick.HorizontalAlignment = HorizontalAlignment.Left;
+                    tick.Margin = new Thickness(1d, 3d, 0d, 3d);
+                }
+                else
+                {
+                    tick.Width = 2d;
+                    tick.HorizontalAlignment = HorizontalAlignment.Right;
+                    tick.Margin = new Thickness(0d, 3d, 1d, 3d);
+                }
+
+                dotGrid.Children.Add(tick);
+            }
+
+            return dotGrid;
         }
 
         // 고정 자리 번호 칩 — 파랑 틴트 배경 + Info 텍스트의 작은 배지로
@@ -474,37 +788,87 @@ namespace Modern.Lab.Controls.Wpf.Display
             return chip;
         }
 
-        // 복합 셀 툴팁 — 채워진 하위 자리의 "이름: 유닛 (삽입 위치)" 목록.
-        private static object BuildSubToolTip(SlotMapCell cell)
+        // 복합 셀(LCC) 툴팁 — 채워진 핑거를 **정렬된 미니 표**로 보여 준다
+        // (평문 대신 컬럼이 맞는 표: Finger / Unit ID / Insert / Item). 핑거가
+        // 여러 개인 TRAY LCC에서 내용이 한눈에 정돈돼 보인다. 채움이 없으면 null.
+        private object BuildSubToolTip(SlotMapCell cell)
         {
-            StringBuilder text = new StringBuilder();
+            System.Collections.Generic.List<SlotMapSubCell> filled =
+                    new System.Collections.Generic.List<SlotMapSubCell>();
 
             foreach (SlotMapSubCell sub in cell.SubCells)
             {
-                if (string.IsNullOrEmpty(sub.UnitId))
+                if (!string.IsNullOrEmpty(sub.UnitId))
                 {
-                    continue;
-                }
-
-                if (text.Length > 0)
-                {
-                    text.AppendLine();
-                }
-
-                text.Append(sub.Name).Append(": ").Append(sub.UnitId);
-
-                if (!string.IsNullOrEmpty(sub.Marker))
-                {
-                    text.Append(" (").Append(sub.Marker).Append(")");
-                }
-
-                if (!string.IsNullOrEmpty(sub.Detail))
-                {
-                    text.Append(" — ").Append(sub.Detail);
+                    filled.Add(sub);
                 }
             }
 
-            return text.Length > 0 ? (object)text.ToString() : null;
+            if (filled.Count == 0)
+            {
+                return null;
+            }
+
+            Brush textPrimary = (Brush)this.FindResource("Brush.TextPrimary");
+            Brush textSecondary = (Brush)this.FindResource("Brush.TextSecondary");
+
+            Grid grid = new Grid();
+
+            for (int c = 0; c < 4; c++)
+            {
+                grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            }
+
+            for (int r = 0; r < filled.Count + 2; r++)
+            {
+                grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            }
+
+            // 제목 — "LCC {번호}" (전 컬럼에 걸침).
+            TextBlock title = new TextBlock();
+            title.Text = "LCC " + cell.Label;
+            title.FontWeight = FontWeights.SemiBold;
+            title.Foreground = textPrimary;
+            title.Margin = new Thickness(0d, 0d, 0d, 4d);
+            Grid.SetRow(title, 0);
+            Grid.SetColumnSpan(title, 4);
+            grid.Children.Add(title);
+
+            // 헤더 행.
+            string[] headers = new string[] { "Finger", "Unit ID", "Insert", "Item" };
+
+            for (int c = 0; c < headers.Length; c++)
+            {
+                grid.Children.Add(this.BuildTipCell(headers[c], 1, c, true, textPrimary, textSecondary));
+            }
+
+            // 데이터 행 — 핑거마다 한 줄.
+            for (int i = 0; i < filled.Count; i++)
+            {
+                SlotMapSubCell sub = filled[i];
+                int row = i + 2;
+                grid.Children.Add(this.BuildTipCell(sub.Name, row, 0, false, textPrimary, textSecondary));
+                grid.Children.Add(this.BuildTipCell(sub.UnitId, row, 1, false, textPrimary, textSecondary));
+                grid.Children.Add(this.BuildTipCell(sub.Marker ?? string.Empty, row, 2, false, textPrimary, textSecondary));
+                grid.Children.Add(this.BuildTipCell(sub.Detail ?? string.Empty, row, 3, false, textPrimary, textSecondary));
+            }
+
+            return grid;
+        }
+
+        // 툴팁 표의 셀 하나(헤더/데이터) — 컬럼 사이 간격을 둬 정렬되게 한다.
+        private TextBlock BuildTipCell(
+                string text, int row, int column, bool header, Brush primary, Brush secondary)
+        {
+            TextBlock cell = new TextBlock();
+            cell.Text = text;
+            cell.FontSize = 11d;
+            cell.FontWeight = header ? FontWeights.SemiBold : FontWeights.Normal;
+            cell.Foreground = header ? secondary : primary;
+            cell.Margin = new Thickness(0d, 1d, column < 3 ? 14d : 0d, 1d);
+            Grid.SetRow(cell, row);
+            Grid.SetColumn(cell, column);
+            return cell;
         }
 
         // ===== 선택 + 드래그 시작 =====
@@ -894,7 +1258,10 @@ namespace Modern.Lab.Controls.Wpf.Display
                 SlotMapSubCell sub = cell.SubCells[index];
                 Border dot = visual.DotBorders[index];
                 TextBlock letter = visual.DotTexts[index];
-                TextBlock subUnit = visual.SubUnitTexts[index];
+                // 배지(한 줄) 레이아웃엔 유닛 ID 글씨가 없다 — subUnit은 null일 수 있다.
+                TextBlock subUnit = index < visual.SubUnitTexts.Count
+                        ? visual.SubUnitTexts[index]
+                        : null;
 
                 string subIncoming = null;
 
@@ -916,26 +1283,38 @@ namespace Modern.Lab.Controls.Wpf.Display
                     // 유닛 ID 텍스트는 셀 표면(Surface) 위라 기본 텍스트색.
                     letter.Foreground = this.DeriveTextBrush(
                             string.IsNullOrEmpty(sub.Color) ? cell.Color : sub.Color, textPrimary);
-                    // 스테이징+클릭 결합이면 유닛 글씨 색만 액센트로 바꾼다.
-                    subUnit.Foreground = combined ? combinedText : textPrimary;
-                    subUnit.Text = sub.UnitId;
+
+                    if (subUnit != null)
+                    {
+                        // 스테이징+클릭 결합이면 유닛 글씨 색만 액센트로 바꾼다.
+                        subUnit.Foreground = combined ? combinedText : textPrimary;
+                        subUnit.Text = sub.UnitId;
+                    }
                 }
                 else if (!string.IsNullOrEmpty(subIncoming))
                 {
-                    // 들어올 칩 ID를 계획된 핑거 자리에 그대로 보여준다.
+                    // 들어올 칩을 계획된 핑거 자리에 표시한다(배지는 글자 강조).
                     dot.Background = info;
                     dot.BorderBrush = accent;
                     letter.Foreground = accent;
-                    subUnit.Foreground = accent;
-                    subUnit.Text = "→ " + subIncoming;
+
+                    if (subUnit != null)
+                    {
+                        subUnit.Foreground = accent;
+                        subUnit.Text = "→ " + subIncoming;
+                    }
                 }
                 else
                 {
                     dot.Background = neutral;
                     dot.BorderBrush = borderSubtle;
                     letter.Foreground = textDisabled;
-                    subUnit.Foreground = textDisabled;
-                    subUnit.Text = string.Empty;
+
+                    if (subUnit != null)
+                    {
+                        subUnit.Foreground = textDisabled;
+                        subUnit.Text = string.Empty;
+                    }
                 }
             }
         }

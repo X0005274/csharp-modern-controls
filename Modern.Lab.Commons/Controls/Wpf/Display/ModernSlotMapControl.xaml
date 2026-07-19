@@ -13,8 +13,11 @@
              d:DesignWidth="360" d:DesignHeight="480">
     <UserControl.Resources>
         <ResourceDictionary>
+            <!-- ControlParts를 병합해 공용 모던 툴팁(암시적 ToolTip 스타일)을
+                 그리드 등 다른 컨트롤과 **하나의 정의**로 공유한다. ControlParts가
+                 Tokens도 함께 병합하므로 토큰 리소스도 그대로 쓸 수 있다. -->
             <ResourceDictionary.MergedDictionaries>
-                <common:SharedResourceDictionary Source="/Modern.Lab.Commons;component/Themes/Tokens.xaml" />
+                <common:SharedResourceDictionary Source="/Modern.Lab.Commons;component/Themes/ControlParts.xaml" />
             </ResourceDictionary.MergedDictionaries>
         </ResourceDictionary>
     </UserControl.Resources>
