@@ -100,6 +100,29 @@ namespace Modern.Lab.Samples
             Modern.Lab.WinForms.Controls.Hosting.ModernLoadCover.Attach(this);
         }
 
+        // 백그라운드 작업의 UI 반영 공통 경로. 폼이 닫히는 중이면 Invoke를
+        // 시도하지 않고, 확인 직후 닫히는 경쟁 상태도 예외 없이 무시한다.
+        private void PostToUi(MethodInvoker action)
+        {
+            if (this.IsDisposed || this.Disposing || !this.IsHandleCreated)
+            {
+                return;
+            }
+
+            try
+            {
+                this.BeginInvoke(action);
+            }
+            catch (ObjectDisposedException)
+            {
+                // Dispose와 동시에 끝난 백그라운드 요청은 버린다.
+            }
+            catch (InvalidOperationException)
+            {
+                // 핸들이 해제된 직후의 반영 요청은 버린다.
+            }
+        }
+
         /// <summary>제한 시간을 적용한 WebClient (홈 환경 전용 헬퍼).</summary>
         private sealed class TimedWebClient : WebClient
         {
@@ -340,13 +363,20 @@ namespace Modern.Lab.Samples
             this.searchVersion = this.searchVersion + 1;
             int version = this.searchVersion;
 
+            // 새 검색부터는 이전 선택 행의 Unit 조회도 현재 화면과 무관하다.
+            // 늦게 도착한 응답이 새 현황판 우측 패널을 채우지 않게 무효화한다.
+            this.unitsVersion = this.unitsVersion + 1;
+            this.gridUnits.DataSource = null;
+            this.unitCard.Text = "Units";
+            this.stepPipeline.DataSource = null;
+
             ThreadPool.QueueUserWorkItem(delegate(object state)
             {
                 try
                 {
                     DataTable arrivals = this.RequestArrivals(keyword);
 
-                    this.Invoke(new MethodInvoker(delegate
+                    this.PostToUi(new MethodInvoker(delegate
                     {
                         // 그 사이 새 조회가 나갔으면 이 응답은 버린다.
                         if (version != this.searchVersion)
@@ -431,8 +461,14 @@ namespace Modern.Lab.Samples
                 }
                 catch (Exception ex)
                 {
-                    this.Invoke(new MethodInvoker(delegate
+                    this.PostToUi(new MethodInvoker(delegate
                     {
+                        // 이전 조회의 실패는 최신 조회의 로딩/오류 상태를 바꾸지 않는다.
+                        if (version != this.searchVersion)
+                        {
+                            return;
+                        }
+
                         this.busyMain.Busy = false;
                         this.toastMain.Show("Server call failed: " + ex.Message, ToastKind.Error);
                     }));
@@ -756,7 +792,7 @@ namespace Modern.Lab.Samples
                 {
                     DataTable units = this.RequestUnits(itemId);
 
-                    this.Invoke(new MethodInvoker(delegate
+                    this.PostToUi(new MethodInvoker(delegate
                     {
                         // 그 사이 다른 Item이 선택됐으면 이 응답은 버린다.
                         if (version != this.unitsVersion)
@@ -770,8 +806,14 @@ namespace Modern.Lab.Samples
                 }
                 catch (Exception ex)
                 {
-                    this.Invoke(new MethodInvoker(delegate
+                    this.PostToUi(new MethodInvoker(delegate
                     {
+                        // 이전 Item 선택의 오류는 현재 선택에 표시하지 않는다.
+                        if (version != this.unitsVersion)
+                        {
+                            return;
+                        }
+
                         this.toastMain.Show("Server call failed: " + ex.Message, ToastKind.Error);
                     }));
                 }
