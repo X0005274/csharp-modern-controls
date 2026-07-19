@@ -317,9 +317,7 @@ namespace Modern.Lab.Samples
             // 화면의 주 동작은 현재 이동 계획에 따라 하나만 액센트로 강조한다.
             // 동작 조건과 이벤트는 기존과 같고, 이 메서드는 시각적 위계만 조정한다.
             this.targetCard.TitleAccent = anyStaged;
-            this.lblTransferHint.Text = stagedCount > 0
-                    ? stagedCount.ToString("N0") + " staged"
-                    : "stage units";
+            this.UpdateTransferPlanText(stagedCount);
             this.btnSplit.Kind = this.btnSplit.Enabled
                     ? Modern.Lab.Controls.Wpf.Input.ButtonKind.Primary
                     : Modern.Lab.Controls.Wpf.Input.ButtonKind.Secondary;
@@ -378,6 +376,45 @@ namespace Modern.Lab.Samples
             }
 
             return false;
+        }
+
+        // TRAY는 STUB과 LCC가 물리적으로 다른 수납 구조이므로 이동 계획도
+        // 합계가 아닌 "STUB / LCC"로 나눠 보여 준다. FOUP은 단일 슬롯 구조라
+        // 기존처럼 하나의 계획 수만 표시한다.
+        private void UpdateTransferPlanText(int stagedCount)
+        {
+            if (this.GetSelectedType() != "TRAY")
+            {
+                this.lblTransfer.Text = "PLAN";
+                this.lblTransferHint.Text = stagedCount > 0
+                        ? stagedCount.ToString("N0") + " staged"
+                        : "stage units";
+                return;
+            }
+
+            int stubCount = 0;
+            int lccCount = 0;
+
+            if (this.stagedUnits != null)
+            {
+                foreach (DataRow row in this.stagedUnits.Rows)
+                {
+                    string kind = PendingTablePresenter.CellText(row, "KIND");
+
+                    if (kind == "STUB")
+                    {
+                        stubCount++;
+                    }
+                    else if (kind == "LCC")
+                    {
+                        lccCount++;
+                    }
+                }
+            }
+
+            this.lblTransfer.Text = "STUB / LCC";
+            this.lblTransferHint.Text = stubCount.ToString("N0") + " / "
+                    + lccCount.ToString("N0") + " staged";
         }
 
         // 카드 제목 (왼쪽) — "역할 — 캐리어". 채움 집계는 우측 서브타이틀,

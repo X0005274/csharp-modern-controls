@@ -231,11 +231,11 @@ namespace Modern.Lab.Samples
             //
             // tableMid
             //
-            // 좌(50%) | 중앙 이동 레일(76px 고정) | 우(50%) — 리사이즈
+            // 좌(50%) | 중앙 이동 레일(96px 고정) | 우(50%) — 리사이즈
             // 시에도 좌/우 카드가 항상 같은 폭으로 함께 늘어난다.
             this.tableMid.ColumnCount = 3;
             this.tableMid.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 50F));
-            this.tableMid.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Absolute, 76F));
+            this.tableMid.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Absolute, 96F));
             this.tableMid.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 50F));
             this.tableMid.Controls.Add(this.sourceCard, 0, 0);
             this.tableMid.Controls.Add(this.centerPanel, 1, 0);
@@ -257,7 +257,7 @@ namespace Modern.Lab.Samples
             this.sourceCard.Location = new System.Drawing.Point(0, 0);
             this.sourceCard.Name = "sourceCard";
             this.sourceCard.Padding = new System.Windows.Forms.Padding(8, 40, 8, 8);
-            this.sourceCard.Size = new System.Drawing.Size(678, 660);
+            this.sourceCard.Size = new System.Drawing.Size(668, 660);
             this.sourceCard.TabIndex = 0;
             this.sourceCard.Text = "Source carrier";
             this.sourceCard.TitleAccent = false;
@@ -283,7 +283,7 @@ namespace Modern.Lab.Samples
             this.mapSource.EnableDragOut = false;
             this.mapSource.Location = new System.Drawing.Point(8, 40);
             this.mapSource.Name = "mapSource";
-            this.mapSource.Size = new System.Drawing.Size(662, 612);
+            this.mapSource.Size = new System.Drawing.Size(652, 612);
             this.mapSource.TabIndex = 0;
             this.mapSource.CellClicked += new System.EventHandler<Modern.Lab.Controls.Wpf.Display.SlotMapCellEventArgs>(this.OnSourceCellClicked);
             this.mapSource.CellRightClick += new System.EventHandler<Modern.Lab.Controls.Wpf.Display.SlotMapCellEventArgs>(this.OnSourceCellRightClick);
@@ -300,9 +300,9 @@ namespace Modern.Lab.Samples
             this.centerPanel.Controls.Add(this.btnSelLeft);
             this.centerPanel.Controls.Add(this.btnAllLeft);
             this.centerPanel.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.centerPanel.Location = new System.Drawing.Point(678, 0);
+            this.centerPanel.Location = new System.Drawing.Point(668, 0);
             this.centerPanel.Name = "centerPanel";
-            this.centerPanel.Size = new System.Drawing.Size(76, 660);
+            this.centerPanel.Size = new System.Drawing.Size(96, 660);
             this.centerPanel.TabIndex = 1;
             //
             // lblTransfer
@@ -310,7 +310,7 @@ namespace Modern.Lab.Samples
             this.lblTransfer.Kind = Modern.Lab.Controls.Wpf.Display.LabelKind.Label;
             this.lblTransfer.Location = new System.Drawing.Point(8, 218);
             this.lblTransfer.Name = "lblTransfer";
-            this.lblTransfer.Size = new System.Drawing.Size(60, 18);
+            this.lblTransfer.Size = new System.Drawing.Size(80, 18);
             this.lblTransfer.TabIndex = 0;
             this.lblTransfer.Text = "PLAN";
             this.lblTransfer.Child = null;
@@ -320,7 +320,7 @@ namespace Modern.Lab.Samples
             this.lblTransferHint.Kind = Modern.Lab.Controls.Wpf.Display.LabelKind.Helper;
             this.lblTransferHint.Location = new System.Drawing.Point(8, 238);
             this.lblTransferHint.Name = "lblTransferHint";
-            this.lblTransferHint.Size = new System.Drawing.Size(60, 18);
+            this.lblTransferHint.Size = new System.Drawing.Size(80, 18);
             this.lblTransferHint.TabIndex = 1;
             this.lblTransferHint.Text = "stage";
             this.lblTransferHint.Child = null;
@@ -332,7 +332,7 @@ namespace Modern.Lab.Samples
             this.btnAllRight.Kind = Modern.Lab.Controls.Wpf.Input.ButtonKind.Secondary;
             this.btnAllRight.GlyphSize = 20D;
             this.btnAllRight.TopLabel = "All";
-            this.btnAllRight.Location = new System.Drawing.Point(14, 264);
+            this.btnAllRight.Location = new System.Drawing.Point(24, 264);
             this.btnAllRight.Name = "btnAllRight";
             this.btnAllRight.Size = new System.Drawing.Size(48, 44);
             this.btnAllRight.TabIndex = 2;
@@ -347,7 +347,7 @@ namespace Modern.Lab.Samples
             this.btnSelRight.Kind = Modern.Lab.Controls.Wpf.Input.ButtonKind.Secondary;
             this.btnSelRight.GlyphSize = 20D;
             this.btnSelRight.TopLabel = "Selected";
-            this.btnSelRight.Location = new System.Drawing.Point(14, 312);
+            this.btnSelRight.Location = new System.Drawing.Point(24, 312);
             this.btnSelRight.Name = "btnSelRight";
             this.btnSelRight.Size = new System.Drawing.Size(48, 44);
             this.btnSelRight.TabIndex = 3;
@@ -362,7 +362,7 @@ namespace Modern.Lab.Samples
             this.btnSelLeft.Kind = Modern.Lab.Controls.Wpf.Input.ButtonKind.Secondary;
             this.btnSelLeft.GlyphSize = 20D;
             this.btnSelLeft.TopLabel = "Selected";
-            this.btnSelLeft.Location = new System.Drawing.Point(14, 376);
+            this.btnSelLeft.Location = new System.Drawing.Point(24, 376);
             this.btnSelLeft.Name = "btnSelLeft";
             this.btnSelLeft.Size = new System.Drawing.Size(48, 44);
             this.btnSelLeft.TabIndex = 4;
@@ -377,7 +377,7 @@ namespace Modern.Lab.Samples
             this.btnAllLeft.Kind = Modern.Lab.Controls.Wpf.Input.ButtonKind.Secondary;
             this.btnAllLeft.GlyphSize = 20D;
             this.btnAllLeft.TopLabel = "All";
-            this.btnAllLeft.Location = new System.Drawing.Point(14, 424);
+            this.btnAllLeft.Location = new System.Drawing.Point(24, 424);
             this.btnAllLeft.Name = "btnAllLeft";
             this.btnAllLeft.Size = new System.Drawing.Size(48, 44);
             this.btnAllLeft.TabIndex = 5;
@@ -393,10 +393,10 @@ namespace Modern.Lab.Samples
             this.targetCard.Controls.Add(this.badgeTargetItem);
             this.targetCard.Controls.Add(this.mapTarget);
             this.targetCard.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.targetCard.Location = new System.Drawing.Point(754, 0);
+            this.targetCard.Location = new System.Drawing.Point(764, 0);
             this.targetCard.Name = "targetCard";
             this.targetCard.Padding = new System.Windows.Forms.Padding(8, 40, 8, 8);
-            this.targetCard.Size = new System.Drawing.Size(678, 660);
+            this.targetCard.Size = new System.Drawing.Size(668, 660);
             this.targetCard.TabIndex = 2;
             this.targetCard.Text = "Target carrier";
             this.targetCard.TitleAccent = false;
@@ -410,7 +410,7 @@ namespace Modern.Lab.Samples
             this.mapTarget.Dock = System.Windows.Forms.DockStyle.Fill;
             this.mapTarget.Location = new System.Drawing.Point(8, 40);
             this.mapTarget.Name = "mapTarget";
-            this.mapTarget.Size = new System.Drawing.Size(662, 612);
+            this.mapTarget.Size = new System.Drawing.Size(652, 612);
             this.mapTarget.TabIndex = 0;
             this.mapTarget.CellClicked += new System.EventHandler<Modern.Lab.Controls.Wpf.Display.SlotMapCellEventArgs>(this.OnTargetCellClicked);
             this.mapTarget.CellRightClick += new System.EventHandler<Modern.Lab.Controls.Wpf.Display.SlotMapCellEventArgs>(this.OnTargetCellRightClick);
