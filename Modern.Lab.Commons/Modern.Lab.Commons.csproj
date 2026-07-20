@@ -258,6 +258,7 @@
     <Compile Include="Controls\Wpf\Input\DigitMaskHelper.cs" />
     <Compile Include="Controls\Wpf\Data\GridButtonClickEventArgs.cs" />
     <Compile Include="Controls\Wpf\Data\GridCaptionCatalog.cs" />
+    <Compile Include="Services\GridCaptionDictionary.cs" />
     <Compile Include="Controls\Wpf\Data\ModernDataGridColumn.cs" />
     <Compile Include="Controls\Wpf\Data\ModernDataGridControl.xaml.cs">
       <DependentUpon>ModernDataGridControl.xaml</DependentUpon>

@@ -165,8 +165,8 @@ this.gridEmployee = new Modern.Lab.WinForms.Controls.Data.ModernDataGrid();
    - `grid.CurrentRow.DataBoundItem` → `grid.SelectedItem`
    - `grid.Rows[i].Cells["X"].Value` → `((DataRowView)grid.SelectedItem)["X"]`
    - `DataGridViewButtonColumn` + `CellContentClick` → `Kind = Button` 컬럼 + `CellButtonClick`
-   - `ConfigureColumns` 작성 시: 앱이 캡션 용어사전(`GridCaptionCatalog`)을
-     등록해 뒀다면 표준 캡션 컬럼은 `new ModernDataGridColumn("ITEM_ID")`처럼
+   - `ConfigureColumns` 작성 시: 앱 시작 시 Common의
+     `GridCaptionDictionary.RegisterAll()`을 호출해 뒀다면 표준 캡션 컬럼은 `new ModernDataGridColumn("ITEM_ID")`처럼
      캡션 인자를 생략하고, 화면 문맥상 다른 표현만 headerText로 명시한다
    - 그리드 내용 엑셀 저장(기존 Excel COM/CSV 내보내기) →
      `grid.ExportXlsx(path, sheetName, dataTable)` — 화면 컬럼 정의 그대로 저장,

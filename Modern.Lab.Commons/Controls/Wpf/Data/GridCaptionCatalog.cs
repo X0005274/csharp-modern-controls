@@ -6,9 +6,9 @@ namespace Modern.Lab.Controls.Wpf.Data
     /// <summary>
     /// 그리드 컬럼 캡션 용어사전 — "필드 이름(DB 컬럼) → 표준 캡션"의 등록형 그릇.
     ///
-    /// 라이브러리는 빈 사전(메커니즘)만 제공하고 내용(도메인 용어)은 앱이 채운다:
-    /// 앱 시작 시(첫 폼 생성 전) Register/RegisterRange로 사내 표준 용어집을
-    /// 부어 넣으면, 이후 캡션 인자가 없는 컬럼 정의(new ModernDataGridColumn("ITEM_ID"))가
+    /// Common의 GridCaptionDictionary가 제공하는 회사 표준 용어집 또는 앱의
+    /// 추가 용어집을 앱 시작 시(첫 폼 생성 전) Register/RegisterRange로
+    /// 등록하면, 이후 캡션 인자가 없는 컬럼 정의(new ModernDataGridColumn("ITEM_ID"))가
     /// 여기 표준 캡션을 자동으로 받는다. 화면 문맥상 다른 표현이 필요하면
     /// headerText를 받는 생성자로 명시해 재정의한다 — 명시가 항상 사전을 이긴다.
     ///

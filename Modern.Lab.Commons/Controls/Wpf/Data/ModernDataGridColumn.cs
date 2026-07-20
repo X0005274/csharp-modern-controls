@@ -12,10 +12,11 @@ namespace Modern.Lab.Controls.Wpf.Data
         /// <summary>
         /// 캡션 해석기 재정의 훅 — HeaderText를 생략한 생성자가 캡션을 물어볼
         /// 전역 제공자. 비워 두면(기본) GridCaptionCatalog 사전을 쓰므로 보통은
-        /// 앱 시작 시 GridCaptionCatalog에 용어집을 등록하는 것으로 충분하다.
+        /// 앱 시작 시 Common의 GridCaptionDictionary.RegisterAll()을 호출하거나
+        /// GridCaptionCatalog에 용어집을 등록하는 것으로 충분하다.
         /// 사전 조회로 부족한 해석 로직(리소스/다국어 등)이 필요할 때만 등록한다.
         /// 제공자가 null/빈 값을 돌려주면 DataPropertyName이 그대로 캡션이 된다.
-        /// 사전의 내용(도메인 용어)은 앱 쪽 책임이다 — 라이브러리는 메커니즘만 제공한다.
+        /// 회사 공통 용어는 GridCaptionDictionary, 화면 전용 용어는 앱 등록을 사용한다.
         /// </summary>
         public static Func<string, string> CaptionResolver { get; set; }
 

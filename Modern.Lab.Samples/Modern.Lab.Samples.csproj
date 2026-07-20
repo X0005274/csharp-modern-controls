@@ -116,7 +116,6 @@
     <Compile Include="Services\EquipmentTablePresenter.cs" />
     <Compile Include="Services\CarrierEditSimulator.cs" />
     <Compile Include="Services\CarrierTablePresenter.cs" />
-    <Compile Include="Services\GridCaptionDictionary.cs" />
     <Compile Include="Services\HistoryTablePresenter.cs" />
     <Compile Include="Services\JsonTableConverter.cs" />
     <Compile Include="Services\PendingInterfaceSimulator.cs" />

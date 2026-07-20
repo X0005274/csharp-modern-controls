@@ -26,7 +26,7 @@
 
 | 멤버 | 설명 |
 |---|---|
-| `ConfigureColumns(params ModernDataGridColumn[])` | 명시적 컬럼 정의. `DataSource` 할당 전에 호출. `ModernDataGridColumn(dataPropertyName[, headerText[, width]])` — headerText 생략 시 캡션 용어사전(`GridCaptionCatalog`, 앱 시작 시 `Register`/`RegisterRange`로 용어집 등록) 참조, width 생략/음수는 남은 폭 채움(star). `TextAlignment`(Left/Center/Right) 지정 가능 |
+| `ConfigureColumns(params ModernDataGridColumn[])` | 명시적 컬럼 정의. `DataSource` 할당 전에 호출. `ModernDataGridColumn(dataPropertyName[, headerText[, width]])` — headerText 생략 시 캡션 용어사전 참조. 앱 시작 시 `Modern.Lab.Services.GridCaptionDictionary.RegisterAll()`을 한 번 호출하면 Common의 회사 표준 캡션을 쓴다. 화면 전용 용어는 `GridCaptionCatalog.Register`/`RegisterRange`로 추가·재정의한다. width 생략/음수는 남은 폭 채움(star). `TextAlignment`(Left/Center/Right) 지정 가능 |
 | `ExportXlsx(path, sheetName, data)` | 화면 컬럼 정의 그대로(순서·캡션·`Format`) 데이터 전체를 진짜 .xlsx로 저장 — 외부 라이브러리 없음, 내보내기용 컬럼/헤더 목록을 폼이 따로 관리하지 않는다. CheckBox/Button 컬럼 자동 제외. `data`는 그리드 `DataSource`가 아니라 인자 — 페이지 화면에서도 전체 결과 저장 |
 | `ColumnDefinitions` | `ConfigureColumns`로 선언한 정의의 복사본 — 화면과 동일한 컬럼 구성(순서·캡션·형식)으로 커스텀 파생 출력을 만들 때 단일 원천 (엑셀 저장은 `ExportXlsx`가 이미 해준다) |
 | `EmptyText` | 데이터 0건일 때 데이터 영역 가운데 표시할 안내 문구 (기본 `"No data"`, 빈 문자열 = 끔) |
