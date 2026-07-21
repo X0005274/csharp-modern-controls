@@ -155,7 +155,7 @@ namespace Modern.Lab.Samples
                     this.PrepareTopLot);
             this.AddEquipmentAction("START", "Start Job", false,
                     delegate(DataRowView row) { return PendingTablePresenter.FlagSet(row.Row, "START_CAN"); },
-                    delegate { this.RunEquipmentAction("START"); });
+                    this.StartJobAction);
             this.AddEquipmentAction("END", "End Job", false,
                     delegate(DataRowView row) { return PendingTablePresenter.FlagSet(row.Row, "END_CAN"); },
                     this.RunEndDialog);
@@ -163,7 +163,7 @@ namespace Modern.Lab.Samples
             // 특정 포트 하나만 반출하는 것은 포트 액션(Unload Lot)이 한다.
             this.AddEquipmentAction("UNLOAD", "Unload All Done", false,
                     delegate(DataRowView row) { return PendingTablePresenter.FlagSet(row.Row, "UNLOAD_CAN"); },
-                    delegate { this.RunEquipmentAction("UNLOAD"); });
+                    this.UnloadAllDoneAction);
             this.AddEquipmentAction("DOWN", "Set Down", true,
                     delegate(DataRowView row) { return PendingTablePresenter.CellText(row.Row, "STATE") != "Down"; },
                     delegate { this.ApplyDownAction(true); });
@@ -1153,10 +1153,28 @@ namespace Modern.Lab.Samples
             }
         }
 
-        // 작업시작 / 반출 — 서버가 검증 + 시각 적재를 하고, 성공하면
-        // 재조회 + 그 장비 포커스 유지. 실패 사유는 토스트.
-        // ★ 회사 환경 교체 지점 — StartJob/Unload를 회사 인터페이스로.
-        private void RunEquipmentAction(string kind)
+        // 작업시작 — 인자·다이얼로그 없이 서버 한 방 호출 후 재조회.
+        // ★ 회사 환경 교체 지점 — StartJob을 회사 인터페이스로.
+        private void StartJobAction()
+        {
+            this.RunSimpleAction(EquipmentLotApiClient.StartJob, "Job started on {0}.");
+        }
+
+        // 장비 단위 일괄 반출 — 완료(Done) 아웃포트 전체를 한 번에 비운다.
+        // 특정 포트 하나만 반출하는 것은 포트 액션(Unload Lot)이 한다.
+        // ★ 회사 환경 교체 지점 — Unload를 회사 인터페이스로.
+        private void UnloadAllDoneAction()
+        {
+            this.RunSimpleAction(EquipmentLotApiClient.Unload, "All done out-ports unloaded on {0}.");
+        }
+
+        // 인자·다이얼로그 없이 "서버 한 방 호출 → 재조회"로 끝나는 장비 액션의
+        // 공용 본문 — 대상 장비 확인 → 서버가 검증 + 시각 적재 → 실패 사유
+        // 토스트 / 성공 토스트 + 그 장비 포커스를 유지한 재조회. 다이얼로그가
+        // 필요한 Prepare/End나 파라미터가 다른 Down·통신 모드 전환은 이 틀에
+        // 맞지 않으므로 각자 전용 메서드를 쓴다. successFormat의 {0}은 장비 ID.
+        private void RunSimpleAction(
+                Func<string, string, EquipmentLotApiClient.ActionResult> serverCall, string successFormat)
         {
             string group = this.GetGroup();
             string eqpId = this.GetFocusedEqpId();
@@ -1167,19 +1185,7 @@ namespace Modern.Lab.Samples
                 return;
             }
 
-            EquipmentLotApiClient.ActionResult result;
-            string successMessage;
-
-            if (kind == "START")
-            {
-                result = EquipmentLotApiClient.StartJob(group, eqpId);
-                successMessage = "Job started on " + eqpId + ".";
-            }
-            else
-            {
-                result = EquipmentLotApiClient.Unload(group, eqpId);
-                successMessage = "All done out-ports unloaded on " + eqpId + ".";
-            }
+            EquipmentLotApiClient.ActionResult result = serverCall(group, eqpId);
 
             if (!result.Success)
             {
@@ -1187,7 +1193,7 @@ namespace Modern.Lab.Samples
                 return;
             }
 
-            this.toastMain.Show(successMessage, ToastKind.Success);
+            this.toastMain.Show(string.Format(successFormat, eqpId), ToastKind.Success);
             this.ExecuteSearch(eqpId);
         }
 
