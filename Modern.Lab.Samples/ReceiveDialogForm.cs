@@ -20,9 +20,9 @@ namespace Modern.Lab.Samples
     /// 성공하면 다이얼로그를 닫고 부모 폼이 재조회한다. 체크된 대상이 없으면
     /// Manual Entry 모드로 시작한다.
     ///
-    /// ★ 회사 환경 교체 지점 — PendingInterfaceSimulator.ProcessReceive를
-    ///   ITEM 생성 인터페이스 호출로, ManualReceive를 수신 전문 호출로,
-    ///   SendFacilityCodes를 공장 코드 조회로 바꾼다.
+    /// ★ 회사 환경 교체 지점 — 서버 호출은 전부 PendingApiClient에 모여 있다.
+    ///   그 클래스의 Receive/ManualReceive/GetSendFacilities 본문을 회사
+    ///   인터페이스(ITEM 생성 전문 · 수신 전문 · 공장 코드 조회)로 바꾼다.
     /// </summary>
     public partial class ReceiveDialogForm : Form
     {
@@ -72,8 +72,16 @@ namespace Modern.Lab.Samples
                 new ModernDataGridColumn("ARRIVE_TM") { TextAlignment = GridTextAlignment.Center });
             this.gridItems.DataSource = this.checkedItems;
 
-            // 발송 공장 콤보 — ★ 회사 적용 시 공장 코드 조회로 교체한다.
-            this.cboSendFac.DataSource = PendingInterfaceSimulator.SendFacilityCodes;
+            // 발송 공장 콤보 — 서버에서 공장 코드 목록을 받아 채운다.
+            try
+            {
+                this.cboSendFac.DataSource = PendingApiClient.GetSendFacilities();
+            }
+            catch (Exception)
+            {
+                // 공장 코드 조회 실패 시 빈 콤보로 둔다 — 수신 시 서버가 다시 검증한다.
+                this.cboSendFac.DataSource = new string[0];
+            }
 
             // 체크된 대상이 없으면 매뉴얼 모드로 시작한다.
             this.radioMode.SelectedValue = checkedCount > 0 ? modeChecked : modeManual;
@@ -124,15 +132,29 @@ namespace Modern.Lab.Samples
                     return;
                 }
 
-                // ★ 회사 환경 교체 지점 — ITEM 생성 인터페이스 호출로 바꾸고,
-                //   응답 성공 건만 집계한다.
-                foreach (DataRow row in this.checkedItems.Rows)
+                // 체크된 대상을 서버에 순차 수신 처리하고 성공 건만 집계한다.
+                int processed = 0;
+
+                try
                 {
-                    PendingInterfaceSimulator.ProcessReceive(
-                            PendingTablePresenter.CellText(row, "ITEM_ID"));
+                    foreach (DataRow row in this.checkedItems.Rows)
+                    {
+                        PendingApiClient.ActionResult itemResult = PendingApiClient.Receive(
+                                PendingTablePresenter.CellText(row, "ITEM_ID"));
+
+                        if (itemResult.Success)
+                        {
+                            processed = processed + 1;
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    this.ShowResult("Server call failed: " + ex.Message, errorColor);
+                    return;
                 }
 
-                this.ProcessedCount = this.checkedItems.Rows.Count;
+                this.ProcessedCount = processed;
                 this.ManualItemId = null;
                 this.DialogResult = DialogResult.OK;
                 return;
@@ -148,9 +170,19 @@ namespace Modern.Lab.Samples
                 return;
             }
 
-            // ★ 회사 환경 교체 지점 — 수신 전문 호출로 바꾼다 (체크+처리 단일 전문).
-            PendingInterfaceSimulator.ManualReceiveResult result =
-                    PendingInterfaceSimulator.ManualReceive(itemId, sendFac);
+            // 강제 수신 단일 전문 — 서버가 중복 체크 + 처리를 한 번에 한다.
+            PendingApiClient.ActionResult result;
+
+            try
+            {
+                result = PendingApiClient.ManualReceive(itemId, sendFac);
+            }
+            catch (Exception ex)
+            {
+                this.ShowResult("Server call failed: " + ex.Message, errorColor);
+                this.txtItemId.Focus();
+                return;
+            }
 
             if (!result.Success)
             {

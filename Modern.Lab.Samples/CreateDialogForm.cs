@@ -14,8 +14,8 @@ namespace Modern.Lab.Samples
     ///
     /// 성공하면 다이얼로그를 닫고 부모 폼이 재조회한다.
     ///
-    /// ★ 회사 환경 교체 지점 — PendingInterfaceSimulator.ProcessCreate 호출을
-    ///   의뢰 처리 인터페이스 호출로 바꾸고, 응답 성공 건만 집계한다.
+    /// ★ 회사 환경 교체 지점 — 서버 호출은 PendingApiClient.Create에 모여 있다.
+    ///   그 메서드 본문을 회사 의뢰 처리 인터페이스 호출로 바꾼다.
     /// </summary>
     public partial class CreateDialogForm : Form
     {
@@ -52,15 +52,30 @@ namespace Modern.Lab.Samples
                 return;
             }
 
-            // ★ 회사 환경 교체 지점 — 의뢰 처리 인터페이스 호출로 바꾸고,
-            //   응답 성공 건만 집계한다.
-            foreach (DataRow row in this.checkedItems.Rows)
+            // 체크된 대상을 서버에 순차 Create 처리하고 성공 건만 집계한다.
+            int processed = 0;
+
+            try
             {
-                PendingInterfaceSimulator.ProcessCreate(
-                        PendingTablePresenter.CellText(row, "ITEM_ID"));
+                foreach (DataRow row in this.checkedItems.Rows)
+                {
+                    PendingApiClient.ActionResult result = PendingApiClient.Create(
+                            PendingTablePresenter.CellText(row, "ITEM_ID"));
+
+                    if (result.Success)
+                    {
+                        processed = processed + 1;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(this, "Server call failed: " + ex.Message,
+                        "Create", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
             }
 
-            this.ProcessedCount = this.checkedItems.Rows.Count;
+            this.ProcessedCount = processed;
             this.DialogResult = DialogResult.OK;
         }
 

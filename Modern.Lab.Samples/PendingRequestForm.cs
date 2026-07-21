@@ -51,15 +51,16 @@ namespace Modern.Lab.Samples
     ///   시각 기준 — 운송 지연)과 도착 후 의뢰서 미연결(도착 시각 기준 —
     ///   방치 기간) 행에 표기한다. 화면 표기는 전부 영어.
     ///
-    /// 서버 호출은 "서버 조회 (★ 회사 환경 교체 지점)" 영역의 private 메서드
-    /// 2개(도착 목록/Unit 목록)에만 있다. 홈 환경은 도착 목록 API 하나뿐이라
-    /// FAC_SEND_MAS/의뢰 인터페이스는 PendingInterfaceSimulator가 결정적으로
-    /// 시뮬레이션한다 — 회사 적용 시 시뮬레이터를 지우고 조인 현황판을 서버에서
-    /// 직접 내려받는다.
+    /// 서버 호출: 조회는 이 폼의 private 메서드 2개(현황판/Unit 목록)가, 처리
+    /// (수신/Create/강제 수신)와 공장 코드 조회는 PendingApiClient가 담당한다.
+    /// 현황판은 서버가 FAC_SEND_MAS FULL OUTER JOIN IF_REQ_MAS(SEND_YN 포함
+    /// 14컬럼)를 직접 내려주고, 상태 파생/필터/집계/경과일만 클라이언트
+    /// (PendingTablePresenter)가 계산한다. ★ 회사 적용 시 조회 경로와
+    /// PendingApiClient의 본문만 회사 인터페이스 호출로 바꾼다.
     ///
-    /// Receive/Create 처리 흐름: 서버 처리(데모는 시뮬레이터의 서버측 저장소,
-    /// 회사는 ITEM 생성 전문/의뢰 처리 갱신 인터페이스) → 성공 시 **재조회**
-    /// (조회 조건·페이지·행 포커스 유지). 처리 시각(RECV_TM/PROC_TM)은 서버가
+    /// Receive/Create 처리 흐름: 서버 처리(홈은 modernlab-api → Oracle, 회사는
+    /// ITEM 생성 전문/의뢰 처리 갱신 인터페이스) → 성공 시 **재조회**(조회
+    /// 조건·페이지·행 포커스 유지). 처리 시각(RECV_TM/PROC_TM)은 서버가
     /// 적재하는 값이므로 화면이 만들지 않고 재조회 결과를 그대로 보여준다.
     /// </summary>
     public partial class PendingRequestForm : Form
@@ -136,14 +137,14 @@ namespace Modern.Lab.Samples
 
         // ===== 서버 조회 (★ 회사 환경 교체 지점) =====
 
-        // 물류 도착 목록 — 홈 환경에서 유일하게 실재하는 원천이다. 회사 적용 시
-        // 이 메서드를 FAC_SEND_MAS FULL OUTER JOIN IF_REQ_MAS 현황판 조회
-        // (SEND_YN 포함)로 바꾼다. 상태 파생/필터/집계는 그대로 클라이언트
-        // (PendingTablePresenter)가 처리한다.
-        private DataTable RequestArrivals(string keyword)
+        // 현황판 조회 — 서버가 FAC_SEND_MAS FULL OUTER JOIN IF_REQ_MAS 결과
+        // (SEND_YN 포함 14컬럼)를 직접 내려준다. 상태 파생/필터/집계/경과일은
+        // 그대로 클라이언트(PendingTablePresenter)가 처리한다. ★ 회사 적용 시
+        // 이 조회를 회사의 현황판 전문 호출로 바꾼다.
+        private DataTable RequestBoard(string keyword)
         {
             StringBuilder query = new StringBuilder();
-            query.Append("/api/items/pending-requests");
+            query.Append("/api/pending/board");
 
             if (!string.IsNullOrEmpty(keyword))
             {
@@ -374,7 +375,7 @@ namespace Modern.Lab.Samples
             {
                 try
                 {
-                    DataTable arrivals = this.RequestArrivals(keyword);
+                    DataTable board = this.RequestBoard(keyword);
 
                     this.PostToUi(new MethodInvoker(delegate
                     {
@@ -388,10 +389,8 @@ namespace Modern.Lab.Samples
                         // 계산 기준 일시를 현황판 타이틀 오른쪽에 표기한다.
                         DateTime daysBasis = DateTime.Now;
 
-                        // ★ 회사 환경 교체 지점 — 조인 현황판을 서버에서 직접
-                        // 내려받으면 이 한 줄이 서버 호출 결과로 바뀐다.
-                        DataTable board = PendingInterfaceSimulator.Build(arrivals);
-
+                        // 현황판(FAC_SEND_MAS FULL OUTER JOIN IF_REQ_MAS)은 서버가
+                        // 직접 내려준다 — 상태/색/경과일 파생만 클라이언트가 한다.
                         PendingTablePresenter.ApplyWorkflowColumns(board);
                         this.resultData = PendingTablePresenter.Filter(
                                 board, statusFilter, sendFilter, minDays);
@@ -439,9 +438,9 @@ namespace Modern.Lab.Samples
                         // (빈 결과는 ITEM_ID 컬럼 자체가 없을 수 있어 건너뛴다.)
                         if (keyword.Length == 0 && statusFilter.Length == 0
                                 && sendFilter.Length == 0 && minDays == 0
-                                && arrivals.Columns.Contains("ITEM_ID"))
+                                && board.Columns.Contains("ITEM_ID"))
                         {
-                            this.cboItemId.DataSource = arrivals.DefaultView.ToTable(false, "ITEM_ID");
+                            this.cboItemId.DataSource = board.DefaultView.ToTable(false, "ITEM_ID");
                             this.cboItemId.Text = string.Empty;
                         }
 
@@ -918,16 +917,28 @@ namespace Modern.Lab.Samples
 
             string itemId = PendingTablePresenter.CellText(row.Row, "ITEM_ID");
 
-            if (e.DataPropertyName == "RECV_ACTION")
+            bool receive = e.DataPropertyName == "RECV_ACTION";
+
+            try
             {
-                PendingInterfaceSimulator.ProcessReceive(itemId);
-                this.toastMain.Show("Item " + itemId + " received.", ToastKind.Success);
+                PendingApiClient.ActionResult result = receive
+                        ? PendingApiClient.Receive(itemId)
+                        : PendingApiClient.Create(itemId);
+
+                if (!result.Success)
+                {
+                    this.toastMain.Show("Server call failed: " + result.Message, ToastKind.Error);
+                    return;
+                }
             }
-            else
+            catch (Exception ex)
             {
-                PendingInterfaceSimulator.ProcessCreate(itemId);
-                this.toastMain.Show("Item " + itemId + " created.", ToastKind.Success);
+                this.toastMain.Show("Server call failed: " + ex.Message, ToastKind.Error);
+                return;
             }
+
+            this.toastMain.Show(
+                    "Item " + itemId + (receive ? " received." : " created."), ToastKind.Success);
 
             // 행 버튼으로 처리한 행이 처리 후에도 포커스를 유지한다.
             this.ExecuteSearch(true, itemId, this.gridBoard.SelectedIndex);

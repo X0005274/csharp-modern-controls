@@ -118,7 +118,7 @@
     <Compile Include="Services\CarrierTablePresenter.cs" />
     <Compile Include="Services\HistoryTablePresenter.cs" />
     <Compile Include="Services\JsonTableConverter.cs" />
-    <Compile Include="Services\PendingInterfaceSimulator.cs" />
+    <Compile Include="Services\PendingApiClient.cs" />
     <Compile Include="Services\PendingTablePresenter.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
