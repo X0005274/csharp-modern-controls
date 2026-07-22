@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Data;
 using System.Globalization;
 using System.Net;
@@ -8,22 +9,23 @@ using System.Threading;
 using System.Windows.Forms;
 using Modern.Lab.Controls.Wpf.Data;
 using Modern.Lab.Controls.Wpf.Display;
+using Modern.Lab.Data;
 using Modern.Lab.Samples.Services;
 
 namespace Modern.Lab.Samples
 {
     /// <summary>
-    /// Pending Requests — 공장 간 물류 인수 파이프라인의 조회 + 수동 처리 화면.
+    /// Logistics & Request — 공장 간 물류 인수 파이프라인의 조회 + 수동 처리 화면.
     ///
     /// 업무 흐름 (2026-07-17 FAC_SEND_MAS 기반 재정의):
     /// 1) 보내는 쪽이 발송 통보를 FAC_SEND_MAS(ITEM_ID/BOX_ID/SEND_TM/SEND_FAC/
     ///    RECV_YN='N')에 적재한다.
-    /// 2) 물류가 실제 도착하면 의뢰 인터페이스(가제 IF_REQ_MAS)에 ITEM_ID와
-    ///    물류도착시간이 적재된다.
-    /// 3) Receive 처리로 전산에 ITEM(Created → Released)이 생성되고 RECV_YN/RECV_TM이
-    ///    채워진다.
-    /// 4) 의뢰서가 있으면 의뢰내용(REQ_NO/SAMPLE_NM …)이 연결되고, 연결되면 다음
-    ///    단계(Create 처리 — PROC_YN/PROC_TM)로 자동 진행한다.
+    /// 2) Receive 처리(자동/수동)가 곧 물류 도착 확인이다 — 의뢰 인터페이스
+    ///    (가제 IF_REQ_MAS)에 행이 생기고 RECV_TM(도착=수신 동시각)/RECV_YN이
+    ///    적재되며 전산 ITEM(Created → Released)이 생성된다. Receive는 발송
+    ///    통보가 있는(SEND_YN='Y') 미수신 건만 가능하다.
+    /// 3) 수신 후 배치가 돌아 의뢰서가 연결되면 의뢰내용(REQ_NO/SAMPLE_NM …)이
+    ///    채워지고, 연결되면 다음 단계(Create 처리 — PROC_YN/PROC_TM)로 진행한다.
     /// 이 과정은 원래 전부 자동이다. 이 화면은 **자동이 일부/전부 실패한 건의 수동
     /// 처리**(Receive/Create)와, 도착했지만 의뢰서가 없는 목록 + 전체 현황을
     /// 현업에게 보여주기 위해 존재한다.
@@ -41,29 +43,32 @@ namespace Modern.Lab.Samples
     ///   파이프라인 스텝 인디케이터 (Units는 보통 6개 이하라 남는 하단 공간 활용)
     /// - 하단 좌측: 상태별 KPI 배지 + 미확인 건수 + 미연결 경과 통계(Avg/Oldest)
     /// - 하단 우측 실행 카드: Excel / Receive(다이얼로그 — 체크 목록 확인 후
-    ///   일괄 처리 또는 매뉴얼 강제 수신) / Create(다이얼로그 — 체크 목록 확인
+    ///   일괄 수신) / Manual Receive(전용 다이얼로그 — Lot ID 입력 → Check로
+    ///   웨이퍼 정보 확인 → 강제 수신) / Create(다이얼로그 — 체크 목록 확인
     ///   후 일괄 처리)
     ///
-    /// 상태 규칙 (파생·필터·집계는 전부 PendingTablePresenter):
-    ///   Sent(발송 통보) → Arrived(→ Receive) → Request Unlinked(경과일 강조) →
-    ///   Request Linked(→ Create) → Completed. 상태는 "아직 안 된 첫 단계"라 자동이
-    ///   어디서 멈췄든 다음 할 일이 하나로 정해진다. 경과일은 운송 중(발송
-    ///   시각 기준 — 운송 지연)과 도착 후 의뢰서 미연결(도착 시각 기준 —
-    ///   방치 기간) 행에 표기한다. 화면 표기는 전부 영어.
+    /// 상태 규칙 (파생·필터·집계는 전부 LogisticsRequestPresenter):
+    ///   Sent(발송 통보, 미수신 → Receive) → Received(수신 후 1일 미만, 배치
+    ///   대기) → Request Unlinked(수신 후 1일 경과, 연결 지연 — 경과일 강조)
+    ///   → Request Linked(→ Create) → Completed. 상태는
+    ///   "아직 안 된 첫 단계"라 자동이 어디서 멈췄든 다음 할 일이 하나로
+    ///   정해진다. 경과일은 미수신(발송 시각 기준 — 지연)과 수신 후 의뢰서
+    ///   미연결(수신 시각 기준 — 배치 대기) 행에 표기한다. 화면 표기는 전부 영어.
     ///
-    /// 서버 호출: 조회는 이 폼의 private 메서드 2개(현황판/Unit 목록)가, 처리
-    /// (수신/Create/강제 수신)와 공장 코드 조회는 PendingApiClient가 담당한다.
-    /// 현황판은 서버가 FAC_SEND_MAS FULL OUTER JOIN IF_REQ_MAS(SEND_YN 포함
-    /// 14컬럼)를 직접 내려주고, 상태 파생/필터/집계/경과일만 클라이언트
-    /// (PendingTablePresenter)가 계산한다. ★ 회사 적용 시 조회 경로와
-    /// PendingApiClient의 본문만 회사 인터페이스 호출로 바꾼다.
+    /// 서버 호출: 이 폼이 쓰는 조회 2개(현황판/Unit 목록)와 처리 2개(행 단위
+    /// 수신/Create)가 전부 이 폼 안에 있다 — 일괄 처리·강제 수신·공장 코드
+    /// 조회는 각 다이얼로그(Create/Receive)가 자기 것을 갖는다. 현황판은
+    /// 서버가 FAC_SEND_MAS FULL OUTER JOIN IF_REQ_MAS(SEND_YN 포함 14컬럼)를
+    /// 직접 내려주고, 상태 파생/필터/집계/경과일만 클라이언트
+    /// (LogisticsRequestPresenter)가 계산한다. ★ 회사 적용 시 이 폼의 조회/처리
+    /// 메서드 본문만 회사 인터페이스 호출로 바꾼다.
     ///
     /// Receive/Create 처리 흐름: 서버 처리(홈은 modernlab-api → Oracle, 회사는
     /// ITEM 생성 전문/의뢰 처리 갱신 인터페이스) → 성공 시 **재조회**(조회
     /// 조건·페이지·행 포커스 유지). 처리 시각(RECV_TM/PROC_TM)은 서버가
     /// 적재하는 값이므로 화면이 만들지 않고 재조회 결과를 그대로 보여준다.
     /// </summary>
-    public partial class PendingRequestForm : Form
+    public partial class LogisticsRequestForm : Form
     {
         // ===== 홈 환경 API (★ 회사 환경 교체 지점) =====
 
@@ -92,7 +97,7 @@ namespace Modern.Lab.Samples
         // Unit 조회 버전 — 빠른 재선택 시 오래된 응답을 버린다.
         private int unitsVersion;
 
-        public PendingRequestForm()
+        public LogisticsRequestForm()
         {
             this.InitializeComponent();
 
@@ -139,7 +144,7 @@ namespace Modern.Lab.Samples
 
         // 현황판 조회 — 서버가 FAC_SEND_MAS FULL OUTER JOIN IF_REQ_MAS 결과
         // (SEND_YN 포함 14컬럼)를 직접 내려준다. 상태 파생/필터/집계/경과일은
-        // 그대로 클라이언트(PendingTablePresenter)가 처리한다. ★ 회사 적용 시
+        // 그대로 클라이언트(LogisticsRequestPresenter)가 처리한다. ★ 회사 적용 시
         // 이 조회를 회사의 현황판 전문 호출로 바꾼다.
         private DataTable RequestBoard(string keyword)
         {
@@ -172,6 +177,66 @@ namespace Modern.Lab.Samples
             }
         }
 
+        // ===== 서버 처리 (★ 회사 환경 교체 지점) =====
+
+        /// <summary>서버 처리 응답 — 성공 여부와 실패 사유.</summary>
+        private sealed class ActionResult
+        {
+            /// <summary>처리 성공 여부.</summary>
+            internal bool Success;
+
+            /// <summary>실패 사유 (성공이면 빈 문자열) — 화면 표기용 영어 문구.</summary>
+            internal string Message;
+        }
+
+        /// <summary>수신 처리 — 도착 건의 RECV_YN/RECV_TM/상태를 채운다.
+        /// ★ 회사 적용 시 ITEM 생성 인터페이스 호출로 바꾼다.</summary>
+        private static ActionResult Receive(string itemId)
+        {
+            return Post("/api/pending/receive", NewBody("itemId", itemId));
+        }
+
+        /// <summary>Create 처리 — 의뢰 인터페이스의 PROC_YN/PROC_TM을 채운다.
+        /// ★ 회사 적용 시 의뢰 처리 인터페이스 호출로 바꾼다.</summary>
+        private static ActionResult Create(string itemId)
+        {
+            return Post("/api/pending/create", NewBody("itemId", itemId));
+        }
+
+        // 인자 하나짜리 요청 본문 구성 헬퍼.
+        private static Dictionary<string, string> NewBody(string key, string value)
+        {
+            Dictionary<string, string> body = new Dictionary<string, string>();
+            body[key] = value ?? string.Empty;
+            return body;
+        }
+
+        // POST 공통: JSON 본문을 보내고 {success,message} 응답을 ActionResult로 변환한다.
+        private static ActionResult Post(string path, Dictionary<string, string> body)
+        {
+            System.Web.Script.Serialization.JavaScriptSerializer serializer =
+                    new System.Web.Script.Serialization.JavaScriptSerializer();
+
+            using (WebClient client = new TimedWebClient())
+            {
+                client.Encoding = Encoding.UTF8;
+                client.Headers[HttpRequestHeader.ContentType] = "application/json";
+                string response = client.UploadString(
+                        apiBaseUrl + path, "POST", serializer.Serialize(body));
+
+                Dictionary<string, object> map =
+                        serializer.Deserialize<Dictionary<string, object>>(response);
+
+                ActionResult result = new ActionResult();
+                result.Success = map != null && map.ContainsKey("success")
+                        && Convert.ToBoolean(map["success"]);
+                result.Message = map != null && map.ContainsKey("message") && map["message"] != null
+                        ? map["message"].ToString()
+                        : string.Empty;
+                return result;
+            }
+        }
+
         // ===== 초기 구성 + 자동 조회 =====
 
         private void OnFormLoad(object sender, EventArgs e)
@@ -182,7 +247,7 @@ namespace Modern.Lab.Samples
             statusTable.Columns.Add("LABEL", typeof(string));
             statusTable.Rows.Add("", "All");
 
-            foreach (string statusName in PendingTablePresenter.StatusNames)
+            foreach (string statusName in LogisticsRequestPresenter.StatusNames)
             {
                 statusTable.Rows.Add(statusName, statusName);
             }
@@ -258,6 +323,12 @@ namespace Modern.Lab.Samples
                     BadgeColorMember = "DAYS_COLOR",
                     TextAlignment = GridTextAlignment.Center
                 },
+                // 일시 3종은 Days 바로 뒤에 파이프라인 순서(발송→수신→처리)로
+                // 나란히 — 경과의 근거가 되는 시각들이 붙어 있어 읽기 쉽다.
+                // 도착 시각 = RECV_TM (도착=수신 동시각, 별도 ARRIVE_TM 없음).
+                new ModernDataGridColumn("SEND_TM") { TextAlignment = GridTextAlignment.Center },
+                new ModernDataGridColumn("RECV_TM") { TextAlignment = GridTextAlignment.Center },
+                new ModernDataGridColumn("PROC_TM") { TextAlignment = GridTextAlignment.Center },
                 new ModernDataGridColumn("RECV_ACTION", "Receive")
                 {
                     Kind = GridColumnKind.Button,
@@ -273,14 +344,10 @@ namespace Modern.Lab.Samples
                     TextAlignment = GridTextAlignment.Center
                 },
                 new ModernDataGridColumn("SEND_FAC") { TextAlignment = GridTextAlignment.Center },
-                new ModernDataGridColumn("SEND_TM") { TextAlignment = GridTextAlignment.Center },
                 new ModernDataGridColumn("BOX_ID") { TextAlignment = GridTextAlignment.Center },
-                new ModernDataGridColumn("ARRIVE_TM") { TextAlignment = GridTextAlignment.Center },
-                new ModernDataGridColumn("RECV_TM") { TextAlignment = GridTextAlignment.Center },
                 new ModernDataGridColumn("ITEM_STAT") { TextAlignment = GridTextAlignment.Center },
                 new ModernDataGridColumn("REQ_NO"),
                 new ModernDataGridColumn("SAMPLE_NM"),
-                new ModernDataGridColumn("PROC_TM") { TextAlignment = GridTextAlignment.Center },
                 new ModernDataGridColumn("RECV_DESC"));
 
             // Unit 리스트: 좁은 패널에 맞는 최소 컬럼.
@@ -288,7 +355,7 @@ namespace Modern.Lab.Samples
                 new ModernDataGridColumn("UNIT_ID"),
                 new ModernDataGridColumn("SUB_TYP", "Type") { TextAlignment = GridTextAlignment.Center },
                 new ModernDataGridColumn("STAT_TYP") { TextAlignment = GridTextAlignment.Center },
-                new ModernDataGridColumn("EVENT_TM", "Arrived At") { TextAlignment = GridTextAlignment.Center });
+                new ModernDataGridColumn("EVENT_TM") { TextAlignment = GridTextAlignment.Center });
 
             // 워크리스트 화면이라 열자마자 자동 조회한다 (필수 조건 없음).
             this.ExecuteSearch();
@@ -352,7 +419,9 @@ namespace Modern.Lab.Samples
         // focusItemId/focusIndex: 재조회 후 되돌릴 행 포커스 — 처리 전에 보던
         // 행(Item ID)을 다시 선택하고, 필터로 사라졌으면 같은 위치(focusIndex)의
         // 행을 대신 선택한다. null/-1이면 기본 동작(첫 행 선택).
-        private void ExecuteSearch(bool keepPage, string focusItemId, int focusIndex)
+        // silent: 처리(수신 등) 직후의 조용한 재조회 — 로딩 표시를 띄우지 않고
+        // 우측 패널도 미리 비우지 않아, 결과가 갱신되는 것만 보인다.
+        private void ExecuteSearch(bool keepPage, string focusItemId, int focusIndex, bool silent = false)
         {
             string keyword = this.cboItemId.Text.Trim();
             string statusFilter = this.GetStatusFilter();
@@ -360,16 +429,26 @@ namespace Modern.Lab.Samples
             int minDays = this.GetMinDays();
             int requestedPage = keepPage ? this.pagination.CurrentPage : 1;
 
-            this.busyMain.Busy = true;
+            if (!silent)
+            {
+                this.busyMain.Busy = true;
+            }
+
             this.searchVersion = this.searchVersion + 1;
             int version = this.searchVersion;
 
             // 새 검색부터는 이전 선택 행의 Unit 조회도 현재 화면과 무관하다.
             // 늦게 도착한 응답이 새 현황판 우측 패널을 채우지 않게 무효화한다.
+            // (조용한 재조회는 포커스 복원이 우측 패널을 새로 채우므로 미리
+            // 비우지 않는다 — 비웠다 다시 채우는 깜빡임 방지.)
             this.unitsVersion = this.unitsVersion + 1;
-            this.gridUnits.DataSource = null;
-            this.unitCard.Text = "Units";
-            this.stepPipeline.DataSource = null;
+
+            if (!silent)
+            {
+                this.gridUnits.DataSource = null;
+                this.unitCard.Text = "Units";
+                this.stepPipeline.DataSource = null;
+            }
 
             ThreadPool.QueueUserWorkItem(delegate(object state)
             {
@@ -391,9 +470,18 @@ namespace Modern.Lab.Samples
 
                         // 현황판(FAC_SEND_MAS FULL OUTER JOIN IF_REQ_MAS)은 서버가
                         // 직접 내려준다 — 상태/색/경과일 파생만 클라이언트가 한다.
-                        PendingTablePresenter.ApplyWorkflowColumns(board);
-                        this.resultData = PendingTablePresenter.Filter(
+                        LogisticsRequestPresenter.ApplyWorkflowColumns(board);
+
+                        // 이전 조회 결과의 체크 감지 이벤트를 떼고 새 결과에 단다 —
+                        // 체크(CHK) 변경이 하단 실행 버튼 활성으로 바로 이어진다.
+                        if (this.resultData != null)
+                        {
+                            this.resultData.ColumnChanged -= this.OnResultColumnChanged;
+                        }
+
+                        this.resultData = LogisticsRequestPresenter.Filter(
                                 board, statusFilter, sendFilter, minDays);
+                        this.resultData.ColumnChanged += this.OnResultColumnChanged;
 
                         // 그리드 컬럼 필터: 값 체크리스트는 페이지 조각이 아니라
                         // 조회 결과 전체에서 모으고, 표시 행 목록에 필터를 반영한다.
@@ -444,8 +532,11 @@ namespace Modern.Lab.Samples
                             this.cboItemId.Text = string.Empty;
                         }
 
-                        this.gridUnits.DataSource = null;
-                        this.unitCard.Text = "Units";
+                        if (!silent)
+                        {
+                            this.gridUnits.DataSource = null;
+                            this.unitCard.Text = "Units";
+                        }
 
                         // 수동 처리 직후 재조회면 처리 전에 보던 행으로 포커스를
                         // 되돌린다 — 선택 변경 이벤트가 Units 패널도 그 행 기준으로
@@ -595,7 +686,7 @@ namespace Modern.Lab.Samples
                 return;
             }
 
-            DataRow source = this.FindResultRow(PendingTablePresenter.CellText(e.Row, "ITEM_ID"));
+            DataRow source = this.FindResultRow(TableHelper.CellText(e.Row, "ITEM_ID"));
 
             if (source != null)
             {
@@ -607,7 +698,7 @@ namespace Modern.Lab.Samples
         private string GetFocusedItemId()
         {
             DataRowView row = this.gridBoard.SelectedItem as DataRowView;
-            return row == null ? string.Empty : PendingTablePresenter.CellText(row.Row, "ITEM_ID");
+            return row == null ? string.Empty : TableHelper.CellText(row.Row, "ITEM_ID");
         }
 
         // 재조회 후 행 포커스를 복원한다 — Item ID를 표시 행 목록 전체에서 찾아
@@ -622,7 +713,7 @@ namespace Modern.Lab.Samples
 
                 for (int index = 0; index < this.viewRows.Count; index++)
                 {
-                    if (PendingTablePresenter.CellText(this.viewRows[index], "ITEM_ID") != itemId)
+                    if (TableHelper.CellText(this.viewRows[index], "ITEM_ID") != itemId)
                     {
                         continue;
                     }
@@ -671,7 +762,7 @@ namespace Modern.Lab.Samples
 
             foreach (DataRow row in this.resultData.Rows)
             {
-                if (PendingTablePresenter.CellText(row, "ITEM_ID") == itemId)
+                if (TableHelper.CellText(row, "ITEM_ID") == itemId)
                 {
                     return row;
                 }
@@ -686,19 +777,19 @@ namespace Modern.Lab.Samples
         // 배지에 표기한다. 조회(수동 처리 후 재조회 포함) 직후에 다시 계산한다.
         private void RefreshSummary()
         {
-            PendingTablePresenter.PendingSummary summary =
-                    PendingTablePresenter.Aggregate(this.resultData);
+            LogisticsRequestPresenter.LogisticsSummary summary =
+                    LogisticsRequestPresenter.Aggregate(this.resultData);
 
             this.badgeTransit.Text = "Sent "
-                    + summary.StatusCounts[PendingTablePresenter.StatusTransit].ToString("N0");
-            this.badgeArrived.Text = "Arrived "
-                    + summary.StatusCounts[PendingTablePresenter.StatusArrived].ToString("N0");
+                    + summary.StatusCounts[LogisticsRequestPresenter.StatusTransit].ToString("N0");
+            this.badgeReceived.Text = "Received "
+                    + summary.StatusCounts[LogisticsRequestPresenter.StatusReceived].ToString("N0");
             this.badgeNoReq.Text = "Unlinked "
-                    + summary.StatusCounts[PendingTablePresenter.StatusNoRequest].ToString("N0");
+                    + summary.StatusCounts[LogisticsRequestPresenter.StatusNoRequest].ToString("N0");
             this.badgeLinked.Text = "Linked "
-                    + summary.StatusCounts[PendingTablePresenter.StatusLinked].ToString("N0");
+                    + summary.StatusCounts[LogisticsRequestPresenter.StatusLinked].ToString("N0");
             this.badgeDone.Text = "Completed "
-                    + summary.StatusCounts[PendingTablePresenter.StatusCompleted].ToString("N0");
+                    + summary.StatusCounts[LogisticsRequestPresenter.StatusCompleted].ToString("N0");
             this.badgeUnmatched.Text = "Unmatched " + summary.UnmatchedCount.ToString("N0");
 
             this.badgeAvg.Text = summary.NoLinkCount > 0
@@ -707,6 +798,52 @@ namespace Modern.Lab.Samples
             this.badgeOldest.Text = summary.NoLinkCount > 0
                     ? "Oldest " + summary.DaysMax.ToString("N0") + " d"
                     : "Oldest -";
+
+            this.UpdateActionButtons();
+        }
+
+        // 하단 실행 카드 버튼 활성 —
+        // · Receive: 수신 가능(RECV_CAN) 행이 **체크**돼 있을 때만
+        // · Create : Create 가능(CRT_CAN) 행이 **체크**돼 있을 때만
+        // · Manual Receive: 조회에 없는 아이템용이라 **항상 활성**
+        // 체크(CHK) 변경은 컬럼 변경 이벤트로, 재조회는 RefreshSummary로 갱신된다.
+        private void UpdateActionButtons()
+        {
+            bool canReceive = false;
+            bool canCreate = false;
+
+            if (this.resultData != null)
+            {
+                foreach (DataRow row in this.resultData.Rows)
+                {
+                    if (!TableHelper.FlagSet(row, "CHK"))
+                    {
+                        continue;
+                    }
+
+                    canReceive = canReceive || TableHelper.FlagSet(row, "RECV_CAN");
+                    canCreate = canCreate || TableHelper.FlagSet(row, "CRT_CAN");
+
+                    if (canReceive && canCreate)
+                    {
+                        break;
+                    }
+                }
+            }
+
+            this.btnReceive.Enabled = canReceive;
+            this.btnCreate.Enabled = canCreate;
+            this.btnManualReceive.Enabled = true;
+        }
+
+        // 체크(CHK) 변경 실시간 감지 — 그리드 체크박스가 원본 행을 직접
+        // 갱신하므로 DataTable 컬럼 변경 이벤트로 버튼 활성을 따라 켠다.
+        private void OnResultColumnChanged(object sender, DataColumnChangeEventArgs e)
+        {
+            if (e.Column != null && e.Column.ColumnName == "CHK")
+            {
+                this.UpdateActionButtons();
+            }
         }
 
         // ===== Item 선택 → Unit 리스트 =====
@@ -723,7 +860,7 @@ namespace Modern.Lab.Samples
 
             this.UpdatePipeline(row.Row);
 
-            string itemId = PendingTablePresenter.CellText(row.Row, "ITEM_ID");
+            string itemId = TableHelper.CellText(row.Row, "ITEM_ID");
 
             if (string.IsNullOrEmpty(itemId))
             {
@@ -736,11 +873,12 @@ namespace Modern.Lab.Samples
         // 선택 행의 파이프라인 위치를 우측 하단 Pipeline 카드의 스텝
         // 인디케이터에 보여준다. 상태(STATUS)가 "아직 안 된 첫 단계"이므로 그
         // 앞 단계는 완료, 그 단계가 현재다. Completed 상태는 전 단계 완료로
-        // 표기한다.
+        // 표기한다. 발송 통보가 없는 미확인 물류(SEND_YN='N')는 Sent 단계를
+        // 밟은 적이 없으므로 첫 스텝을 빈 칸으로 남긴다.
         private void UpdatePipeline(DataRow row)
         {
             int status = Array.IndexOf(
-                    PendingTablePresenter.StatusNames, PendingTablePresenter.CellText(row, "STATUS"));
+                    LogisticsRequestPresenter.StatusNames, TableHelper.CellText(row, "STATUS"));
 
             if (status < 0)
             {
@@ -748,20 +886,31 @@ namespace Modern.Lab.Samples
                 return;
             }
 
+            bool notified = TableHelper.CellText(row, "SEND_YN").Trim() == "Y";
+
             DataTable steps = new DataTable();
             steps.Columns.Add("LABEL", typeof(string));
             steps.Columns.Add("STATE", typeof(string));
 
-            for (int index = 0; index < PendingTablePresenter.StatusNames.Length; index++)
+            for (int index = 0; index < LogisticsRequestPresenter.StatusNames.Length; index++)
             {
+                // 미확인 물류 — 발송 통보(Sent) 단계는 밟지 않았으니 빈 칸.
+                if (index == LogisticsRequestPresenter.StatusTransit && !notified)
+                {
+                    steps.Rows.Add(string.Empty, "Pending");
+                    continue;
+                }
+
                 string state;
 
-                if (index < status || status == PendingTablePresenter.StatusCompleted)
+                if (index < status)
                 {
                     state = "Completed";
                 }
                 else if (index == status)
                 {
+                    // 현재 단계는 진하게 — Completed 행이면 마지막(Completed)
+                    // 스텝이 현재 단계로 강조된다.
                     state = "Current";
                 }
                 else
@@ -769,10 +918,10 @@ namespace Modern.Lab.Samples
                     state = "Pending";
                 }
 
-                // 두 단어 상태("Request Unlinked" 등)는 좁은 셀에서 잘리지 않게
+                // 두 단어 상태("Request Linked")는 좁은 셀에서 잘리지 않게
                 // 스텝 레이블에서만 2줄로 표시한다 (배지/필터는 한 줄 그대로).
                 steps.Rows.Add(
-                        PendingTablePresenter.StatusNames[index].Replace(' ', '\n'), state);
+                        LogisticsRequestPresenter.StatusNames[index].Replace(' ', '\n'), state);
             }
 
             this.stepPipeline.DataSource = steps;
@@ -832,8 +981,8 @@ namespace Modern.Lab.Samples
             {
                 foreach (DataRow row in this.resultData.Rows)
                 {
-                    if (PendingTablePresenter.FlagSet(row, "CHK")
-                            && PendingTablePresenter.FlagSet(row, actionFlag))
+                    if (TableHelper.FlagSet(row, "CHK")
+                            && TableHelper.FlagSet(row, actionFlag))
                     {
                         list.ImportRow(row);
                     }
@@ -843,37 +992,51 @@ namespace Modern.Lab.Samples
             return list;
         }
 
-        // Receive: 다이얼로그에서 처리 방식을 고른다 — 체크된 아이템 목록을
-        // 확인 후 일괄 수신하거나, 조회에 안 나오는 아이템을 Item ID + 발송
-        // 공장 입력으로 강제 수신(매뉴얼)한다. 처리 시각(RECV_TM) 등은 서버가
-        // 적재하므로 성공 후 **재조회**(조건·페이지 유지)로 반영하고, 매뉴얼
-        // 수신이면 새로 올라온 그 행으로 포커스를 옮긴다.
-        // (★ 회사 환경 교체 지점은 ReceiveDialogForm 안의 인터페이스 호출부다.)
+        // Receive(하단 버튼): 체크된 Receive 대상 목록을 다이얼로그로 확인한
+        // 뒤 **일괄 수신**한다 — 실제 처리는 그리드 행 버튼(한 건)과 같은
+        // 공용 메서드(ProcessBoardItems)를 탄다.
         private void OnReceiveClick(object sender, EventArgs e)
         {
-            using (ReceiveDialogForm dialog = new ReceiveDialogForm(this.BuildCheckedList("RECV_CAN")))
+            DataTable receiveList = this.BuildCheckedList("RECV_CAN");
+
+            if (receiveList.Rows.Count == 0)
+            {
+                this.toastMain.Show("Check items to receive first.", ToastKind.Warning);
+                return;
+            }
+
+            using (ReceiveDialogForm dialog = new ReceiveDialogForm(receiveList))
             {
                 if (dialog.ShowDialog(this) != DialogResult.OK)
                 {
                     return;
                 }
 
-                string message = dialog.ManualItemId != null
-                        ? "Item " + dialog.ManualItemId + " received."
-                        : dialog.ProcessedCount.ToString("N0") + " item(s) received.";
-                this.toastMain.Show(message, ToastKind.Success);
-
-                string focusItemId = dialog.ManualItemId ?? this.GetFocusedItemId();
-                this.ExecuteSearch(true, focusItemId, this.gridBoard.SelectedIndex);
+                this.ProcessBoardItems(CollectItemIds(receiveList), true, this.GetFocusedItemId());
             }
         }
 
-        // Create: 다이얼로그에서 체크된 Create 대상 목록을 확인한 뒤 일괄
-        // 처리한다 — 의뢰 인터페이스에 처리여부/처리시간이 기록되는 단계다.
-        // 처리 시각(PROC_TM)은 서버가 적재하므로 성공 후 **재조회**(조건·페이지
-        // 유지) → 보던 행 포커스 복원으로 반영한다. Receive와 달리 매뉴얼(강제)
-        // 케이스가 없어 대상이 없으면 다이얼로그 없이 안내만 한다.
-        // (★ 회사 환경 교체 지점은 CreateDialogForm 안의 인터페이스 호출부다.)
+        // Manual Receive: 조회에 나오지 않는 아이템(발송 통보 없음)을 Lot ID
+        // 입력 → Check(웨이퍼 정보 확인) → 수신 확정하는 전용 다이얼로그.
+        // 성공하면 그 아이템으로 포커스를 옮겨 재조회한다.
+        private void OnManualReceiveClick(object sender, EventArgs e)
+        {
+            using (ManualReceiveDialogForm dialog = new ManualReceiveDialogForm())
+            {
+                if (dialog.ShowDialog(this) != DialogResult.OK)
+                {
+                    return;
+                }
+
+                this.toastMain.Show(
+                        "Item " + dialog.ReceivedItemId + " received.", ToastKind.Success);
+                this.ExecuteSearch(true, dialog.ReceivedItemId, this.gridBoard.SelectedIndex);
+            }
+        }
+
+        // Create(하단 버튼): 체크된 Create 대상 목록을 다이얼로그로 확인한 뒤
+        // **일괄 처리**한다 — 실제 처리는 그리드 행 버튼(한 건)과 같은 공용
+        // 메서드(ProcessBoardItems)를 탄다.
         private void OnCreateClick(object sender, EventArgs e)
         {
             DataTable createList = this.BuildCheckedList("CRT_CAN");
@@ -891,16 +1054,12 @@ namespace Modern.Lab.Samples
                     return;
                 }
 
-                this.toastMain.Show(
-                        dialog.ProcessedCount.ToString("N0") + " item(s) created.", ToastKind.Success);
-                this.ExecuteSearch(true, this.GetFocusedItemId(), this.gridBoard.SelectedIndex);
+                this.ProcessBoardItems(CollectItemIds(createList), false, this.GetFocusedItemId());
             }
         }
 
-        // 행 단위 Receive/Create: 그리드 버튼 컬럼 (해당 단계 행만 활성).
-        // 벌크 버튼과 동일하게 서버 처리 성공 후 재조회(조건·페이지 유지)로
-        // 반영한다 — 서버가 적재한 RECV_TM/PROC_TM·상태가 그대로 내려온다.
-        // ★ 회사 환경 교체 지점 — 벌크 버튼과 동일한 인터페이스로 교체한다.
+        // 행 단위 Receive/Create: 그리드 버튼 컬럼 (해당 단계 행만 활성) —
+        // 하단 Receive 버튼과 같은 공용 처리(ProcessBoardItem)를 탄다.
         private void OnGridCellButtonClick(object sender, GridButtonClickEventArgs e)
         {
             if (e.DataPropertyName != "RECV_ACTION" && e.DataPropertyName != "CRT_ACTION")
@@ -915,20 +1074,87 @@ namespace Modern.Lab.Samples
                 return;
             }
 
-            string itemId = PendingTablePresenter.CellText(row.Row, "ITEM_ID");
+            string itemId = TableHelper.CellText(row.Row, "ITEM_ID");
+            List<string> single = new List<string>();
+            single.Add(itemId);
 
-            bool receive = e.DataPropertyName == "RECV_ACTION";
+            this.ProcessBoardItems(single, e.DataPropertyName == "RECV_ACTION", itemId);
+        }
+
+        // ===== 현황판 우클릭 컨텍스트 메뉴 =====
+
+        // 메뉴가 열릴 때 — 그리드가 우클릭한 행을 먼저 선택하므로 선택 행이
+        // 곧 처리 대상이다. 행 버튼과 같은 판정(RECV_CAN/CRT_CAN)으로 항목
+        // 활성을 정하고, 행 밖(빈 영역) 우클릭에는 그리드가 메뉴를 띄우지 않는다.
+        private void OnBoardMenuOpening(object sender, CancelEventArgs e)
+        {
+            DataRowView row = this.gridBoard.SelectedItem as DataRowView;
+
+            if (row == null)
+            {
+                e.Cancel = true;
+                return;
+            }
+
+            this.miReceive.Enabled = TableHelper.FlagSet(row.Row, "RECV_CAN");
+            this.miCreate.Enabled = TableHelper.FlagSet(row.Row, "CRT_CAN");
+        }
+
+        // 메뉴 Receive/Create — 행 버튼과 같은 공용 처리(ProcessBoardItems)를 탄다.
+        private void OnMenuReceiveClick(object sender, EventArgs e)
+        {
+            this.ProcessSelectedBoardRow(true);
+        }
+
+        private void OnMenuCreateClick(object sender, EventArgs e)
+        {
+            this.ProcessSelectedBoardRow(false);
+        }
+
+        // 선택 행 한 건을 공용 처리로 넘긴다 (우클릭 메뉴용).
+        private void ProcessSelectedBoardRow(bool receive)
+        {
+            DataRowView row = this.gridBoard.SelectedItem as DataRowView;
+
+            if (row == null)
+            {
+                return;
+            }
+
+            string itemId = TableHelper.CellText(row.Row, "ITEM_ID");
+            List<string> single = new List<string>();
+            single.Add(itemId);
+
+            this.ProcessBoardItems(single, receive, itemId);
+        }
+
+        // 수신/Create 처리 공용 — **한 건(그리드 행 버튼)과 여러 건(하단
+        // 버튼의 체크 목록)이 같은 메서드를 탄다**. 아이템마다 같은 서버
+        // 전문을 부르고 성공 건만 집계한다. 서버가 처리 시각(RECV_TM/PROC_TM)을
+        // 적재하므로, 성공하면 **조용한 재조회**(로딩 표시·우측 패널 초기화
+        // 없음)로 시각이 채워진 결과만 보이게 한다 (조건·페이지·포커스 유지).
+        // ★ 회사 환경 교체 지점 — Receive/Create를 회사 인터페이스로 교체한다.
+        private void ProcessBoardItems(List<string> itemIds, bool receive, string focusItemId)
+        {
+            int processed = 0;
+            string failMessage = string.Empty;
 
             try
             {
-                PendingApiClient.ActionResult result = receive
-                        ? PendingApiClient.Receive(itemId)
-                        : PendingApiClient.Create(itemId);
-
-                if (!result.Success)
+                foreach (string itemId in itemIds)
                 {
-                    this.toastMain.Show("Server call failed: " + result.Message, ToastKind.Error);
-                    return;
+                    ActionResult result = receive
+                            ? Receive(itemId)
+                            : Create(itemId);
+
+                    if (result.Success)
+                    {
+                        processed = processed + 1;
+                    }
+                    else if (failMessage.Length == 0)
+                    {
+                        failMessage = result.Message;
+                    }
                 }
             }
             catch (Exception ex)
@@ -937,11 +1163,36 @@ namespace Modern.Lab.Samples
                 return;
             }
 
-            this.toastMain.Show(
-                    "Item " + itemId + (receive ? " received." : " created."), ToastKind.Success);
+            if (processed == 0)
+            {
+                this.toastMain.Show(
+                        failMessage.Length > 0 ? failMessage : "Nothing was processed.",
+                        ToastKind.Warning);
+                return;
+            }
 
-            // 행 버튼으로 처리한 행이 처리 후에도 포커스를 유지한다.
-            this.ExecuteSearch(true, itemId, this.gridBoard.SelectedIndex);
+            this.toastMain.Show(
+                    processed.ToString("N0") + " item(s) " + (receive ? "received." : "created."),
+                    ToastKind.Success);
+            this.ExecuteSearch(true, focusItemId, this.gridBoard.SelectedIndex, true);
+        }
+
+        // 체크 목록(DataTable)에서 처리 대상 Item ID들을 뽑는다.
+        private static List<string> CollectItemIds(DataTable checkedList)
+        {
+            List<string> itemIds = new List<string>();
+
+            foreach (DataRow row in checkedList.Rows)
+            {
+                string itemId = TableHelper.CellText(row, "ITEM_ID").Trim();
+
+                if (itemId.Length > 0)
+                {
+                    itemIds.Add(itemId);
+                }
+            }
+
+            return itemIds;
         }
 
         // ===== 내보내기 =====
@@ -959,7 +1210,7 @@ namespace Modern.Lab.Samples
             using (SaveFileDialog dialog = new SaveFileDialog())
             {
                 dialog.Filter = "Excel Workbook|*.xlsx";
-                dialog.FileName = "PendingRequests_" + DateTime.Now.ToString("yyyyMMdd_HHmmss") + ".xlsx";
+                dialog.FileName = "LogisticsRequest_" + DateTime.Now.ToString("yyyyMMdd_HHmmss") + ".xlsx";
 
                 if (dialog.ShowDialog(this) != DialogResult.OK)
                 {
@@ -971,7 +1222,7 @@ namespace Modern.Lab.Samples
                     // 그리드 컬럼 정의(화면 표시와 동일한 순서·캡션·형식)를 단일
                     // 원천으로 저장한다 — 체크박스/버튼 컬럼은 내보내기가 알아서
                     // 제외하므로 내보내기용 컬럼 목록을 따로 관리하지 않는다.
-                    this.gridBoard.ExportXlsx(dialog.FileName, "Pending Requests", this.resultData);
+                    this.gridBoard.ExportXlsx(dialog.FileName, "Logistics & Request", this.resultData);
                     this.toastMain.Show(
                             this.resultData.Rows.Count.ToString("N0") + " items exported.", ToastKind.Success);
                 }

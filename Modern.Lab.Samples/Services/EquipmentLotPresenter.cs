@@ -1,11 +1,12 @@
 using System;
 using System.Data;
+using Modern.Lab.Data;
 
 namespace Modern.Lab.Samples.Services
 {
     /// <summary>
     /// Equipment / Lots 화면의 파생 컬럼·집계 모음 — 화면(폼)과 분리된 순수
-    /// DataTable 로직이다 (PendingTablePresenter와 같은 역할 분담).
+    /// DataTable 로직이다 (LogisticsRequestPresenter와 같은 역할 분담).
     ///
     /// 장비 상태(STATE)는 한눈에 보이도록 세 가지로만 정한다:
     ///   Down : 사용 불가(DOWN_YN='Y')                    (빨강 틴트)
@@ -40,7 +41,7 @@ namespace Modern.Lab.Samples.Services
     /// 대기 Lot에는 UP_CAN/DOWN_CAN(우선순위 ↑↓ 버튼 — 맨 위/아래에서 비활성)을
     /// 파생한다.
     /// </summary>
-    internal static class EquipmentTablePresenter
+    internal static class EquipmentLotPresenter
     {
         // 장비 상태 배지색 — Down 빨강 틴트 / Run 초록 / Idle 회색.
         private const string stateDownColor = "#FEE2E2";
@@ -118,8 +119,8 @@ namespace Modern.Lab.Samples.Services
         // 한 행(장비)의 상태·포트 요약·버튼 활성을 계산한다.
         private static void ApplyEquipmentRow(DataRow row)
         {
-            bool down = PendingTablePresenter.CellText(row, "DOWN_YN").Trim() == "Y";
-            string commMode = PendingTablePresenter.CellText(row, "COMM_MODE").Trim();
+            bool down = TableHelper.CellText(row, "DOWN_YN").Trim() == "Y";
+            string commMode = TableHelper.CellText(row, "COMM_MODE").Trim();
             bool offline = commMode == "OffLine";
             bool remote = commMode == "OnLineRemote";
             int inCount = ParseCount(row, "IN_CNT");
@@ -138,7 +139,7 @@ namespace Modern.Lab.Samples.Services
             {
                 if (index <= inCount)
                 {
-                    string stat = PendingTablePresenter.CellText(row, "IN" + index + "_STAT").Trim();
+                    string stat = TableHelper.CellText(row, "IN" + index + "_STAT").Trim();
 
                     if (stat == "Running")
                     {
@@ -148,15 +149,14 @@ namespace Modern.Lab.Samples.Services
                         // 작업종료 가능 = 이 작업의 지정 아웃포트가 비어 있음.
                         int outIndex = ParseCount(row, "IN" + index + "_OUT");
 
-                        if (outIndex >= 1 && PendingTablePresenter
-                                .CellText(row, "OUT" + outIndex + "_STAT").Trim().Length == 0)
+                        if (outIndex >= 1 && TableHelper.CellText(row, "OUT" + outIndex + "_STAT").Trim().Length == 0)
                         {
                             endReady = true;
                         }
 
                         if (runTime.Length == 0)
                         {
-                            runTime = PendingTablePresenter.CellText(row, "IN" + index + "_TM");
+                            runTime = TableHelper.CellText(row, "IN" + index + "_TM");
                         }
                     }
                     else if (stat == "Loaded")
@@ -168,9 +168,8 @@ namespace Modern.Lab.Samples.Services
 
                 if (index <= outCount)
                 {
-                    string stat = PendingTablePresenter.CellText(row, "OUT" + index + "_STAT").Trim();
-                    string reservedBy = PendingTablePresenter
-                            .CellText(row, "OUT" + index + "_RESV_LOT").Trim();
+                    string stat = TableHelper.CellText(row, "OUT" + index + "_STAT").Trim();
+                    string reservedBy = TableHelper.CellText(row, "OUT" + index + "_RESV_LOT").Trim();
 
                     if (stat == "Done")
                     {
@@ -296,9 +295,9 @@ namespace Modern.Lab.Samples.Services
         private static void AddInPortRow(DataTable table, DataRow equipment, int index, int inCount)
         {
             string prefix = "IN" + index;
-            string stat = PendingTablePresenter.CellText(equipment, prefix + "_STAT").Trim();
-            string lot = PendingTablePresenter.CellText(equipment, prefix + "_LOT").Trim();
-            string carrier = PendingTablePresenter.CellText(equipment, prefix + "_CAR").Trim();
+            string stat = TableHelper.CellText(equipment, prefix + "_STAT").Trim();
+            string lot = TableHelper.CellText(equipment, prefix + "_LOT").Trim();
+            string carrier = TableHelper.CellText(equipment, prefix + "_CAR").Trim();
             int outIndex = ParseCount(equipment, prefix + "_OUT");
             string color;
 
@@ -317,15 +316,15 @@ namespace Modern.Lab.Samples.Services
             }
 
             // 취소도 통신이 되어야 처리할 수 있다 (OffLine이면 불가).
-            bool offline = PendingTablePresenter.CellText(equipment, "COMM_MODE").Trim() == "OffLine";
+            bool offline = TableHelper.CellText(equipment, "COMM_MODE").Trim() == "OffLine";
             bool cancellable = (stat == "Loaded" || stat == "Running") && !offline;
 
             // 이 인포트를 지정한 투입(Load) 가능 — 포트가 비어 있고 장비가
             // 투입 가능한 상태(Down/OffLine이면 FREE_OUT이 0으로 파생된다)
             // 여야 한다. 대기 Lot 존재 여부는 폼이 판정에 더한다.
-            bool down = PendingTablePresenter.CellText(equipment, "DOWN_YN").Trim() == "Y";
-            int freeOut = PendingTablePresenter.ParseDays(
-                    PendingTablePresenter.CellText(equipment, "FREE_OUT"));
+            bool down = TableHelper.CellText(equipment, "DOWN_YN").Trim() == "Y";
+            int freeOut = TableHelper.ParseInt(
+                    TableHelper.CellText(equipment, "FREE_OUT"));
             bool loadable = stat == "Empty" && !down && !offline && freeOut > 0;
 
             // 지정 아웃포트의 연속 포트 번호 = 인포트 수 + 타입 내 번호.
@@ -341,11 +340,10 @@ namespace Modern.Lab.Samples.Services
         private static void AddOutPortRow(DataTable table, DataRow equipment, int index, int inCount)
         {
             string prefix = "OUT" + index;
-            string stat = PendingTablePresenter.CellText(equipment, prefix + "_STAT").Trim();
-            string lot = PendingTablePresenter.CellText(equipment, prefix + "_LOT").Trim();
-            string carrier = PendingTablePresenter.CellText(equipment, prefix + "_CAR").Trim();
-            string reservedBy = PendingTablePresenter
-                    .CellText(equipment, prefix + "_RESV_LOT").Trim();
+            string stat = TableHelper.CellText(equipment, prefix + "_STAT").Trim();
+            string lot = TableHelper.CellText(equipment, prefix + "_LOT").Trim();
+            string carrier = TableHelper.CellText(equipment, prefix + "_CAR").Trim();
+            string reservedBy = TableHelper.CellText(equipment, prefix + "_RESV_LOT").Trim();
             string color;
 
             if (stat == "Done")
@@ -357,8 +355,7 @@ namespace Modern.Lab.Samples.Services
                 // 예약된 아웃포트 — 예약한 Lot과, 배정된 아웃 캐리어를 보여준다.
                 stat = "Reserved";
                 lot = reservedBy;
-                carrier = PendingTablePresenter
-                        .CellText(equipment, prefix + "_RESV_CAR").Trim();
+                carrier = TableHelper.CellText(equipment, prefix + "_RESV_CAR").Trim();
                 color = portLoadedColor;
             }
             else
@@ -370,7 +367,7 @@ namespace Modern.Lab.Samples.Services
             // 이 아웃포트만 반출(Unload) 가능 — 완료 Lot이 있고 통신이 되어야
             // 한다 (장비 메뉴의 Unload는 완료 포트 전체 반출로 별도 유지).
             bool unloadable = stat == "Done"
-                    && PendingTablePresenter.CellText(equipment, "COMM_MODE").Trim() != "OffLine";
+                    && TableHelper.CellText(equipment, "COMM_MODE").Trim() != "OffLine";
 
             table.Rows.Add(inCount + index, "Out", stat, color, lot, carrier, string.Empty, index,
                     false, unloadable, false);
@@ -399,7 +396,7 @@ namespace Modern.Lab.Samples.Services
 
             foreach (DataRow row in equipments.Rows)
             {
-                string eqpId = PendingTablePresenter.CellText(row, "EQP_ID");
+                string eqpId = TableHelper.CellText(row, "EQP_ID");
                 int inCount = ParseCount(row, "IN_CNT");
                 int outCount = ParseCount(row, "OUT_CNT");
 
@@ -421,7 +418,7 @@ namespace Modern.Lab.Samples.Services
         private static void AddRunningLotRow(
                 DataTable table, DataRow equipment, string eqpId, string label, string prefix)
         {
-            string stat = PendingTablePresenter.CellText(equipment, prefix + "_STAT").Trim();
+            string stat = TableHelper.CellText(equipment, prefix + "_STAT").Trim();
 
             if (stat.Length == 0)
             {
@@ -444,10 +441,10 @@ namespace Modern.Lab.Samples.Services
             }
 
             table.Rows.Add(
-                    PendingTablePresenter.CellText(equipment, prefix + "_LOT"),
-                    PendingTablePresenter.CellText(equipment, prefix + "_CAR"),
+                    TableHelper.CellText(equipment, prefix + "_LOT"),
+                    TableHelper.CellText(equipment, prefix + "_CAR"),
                     eqpId, label, stat, color,
-                    PendingTablePresenter.CellText(equipment, prefix + "_TM"));
+                    TableHelper.CellText(equipment, prefix + "_TM"));
         }
 
         // ===== 대기 Lot 파생 컬럼 =====
@@ -474,8 +471,8 @@ namespace Modern.Lab.Samples.Services
             for (int index = 0; index < lots.Rows.Count; index++)
             {
                 DataRow row = lots.Rows[index];
-                int priority = PendingTablePresenter.ParseDays(
-                        PendingTablePresenter.CellText(row, "PRIORITY"));
+                int priority = TableHelper.ParseInt(
+                        TableHelper.CellText(row, "PRIORITY"));
 
                 if (priority <= 1)
                 {
@@ -526,7 +523,7 @@ namespace Modern.Lab.Samples.Services
 
             foreach (DataRow row in equipments.Rows)
             {
-                string state = PendingTablePresenter.CellText(row, "STATE");
+                string state = TableHelper.CellText(row, "STATE");
 
                 if (state == "Down")
                 {
@@ -552,8 +549,8 @@ namespace Modern.Lab.Samples.Services
         // int 컬럼을 관용적으로 읽는다 (DBNull/문자열 표기 허용).
         private static int ParseCount(DataRow row, string columnName)
         {
-            return PendingTablePresenter.ParseDays(
-                    PendingTablePresenter.CellText(row, columnName));
+            return TableHelper.ParseInt(
+                    TableHelper.CellText(row, columnName));
         }
 
         // 파생 컬럼이 없으면 만든다 — 서버가 이미 내려준 컬럼은 그대로 둔다.

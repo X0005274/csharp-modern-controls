@@ -2,10 +2,14 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
+using System.Net;
+using System.Text;
 using System.Threading.Tasks;
+using System.Web.Script.Serialization;
 using System.Windows.Forms;
 using Modern.Lab.Controls.Wpf.Data;
 using Modern.Lab.Controls.Wpf.Display;
+using Modern.Lab.Data;
 using Modern.Lab.Samples.Services;
 
 namespace Modern.Lab.Samples
@@ -62,19 +66,21 @@ namespace Modern.Lab.Samples
     /// **작업중 아님**(작업은 장비당 한 번에 하나), 종료는 지정 아웃포트가
     /// 비어 있어야 한다(점유돼 있으면 반출 먼저).
     ///
-    /// 처리 흐름은 Pending Requests와 동일 패턴이다: 서버 처리(검증 + 시각
-    /// 적재는 서버 역할인 EquipmentLotApiClient) → 성공 시 **재조회** → 장비
-    /// 행 포커스 복원. 실패 사유는 토스트로 보여준다.
+    /// 처리 흐름은 Logistics & Request와 동일 패턴이다: 서버 처리(검증 + 시각
+    /// 적재는 서버 역할) → 성공 시 **재조회** → 장비 행 포커스 복원. 실패
+    /// 사유는 토스트로 보여준다.
     ///
     /// 자동 갱신: 자동 작업(서버측)의 상태 변화를 반영하기 위해 주기 재조회
     /// 타이머를 돌린다 — 기본 15초, 화면에서 Off~60초 조절. 갱신은 수동
     /// Refresh와 동일하게 포커스/컬럼 필터를 유지하며, 다이얼로그·컨텍스트
     /// 메뉴가 열려 있는 동안은 건너뛴다 (조작 방해 금지).
     ///
-    /// ★ 회사 환경 교체 지점 — 조회 2개(GetEquipments/GetWaitingLots)와 처리
-    ///   4개(AssignLot/StartJob/EndJob/Unload)를 회사 장비 인터페이스 호출로
-    ///   바꾸고 EquipmentLotApiClient를 지운다. 상태/포트 배지/버튼 활성/KPI
-    ///   파생은 전부 클라이언트(EquipmentTablePresenter)가 처리한다.
+    /// ★ 회사 환경 교체 지점 — 서버 호출은 전부 이 폼 하단 "서버 호출" 구획에
+    ///   모여 있다. 조회(GetEquipments/GetWaitingLots/GetEmptyCarriers/
+    ///   GetEndJobSlots)와 처리(Prepare/AssignLot/StartJob/EndJob/Unload 등)의
+    ///   본문만 회사 장비 인터페이스 호출로 바꾸면 나머지 폼 코드는 그대로
+    ///   둔다. 상태/포트 배지/버튼 활성/KPI 파생은 전부 클라이언트
+    ///   (EquipmentLotPresenter)가 처리한다.
     /// </summary>
     public partial class EquipmentLotForm : Form
     {
@@ -154,33 +160,33 @@ namespace Modern.Lab.Samples
                     this.CanPrepare,
                     this.PrepareTopLot);
             this.AddEquipmentAction("START", "Start Job", false,
-                    delegate(DataRowView row) { return PendingTablePresenter.FlagSet(row.Row, "START_CAN"); },
+                    delegate(DataRowView row) { return TableHelper.FlagSet(row.Row, "START_CAN"); },
                     this.StartJobAction);
             this.AddEquipmentAction("END", "End Job", false,
-                    delegate(DataRowView row) { return PendingTablePresenter.FlagSet(row.Row, "END_CAN"); },
+                    delegate(DataRowView row) { return TableHelper.FlagSet(row.Row, "END_CAN"); },
                     this.RunEndDialog);
             // 장비 단위 일괄 반출 — 완료(Done) 아웃포트 전체를 한 번에 비운다.
             // 특정 포트 하나만 반출하는 것은 포트 액션(Unload Lot)이 한다.
             this.AddEquipmentAction("UNLOAD", "Unload All Done", false,
-                    delegate(DataRowView row) { return PendingTablePresenter.FlagSet(row.Row, "UNLOAD_CAN"); },
+                    delegate(DataRowView row) { return TableHelper.FlagSet(row.Row, "UNLOAD_CAN"); },
                     this.UnloadAllDoneAction);
             this.AddEquipmentAction("DOWN", "Set Down", true,
-                    delegate(DataRowView row) { return PendingTablePresenter.CellText(row.Row, "STATE") != "Down"; },
+                    delegate(DataRowView row) { return TableHelper.CellText(row.Row, "STATE") != "Down"; },
                     delegate { this.ApplyDownAction(true); });
             this.AddEquipmentAction("UP", "Release Down", false,
-                    delegate(DataRowView row) { return PendingTablePresenter.CellText(row.Row, "STATE") == "Down"; },
+                    delegate(DataRowView row) { return TableHelper.CellText(row.Row, "STATE") == "Down"; },
                     delegate { this.ApplyDownAction(false); });
 
             // 통신 모드 전환 — 작업자 판단으로 수시 변경한다 (예: Remote 자동
             // 진행 중 오류 → Local로 내려 수동 처리). 현재 모드 항목은 비활성.
             this.AddEquipmentAction("COMM_LOCAL", "OnLine Local", true,
-                    delegate(DataRowView row) { return PendingTablePresenter.CellText(row.Row, "COMM_MODE") != "OnLineLocal"; },
+                    delegate(DataRowView row) { return TableHelper.CellText(row.Row, "COMM_MODE") != "OnLineLocal"; },
                     delegate { this.ApplyCommModeAction("OnLineLocal"); });
             this.AddEquipmentAction("COMM_REMOTE", "OnLine Remote", false,
-                    delegate(DataRowView row) { return PendingTablePresenter.CellText(row.Row, "COMM_MODE") != "OnLineRemote"; },
+                    delegate(DataRowView row) { return TableHelper.CellText(row.Row, "COMM_MODE") != "OnLineRemote"; },
                     delegate { this.ApplyCommModeAction("OnLineRemote"); });
             this.AddEquipmentAction("COMM_OFFLINE", "OffLine", false,
-                    delegate(DataRowView row) { return PendingTablePresenter.CellText(row.Row, "COMM_MODE") != "OffLine"; },
+                    delegate(DataRowView row) { return TableHelper.CellText(row.Row, "COMM_MODE") != "OffLine"; },
                     delegate { this.ApplyCommModeAction("OffLine"); });
         }
 
@@ -216,10 +222,10 @@ namespace Modern.Lab.Samples
                     this.CanLoadPort,
                     delegate { this.LoadPortRow(this.gridPorts.SelectedItem as DataRowView); }));
             this.portActions.Add(MakeAction("UNLOAD_PORT", "Unload Lot", false,
-                    delegate(DataRowView row) { return PendingTablePresenter.FlagSet(row.Row, "UNLOAD_CAN"); },
+                    delegate(DataRowView row) { return TableHelper.FlagSet(row.Row, "UNLOAD_CAN"); },
                     delegate { this.UnloadPortRow(this.gridPorts.SelectedItem as DataRowView); }));
             this.portActions.Add(MakeAction("CANCEL", "Cancel Lot", true,
-                    delegate(DataRowView row) { return PendingTablePresenter.FlagSet(row.Row, "CANCEL_CAN"); },
+                    delegate(DataRowView row) { return TableHelper.FlagSet(row.Row, "CANCEL_CAN"); },
                     delegate { this.CancelPortRow(this.gridPorts.SelectedItem as DataRowView); }));
         }
 
@@ -228,7 +234,7 @@ namespace Modern.Lab.Samples
         private bool CanLoadPort(DataRowView row)
         {
             int waiting = this.lotData != null ? this.lotData.Rows.Count : 0;
-            return PendingTablePresenter.FlagSet(row.Row, "LOAD_CAN") && waiting > 0;
+            return TableHelper.FlagSet(row.Row, "LOAD_CAN") && waiting > 0;
         }
 
         // 포트 액션 목록으로 두 진입점을 구성한다 — 포트 컨텍스트 메뉴와
@@ -502,7 +508,7 @@ namespace Modern.Lab.Samples
             DataTable groupTable = new DataTable();
             groupTable.Columns.Add("VALUE", typeof(string));
 
-            foreach (string code in EquipmentLotApiClient.GroupCodes)
+            foreach (string code in GroupCodes)
             {
                 groupTable.Rows.Add(code);
             }
@@ -576,7 +582,7 @@ namespace Modern.Lab.Samples
             {
                 for (int index = 1; index <= 2; index++)
                 {
-                    if (PendingTablePresenter.CellText(row, "IN" + index + "_STAT").Trim() != "Running")
+                    if (TableHelper.CellText(row, "IN" + index + "_STAT").Trim() != "Running")
                     {
                         continue;
                     }
@@ -586,7 +592,7 @@ namespace Modern.Lab.Samples
                     DateTime started;
 
                     if (DateTime.TryParse(
-                            PendingTablePresenter.CellText(row, "IN" + index + "_TM"), out started)
+                            TableHelper.CellText(row, "IN" + index + "_TM"), out started)
                             && (this.oldestRunningStart == DateTime.MinValue
                                     || started < this.oldestRunningStart))
                     {
@@ -738,7 +744,7 @@ namespace Modern.Lab.Samples
         private string GetFocusedEqpId()
         {
             DataRowView row = this.gridEqp.SelectedItem as DataRowView;
-            return row == null ? string.Empty : PendingTablePresenter.CellText(row.Row, "EQP_ID");
+            return row == null ? string.Empty : TableHelper.CellText(row.Row, "EQP_ID");
         }
 
         // ===== 조회 =====
@@ -779,8 +785,8 @@ namespace Modern.Lab.Samples
                 // 유지하도록 하나의 백그라운드 작업에서 순서대로 실행한다.
                 DataTable[] results = await Task.Run(() => new DataTable[]
                 {
-                    EquipmentLotApiClient.GetEquipments(group),
-                    EquipmentLotApiClient.GetWaitingLots(group)
+                    GetEquipments(group),
+                    GetWaitingLots(group)
                 });
 
                 if (this.IsDisposed || version != this.searchVersion)
@@ -805,14 +811,14 @@ namespace Modern.Lab.Samples
                     this.equipmentData = results[0];
                     this.lotData = results[1];
 
-                    EquipmentTablePresenter.ApplyEquipmentColumns(this.equipmentData);
-                    EquipmentTablePresenter.ApplyLotColumns(this.lotData);
+                    EquipmentLotPresenter.ApplyEquipmentColumns(this.equipmentData);
+                    EquipmentLotPresenter.ApplyLotColumns(this.lotData);
 
                     // 장비 바인딩의 첫 행 자동 선택이 SelectionChanged를 태우므로,
                     // 그 시점에 읽는 lotData를 먼저 준비해 두고 바인딩한다.
                     this.gridEqp.DataSource = this.equipmentData;
                     this.gridLots.DataSource = this.lotData;
-                    this.gridRun.DataSource = EquipmentTablePresenter.BuildRunningLots(this.equipmentData);
+                    this.gridRun.DataSource = EquipmentLotPresenter.BuildRunningLots(this.equipmentData);
 
                     if (!string.IsNullOrEmpty(focusEqpId))
                     {
@@ -868,7 +874,7 @@ namespace Modern.Lab.Samples
         {
             for (int index = 0; index < this.equipmentData.Rows.Count; index++)
             {
-                if (PendingTablePresenter.CellText(this.equipmentData.Rows[index], "EQP_ID") == eqpId)
+                if (TableHelper.CellText(this.equipmentData.Rows[index], "EQP_ID") == eqpId)
                 {
                     this.gridEqp.SelectedIndex = index;
                     return;
@@ -887,7 +893,7 @@ namespace Modern.Lab.Samples
 
             for (int index = 0; index < this.lotData.Rows.Count; index++)
             {
-                if (PendingTablePresenter.CellText(this.lotData.Rows[index], "LOT_ID") == lotId)
+                if (TableHelper.CellText(this.lotData.Rows[index], "LOT_ID") == lotId)
                 {
                     this.gridLots.SelectedIndex = index;
                     return;
@@ -942,9 +948,9 @@ namespace Modern.Lab.Samples
                 return;
             }
 
-            this.gridPorts.DataSource = EquipmentTablePresenter.BuildPortRows(row.Row);
+            this.gridPorts.DataSource = EquipmentLotPresenter.BuildPortRows(row.Row);
             this.portCard.Text = "Ports — "
-                    + PendingTablePresenter.CellText(row.Row, "EQP_ID");
+                    + TableHelper.CellText(row.Row, "EQP_ID");
             this.UpdatePortActionStates();
         }
 
@@ -959,18 +965,18 @@ namespace Modern.Lab.Samples
 
             if (row != null)
             {
-                string eqpId = PendingTablePresenter.CellText(row.Row, "EQP_ID");
-                string state = PendingTablePresenter.CellText(row.Row, "STATE");
-                int freeIn = PendingTablePresenter.ParseDays(
-                        PendingTablePresenter.CellText(row.Row, "FREE_IN"));
-                int freeOut = PendingTablePresenter.ParseDays(
-                        PendingTablePresenter.CellText(row.Row, "FREE_OUT"));
+                string eqpId = TableHelper.CellText(row.Row, "EQP_ID");
+                string state = TableHelper.CellText(row.Row, "STATE");
+                int freeIn = TableHelper.ParseInt(
+                        TableHelper.CellText(row.Row, "FREE_IN"));
+                int freeOut = TableHelper.ParseInt(
+                        TableHelper.CellText(row.Row, "FREE_OUT"));
 
                 if (state == "Down")
                 {
                     title = eqpId + " — down";
                 }
-                else if (PendingTablePresenter.CellText(row.Row, "COMM_MODE").Trim() == "OffLine")
+                else if (TableHelper.CellText(row.Row, "COMM_MODE").Trim() == "OffLine")
                 {
                     title = eqpId + " — offline";
                 }
@@ -991,7 +997,7 @@ namespace Modern.Lab.Samples
             }
 
             this.lotAssignable = assignable;
-            EquipmentTablePresenter.SetAssignable(this.lotData, assignable);
+            EquipmentLotPresenter.SetAssignable(this.lotData, assignable);
             this.lotCard.TitleRightText = title;
             this.UpdateActionStates();
         }
@@ -1000,8 +1006,8 @@ namespace Modern.Lab.Samples
 
         private void RefreshSummary()
         {
-            EquipmentTablePresenter.EquipmentSummary summary =
-                    EquipmentTablePresenter.Aggregate(this.equipmentData);
+            EquipmentLotPresenter.EquipmentSummary summary =
+                    EquipmentLotPresenter.Aggregate(this.equipmentData);
             int waiting = this.lotData != null ? this.lotData.Rows.Count : 0;
 
             this.badgeRun.Text = "Run " + summary.RunCount.ToString("N0");
@@ -1055,11 +1061,11 @@ namespace Modern.Lab.Samples
         // (아웃포트는 작업준비 때 예약된다).
         private bool CanPrepare(DataRowView row)
         {
-            bool down = PendingTablePresenter.CellText(row.Row, "STATE") == "Down";
-            int freeIn = PendingTablePresenter.ParseDays(
-                    PendingTablePresenter.CellText(row.Row, "FREE_IN"));
-            int freeOut = PendingTablePresenter.ParseDays(
-                    PendingTablePresenter.CellText(row.Row, "FREE_OUT"));
+            bool down = TableHelper.CellText(row.Row, "STATE") == "Down";
+            int freeIn = TableHelper.ParseInt(
+                    TableHelper.CellText(row.Row, "FREE_IN"));
+            int freeOut = TableHelper.ParseInt(
+                    TableHelper.CellText(row.Row, "FREE_OUT"));
             int waiting = this.lotData != null ? this.lotData.Rows.Count : 0;
 
             return !down && freeIn > 0 && freeOut > 0 && waiting > 0;
@@ -1072,7 +1078,7 @@ namespace Modern.Lab.Samples
         private void PrepareTopLot()
         {
             string topLotId = this.lotData != null && this.lotData.Rows.Count > 0
-                    ? PendingTablePresenter.CellText(this.lotData.Rows[0], "LOT_ID")
+                    ? TableHelper.CellText(this.lotData.Rows[0], "LOT_ID")
                     : string.Empty;
 
             this.RunPrepareDialog(topLotId, null);
@@ -1094,12 +1100,12 @@ namespace Modern.Lab.Samples
             }
 
             string group = this.GetGroup();
-            string eqpId = PendingTablePresenter.CellText(row.Row, "EQP_ID");
-            DataTable ports = EquipmentTablePresenter.BuildPortRows(row.Row);
+            string eqpId = TableHelper.CellText(row.Row, "EQP_ID");
+            DataTable ports = EquipmentLotPresenter.BuildPortRows(row.Row);
 
             // 아웃 캐리어는 빈 캐리어 풀에서 골라야 한다 — 없으면 투입 불가.
             // ★ 회사 환경 교체 지점 — 빈 캐리어 조회를 회사 인터페이스로.
-            DataTable carriers = EquipmentLotApiClient.GetEmptyCarriers(group);
+            DataTable carriers = GetEmptyCarriers(group);
 
             if (carriers.Rows.Count == 0)
             {
@@ -1126,11 +1132,11 @@ namespace Modern.Lab.Samples
                     this.dialogOpen = false;
                 }
 
-                EquipmentLotApiClient.ActionResult result = assignLotId == null
-                        ? EquipmentLotApiClient.Prepare(
+                ActionResult result = assignLotId == null
+                        ? Prepare(
                                 group, eqpId, dialog.SelectedInPort, dialog.SelectedOutPort,
                                 dialog.SelectedCarrier)
-                        : EquipmentLotApiClient.AssignLot(
+                        : AssignLot(
                                 group, eqpId, assignLotId, dialog.SelectedInPort,
                                 dialog.SelectedOutPort, dialog.SelectedCarrier);
 
@@ -1141,8 +1147,8 @@ namespace Modern.Lab.Samples
                 }
 
                 // 토스트의 포트 번호는 포트 카드와 같은 연속 번호로 표기한다.
-                int inCount = PendingTablePresenter.ParseDays(
-                        PendingTablePresenter.CellText(row.Row, "IN_CNT"));
+                int inCount = TableHelper.ParseInt(
+                        TableHelper.CellText(row.Row, "IN_CNT"));
                 this.toastMain.Show(
                         "Lot " + result.LotId + " assigned to " + eqpId
                         + " (port " + dialog.SelectedInPort
@@ -1157,7 +1163,7 @@ namespace Modern.Lab.Samples
         // ★ 회사 환경 교체 지점 — StartJob을 회사 인터페이스로.
         private void StartJobAction()
         {
-            this.RunSimpleAction(EquipmentLotApiClient.StartJob, "Job started on {0}.");
+            this.RunSimpleAction(StartJob, "Job started on {0}.");
         }
 
         // 장비 단위 일괄 반출 — 완료(Done) 아웃포트 전체를 한 번에 비운다.
@@ -1165,7 +1171,7 @@ namespace Modern.Lab.Samples
         // ★ 회사 환경 교체 지점 — Unload를 회사 인터페이스로.
         private void UnloadAllDoneAction()
         {
-            this.RunSimpleAction(EquipmentLotApiClient.Unload, "All done out-ports unloaded on {0}.");
+            this.RunSimpleAction(Unload, "All done out-ports unloaded on {0}.");
         }
 
         // 인자·다이얼로그 없이 "서버 한 방 호출 → 재조회"로 끝나는 장비 액션의
@@ -1174,7 +1180,7 @@ namespace Modern.Lab.Samples
         // 필요한 Prepare/End나 파라미터가 다른 Down·통신 모드 전환은 이 틀에
         // 맞지 않으므로 각자 전용 메서드를 쓴다. successFormat의 {0}은 장비 ID.
         private void RunSimpleAction(
-                Func<string, string, EquipmentLotApiClient.ActionResult> serverCall, string successFormat)
+                Func<string, string, ActionResult> serverCall, string successFormat)
         {
             string group = this.GetGroup();
             string eqpId = this.GetFocusedEqpId();
@@ -1185,7 +1191,7 @@ namespace Modern.Lab.Samples
                 return;
             }
 
-            EquipmentLotApiClient.ActionResult result = serverCall(group, eqpId);
+            ActionResult result = serverCall(group, eqpId);
 
             if (!result.Success)
             {
@@ -1214,7 +1220,7 @@ namespace Modern.Lab.Samples
                 return;
             }
 
-            DataTable slots = EquipmentLotApiClient.GetEndJobSlots(group, eqpId);
+            DataTable slots = GetEndJobSlots(group, eqpId);
 
             if (slots.Rows.Count == 0)
             {
@@ -1228,9 +1234,9 @@ namespace Modern.Lab.Samples
 
             for (int index = 1; row != null && index <= 2; index++)
             {
-                if (PendingTablePresenter.CellText(row.Row, "IN" + index + "_STAT").Trim() == "Running")
+                if (TableHelper.CellText(row.Row, "IN" + index + "_STAT").Trim() == "Running")
                 {
-                    lotId = PendingTablePresenter.CellText(row.Row, "IN" + index + "_LOT");
+                    lotId = TableHelper.CellText(row.Row, "IN" + index + "_LOT");
                     break;
                 }
             }
@@ -1252,8 +1258,8 @@ namespace Modern.Lab.Samples
                     this.dialogOpen = false;
                 }
 
-                EquipmentLotApiClient.ActionResult result =
-                        EquipmentLotApiClient.EndJob(group, eqpId, dialog.JudgeResults);
+                ActionResult result =
+                        EndJob(group, eqpId, dialog.JudgeResults);
 
                 if (!result.Success)
                 {
@@ -1282,8 +1288,8 @@ namespace Modern.Lab.Samples
                 return;
             }
 
-            EquipmentLotApiClient.ActionResult result =
-                    EquipmentLotApiClient.SetCommMode(group, eqpId, mode);
+            ActionResult result =
+                    SetCommMode(group, eqpId, mode);
 
             if (!result.Success)
             {
@@ -1308,8 +1314,8 @@ namespace Modern.Lab.Samples
                 return;
             }
 
-            EquipmentLotApiClient.ActionResult result =
-                    EquipmentLotApiClient.SetDown(group, eqpId, down);
+            ActionResult result =
+                    SetDown(group, eqpId, down);
 
             if (!result.Success)
             {
@@ -1394,10 +1400,10 @@ namespace Modern.Lab.Samples
             }
 
             string topLotId = this.lotData != null && this.lotData.Rows.Count > 0
-                    ? PendingTablePresenter.CellText(this.lotData.Rows[0], "LOT_ID")
+                    ? TableHelper.CellText(this.lotData.Rows[0], "LOT_ID")
                     : string.Empty;
-            int inPort = PendingTablePresenter.ParseDays(
-                    PendingTablePresenter.CellText(row.Row, "PORT_IDX"));
+            int inPort = TableHelper.ParseInt(
+                    TableHelper.CellText(row.Row, "PORT_IDX"));
 
             this.RunPrepareDialog(topLotId, null, inPort);
         }
@@ -1414,12 +1420,12 @@ namespace Modern.Lab.Samples
 
             string group = this.GetGroup();
             string eqpId = this.GetFocusedEqpId();
-            int outPort = PendingTablePresenter.ParseDays(
-                    PendingTablePresenter.CellText(row.Row, "PORT_IDX"));
-            string lotId = PendingTablePresenter.CellText(row.Row, "LOT_ID");
+            int outPort = TableHelper.ParseInt(
+                    TableHelper.CellText(row.Row, "PORT_IDX"));
+            string lotId = TableHelper.CellText(row.Row, "LOT_ID");
 
-            EquipmentLotApiClient.ActionResult result =
-                    EquipmentLotApiClient.UnloadPort(group, eqpId, outPort);
+            ActionResult result =
+                    UnloadPort(group, eqpId, outPort);
 
             if (!result.Success)
             {
@@ -1458,12 +1464,12 @@ namespace Modern.Lab.Samples
 
             string group = this.GetGroup();
             string eqpId = this.GetFocusedEqpId();
-            int inPort = PendingTablePresenter.ParseDays(
-                    PendingTablePresenter.CellText(row.Row, "PORT_IDX"));
-            string lotId = PendingTablePresenter.CellText(row.Row, "LOT_ID");
+            int inPort = TableHelper.ParseInt(
+                    TableHelper.CellText(row.Row, "PORT_IDX"));
+            string lotId = TableHelper.CellText(row.Row, "LOT_ID");
 
-            EquipmentLotApiClient.ActionResult result =
-                    EquipmentLotApiClient.CancelPort(group, eqpId, inPort);
+            ActionResult result =
+                    CancelPort(group, eqpId, inPort);
 
             if (!result.Success)
             {
@@ -1508,10 +1514,9 @@ namespace Modern.Lab.Samples
             }
 
             string group = this.GetGroup();
-            string lotId = PendingTablePresenter.CellText(row.Row, "LOT_ID");
+            string lotId = TableHelper.CellText(row.Row, "LOT_ID");
 
-            EquipmentLotApiClient.ActionResult result = EquipmentLotApiClient
-                    .MoveLotPriority(group, lotId, e.DataPropertyName == "UP_ACTION");
+            ActionResult result = MoveLotPriority(group, lotId, e.DataPropertyName == "UP_ACTION");
 
             if (!result.Success)
             {
@@ -1561,8 +1566,233 @@ namespace Modern.Lab.Samples
                 return;
             }
 
-            string lotId = PendingTablePresenter.CellText(row.Row, "LOT_ID");
+            string lotId = TableHelper.CellText(row.Row, "LOT_ID");
             this.RunPrepareDialog(lotId, lotId);
+        }
+
+        // ===== 서버 호출 (★ 회사 환경 교체 지점) =====
+        // 이 구획이 이 화면의 서버 호출 전부다 — 각 메서드 본문만 회사 장비
+        // 인터페이스(전문/DB) 호출로 바꾸면 나머지 폼 코드는 그대로 둔다.
+        // 홈 데모 환경은 modernlab-api(REST)를 호출하고, 검증·시각 적재·캐리어
+        // 풀·아웃포트 예약·"장비당 작업 하나" 규칙은 서버가 확정한다 — 화면은
+        // 성공 후 재조회로 결과를 받는다.
+        //
+        // 조회는 실패 시 빈 테이블, 처리는 실패 ActionResult로 저하시켜 화면이
+        // 죽지 않게 한다.
+
+        private const string apiBaseUrl = "http://localhost:8080";
+        private const int apiTimeoutMs = 5000;
+
+        /// <summary>처리 전문의 응답 — 성공 여부/사유/처리 Lot(Prepare·AssignLot만).</summary>
+        private sealed class ActionResult
+        {
+            internal bool Success;
+            internal string Message;
+            internal string LotId = string.Empty;
+        }
+
+        /// <summary>제한 시간을 적용한 WebClient (홈 환경 전용 헬퍼).</summary>
+        private sealed class TimedWebClient : WebClient
+        {
+            protected override WebRequest GetWebRequest(Uri address)
+            {
+                WebRequest request = base.GetWebRequest(address);
+                request.Timeout = apiTimeoutMs;
+                return request;
+            }
+        }
+
+        /// <summary>장비그룹 데모 코드 목록 — 그룹 콤보 원천. ★ 회사 적용 시 장비그룹 조회로 교체.</summary>
+        private static string[] GroupCodes
+        {
+            get { return new string[] { "GRP-A", "GRP-B", "GRP-C" }; }
+        }
+
+        // ----- 조회 -----
+
+        private static DataTable GetEquipments(string group)
+        {
+            return Download("/api/equipment/equipments?group=" + Enc(group));
+        }
+
+        private static DataTable GetWaitingLots(string group)
+        {
+            return Download("/api/equipment/waiting-lots?group=" + Enc(group));
+        }
+
+        private static DataTable GetEmptyCarriers(string group)
+        {
+            return Download("/api/equipment/empty-carriers?group=" + Enc(group));
+        }
+
+        private static DataTable GetEndJobSlots(string group, string eqpId)
+        {
+            return Download("/api/equipment/end-job-slots?group=" + Enc(group) + "&eqpId=" + Enc(eqpId));
+        }
+
+        // ----- 처리 -----
+
+        private static ActionResult AssignLot(
+                string group, string eqpId, string lotId, int inPort, int outPort, string outCarrier)
+        {
+            Dictionary<string, object> body = Body(group, eqpId);
+            body["lotId"] = lotId ?? string.Empty;
+            body["inPort"] = inPort;
+            body["outPort"] = outPort;
+            body["outCarrier"] = outCarrier ?? string.Empty;
+            return Post("/api/equipment/assign-lot", body);
+        }
+
+        private static ActionResult Prepare(
+                string group, string eqpId, int inPort, int outPort, string outCarrier)
+        {
+            Dictionary<string, object> body = Body(group, eqpId);
+            body["inPort"] = inPort;
+            body["outPort"] = outPort;
+            body["outCarrier"] = outCarrier ?? string.Empty;
+            return Post("/api/equipment/prepare", body);
+        }
+
+        private static ActionResult StartJob(string group, string eqpId)
+        {
+            return Post("/api/equipment/start-job", Body(group, eqpId));
+        }
+
+        private static ActionResult EndJob(string group, string eqpId, DataTable judgeResults = null)
+        {
+            Dictionary<string, object> body = Body(group, eqpId);
+            List<Dictionary<string, object>> judges = new List<Dictionary<string, object>>();
+
+            if (judgeResults != null)
+            {
+                foreach (DataRow row in judgeResults.Rows)
+                {
+                    // GetChanges() 결과는 삭제 행도 포함될 수 있어 현재 값 접근 가능한 행만.
+                    if (row.RowState == DataRowState.Deleted)
+                    {
+                        continue;
+                    }
+
+                    Dictionary<string, object> judge = new Dictionary<string, object>();
+                    judge["WF_ID"] = TableHelper.CellText(row, "WF_ID");
+                    judge["JUDGE_RSLT"] = TableHelper.CellText(row, "JUDGE_RSLT");
+                    judges.Add(judge);
+                }
+            }
+
+            body["judgeResults"] = judges;
+            return Post("/api/equipment/end-job", body);
+        }
+
+        private static ActionResult CancelPort(string group, string eqpId, int inPort)
+        {
+            Dictionary<string, object> body = Body(group, eqpId);
+            body["inPort"] = inPort;
+            return Post("/api/equipment/cancel-port", body);
+        }
+
+        private static ActionResult SetDown(string group, string eqpId, bool down)
+        {
+            Dictionary<string, object> body = Body(group, eqpId);
+            body["down"] = down;
+            return Post("/api/equipment/set-down", body);
+        }
+
+        private static ActionResult SetCommMode(string group, string eqpId, string mode)
+        {
+            Dictionary<string, object> body = Body(group, eqpId);
+            body["mode"] = mode ?? string.Empty;
+            return Post("/api/equipment/set-comm-mode", body);
+        }
+
+        private static ActionResult MoveLotPriority(string group, string lotId, bool up)
+        {
+            Dictionary<string, object> body = new Dictionary<string, object>();
+            body["group"] = group ?? string.Empty;
+            body["lotId"] = lotId ?? string.Empty;
+            body["up"] = up;
+            return Post("/api/equipment/move-lot-priority", body);
+        }
+
+        private static ActionResult UnloadPort(string group, string eqpId, int outPort)
+        {
+            Dictionary<string, object> body = Body(group, eqpId);
+            body["outPort"] = outPort;
+            return Post("/api/equipment/unload-port", body);
+        }
+
+        private static ActionResult Unload(string group, string eqpId)
+        {
+            return Post("/api/equipment/unload", Body(group, eqpId));
+        }
+
+        // ----- HTTP 공통 -----
+
+        private static Dictionary<string, object> Body(string group, string eqpId)
+        {
+            Dictionary<string, object> body = new Dictionary<string, object>();
+            body["group"] = group ?? string.Empty;
+            body["eqpId"] = eqpId ?? string.Empty;
+            return body;
+        }
+
+        private static string Enc(string value)
+        {
+            return Uri.EscapeDataString(value ?? string.Empty);
+        }
+
+        private static DataTable Download(string pathAndQuery)
+        {
+            try
+            {
+                using (WebClient client = new TimedWebClient())
+                {
+                    client.Encoding = Encoding.UTF8;
+                    string json = client.DownloadString(apiBaseUrl + pathAndQuery);
+                    return JsonTableConverter.ToDataTable(json);
+                }
+            }
+            catch (Exception)
+            {
+                return new DataTable();
+            }
+        }
+
+        private static ActionResult Post(string path, Dictionary<string, object> body)
+        {
+            JavaScriptSerializer serializer = new JavaScriptSerializer();
+
+            try
+            {
+                using (WebClient client = new TimedWebClient())
+                {
+                    client.Encoding = Encoding.UTF8;
+                    client.Headers[HttpRequestHeader.ContentType] = "application/json";
+                    string response = client.UploadString(
+                            apiBaseUrl + path, "POST", serializer.Serialize(body));
+
+                    Dictionary<string, object> map =
+                            serializer.Deserialize<Dictionary<string, object>>(response);
+
+                    ActionResult result = new ActionResult();
+                    result.Success = map != null && map.ContainsKey("success")
+                            && Convert.ToBoolean(map["success"]);
+                    result.Message = map != null && map.ContainsKey("message") && map["message"] != null
+                            ? map["message"].ToString()
+                            : string.Empty;
+                    result.LotId = map != null && map.ContainsKey("lotId") && map["lotId"] != null
+                            ? map["lotId"].ToString()
+                            : string.Empty;
+                    return result;
+                }
+            }
+            catch (Exception ex)
+            {
+                ActionResult result = new ActionResult();
+                result.Success = false;
+                result.Message = "Server call failed: " + ex.Message;
+                return result;
+            }
         }
     }
 }

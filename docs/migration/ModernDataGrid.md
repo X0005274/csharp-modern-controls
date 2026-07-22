@@ -26,7 +26,7 @@
 
 | 멤버 | 설명 |
 |---|---|
-| `ConfigureColumns(params ModernDataGridColumn[])` | 명시적 컬럼 정의. `DataSource` 할당 전에 호출. `ModernDataGridColumn(dataPropertyName[, headerText[, width]])` — headerText 생략 시 캡션 용어사전 참조. 앱 시작 시 `Modern.Lab.Services.GridCaptionDictionary.RegisterAll()`을 한 번 호출하면 Common의 회사 표준 캡션을 쓴다. 화면 전용 용어는 `GridCaptionCatalog.Register`/`RegisterRange`로 추가·재정의한다. width 생략/음수는 남은 폭 채움(star). `TextAlignment`(Left/Center/Right) 지정 가능 |
+| `ConfigureColumns(params ModernDataGridColumn[])` | 명시적 컬럼 정의. `DataSource` 할당 전에 호출. `ModernDataGridColumn(dataPropertyName[, headerText[, width]])` — headerText 생략 시 캡션 용어사전 참조. 앱 시작 시 `Modern.Lab.Captions.GridCaptionDictionary.RegisterAll()`을 한 번 호출하면 Common의 회사 표준 캡션을 쓴다. 화면 전용 용어는 `GridCaptionCatalog.Register`/`RegisterRange`로 추가·재정의한다. width 생략/음수는 남은 폭 채움(star). `TextAlignment`(Left/Center/Right) 지정 가능 |
 | `ExportXlsx(path, sheetName, data)` | 화면 컬럼 정의 그대로(순서·캡션·`Format`) 데이터 전체를 진짜 .xlsx로 저장 — 외부 라이브러리 없음, 내보내기용 컬럼/헤더 목록을 폼이 따로 관리하지 않는다. CheckBox/Button 컬럼 자동 제외. `data`는 그리드 `DataSource`가 아니라 인자 — 페이지 화면에서도 전체 결과 저장 |
 | `ColumnDefinitions` | `ConfigureColumns`로 선언한 정의의 복사본 — 화면과 동일한 컬럼 구성(순서·캡션·형식)으로 커스텀 파생 출력을 만들 때 단일 원천 (엑셀 저장은 `ExportXlsx`가 이미 해준다) |
 | `EmptyText` | 데이터 0건일 때 데이터 영역 가운데 표시할 안내 문구 (기본 `"No data"`, 빈 문자열 = 끔) |
@@ -35,7 +35,7 @@
 | `CellButtonClick` | 버튼 컬럼 셀 클릭 이벤트 — `e.Item`(클릭 행 `DataRowView`) + `e.DataPropertyName`(버튼 컬럼 이름). `DataGridView`의 `CellContentClick` + 버튼 컬럼 대체 |
 | 행 우클릭 + `ContextMenuStrip` | 행 위에서 우클릭하면 **그 행이 먼저 현재 행으로 선택**된 뒤 컨트롤에 지정한 `ContextMenuStrip`이 커서 위치에 뜬다 — 메뉴 핸들러는 `SelectedItem`을 대상으로 처리하면 된다. 행 밖(헤더/빈 영역) 우클릭에는 뜨지 않는다 |
 | `AllowColumnFilters` | 컬럼 헤더 깔때기 값 필터(엑셀식 고유 값 체크리스트, **기본 true**). 팝업 검색창은 자동완성 후보와 한글 초성 매칭을 제공하고, 검색 중에도 기존 체크 선택은 유지된다. 화면 뷰만 거르고 원본 데이터는 그대로 — `DataGridView`에서 직접 구현하던 헤더 필터 커스텀 코드 대체. 재조회(`DataSource` 재할당) 후에도 필터 선택 유지. 깔때기는 헤더 셀 맨 오른쪽 고정, 정렬 글리프가 그 왼쪽 |
-| `FilterValueSource` / `ColumnFiltersChanged` / `MatchesColumnFilters(row)` | **페이지 슬라이스 화면의 필터 연동 3종** — 페이지 조각을 바인딩하는 화면은 ① `FilterValueSource`에 전체 결과 `DataTable`을 지정해 깔때기 체크리스트에 전체 값이 나오게 하고, ② `ColumnFiltersChanged` 이벤트에서 전체 결과를 `MatchesColumnFilters(row)`로 걸러 표시 행 목록과 페이지 수를 재계산한다 (Samples의 `PendingRequestForm` 참고). 페이징 없는 화면은 셋 다 필요 없다 |
+| `FilterValueSource` / `ColumnFiltersChanged` / `MatchesColumnFilters(row)` | **페이지 슬라이스 화면의 필터 연동 3종** — 페이지 조각을 바인딩하는 화면은 ① `FilterValueSource`에 전체 결과 `DataTable`을 지정해 깔때기 체크리스트에 전체 값이 나오게 하고, ② `ColumnFiltersChanged` 이벤트에서 전체 결과를 `MatchesColumnFilters(row)`로 걸러 표시 행 목록과 페이지 수를 재계산한다 (Samples의 `LogisticsRequestForm` 참고). 페이징 없는 화면은 셋 다 필요 없다 |
 | `SelectedItem` | 선택 행 (`DataTable` 소스일 때 `DataRowView`) — 기존 `CurrentRow.DataBoundItem` 대체 |
 | `AutoFitColumns` | true면 각 컬럼 너비를 **헤더 캡션과 데이터 내용 중 더 넓은 쪽**에 맞춰 자동 계산 (`ConfigureColumns` 컬럼에만 적용, 컬럼 정의의 `Width`는 무시 — 단 CheckBox/Button/Badge 컬럼은 정의 폭·캡션 기준). `DataSource`가 바뀔 때마다 재계산되며 하한 48px / 상한 600px. 사용자의 마우스 폭 조절은 그대로 가능 |
 

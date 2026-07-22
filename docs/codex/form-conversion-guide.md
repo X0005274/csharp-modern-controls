@@ -223,7 +223,7 @@ this.gridEmployee = new Modern.Lab.WinForms.Controls.Data.ModernDataGrid();
 넣어 두어도 무해하다.
 
 ```csharp
-public PendingRequestForm()
+public LogisticsRequestForm()
 {
     this.InitializeComponent();
     Modern.Lab.Theming.ModernThemeWinForms.Apply(this);   // 테마 한 줄 적용
@@ -246,7 +246,7 @@ public PendingRequestForm()
 폼 생성자에서 `InitializeComponent()` 직후 한 줄:
 
 ```csharp
-public PendingRequestForm()
+public LogisticsRequestForm()
 {
     this.InitializeComponent();
 

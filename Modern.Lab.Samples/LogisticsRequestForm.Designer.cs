@@ -1,6 +1,6 @@
 namespace Modern.Lab.Samples
 {
-    public partial class PendingRequestForm
+    public partial class LogisticsRequestForm
     {
         /// <summary>Required designer variable.</summary>
         private System.ComponentModel.IContainer components = null;
@@ -25,6 +25,10 @@ namespace Modern.Lab.Samples
         /// </summary>
         private void InitializeComponent()
         {
+            this.components = new System.ComponentModel.Container();
+            this.boardMenu = new System.Windows.Forms.ContextMenuStrip(this.components);
+            this.miReceive = new System.Windows.Forms.ToolStripMenuItem();
+            this.miCreate = new System.Windows.Forms.ToolStripMenuItem();
             this.titlePanel = new System.Windows.Forms.Panel();
             this.lblTitle = new Modern.Lab.WinForms.Controls.Display.ModernLabel();
             this.badgeEnv = new Modern.Lab.WinForms.Controls.Display.ModernStatusBadge();
@@ -55,7 +59,7 @@ namespace Modern.Lab.Samples
             this.bottomPanel = new System.Windows.Forms.Panel();
             this.kpiStrip = new Modern.Lab.WinForms.Controls.Layout.ModernCardPanel();
             this.badgeTransit = new Modern.Lab.WinForms.Controls.Display.ModernStatusBadge();
-            this.badgeArrived = new Modern.Lab.WinForms.Controls.Display.ModernStatusBadge();
+            this.badgeReceived = new Modern.Lab.WinForms.Controls.Display.ModernStatusBadge();
             this.badgeNoReq = new Modern.Lab.WinForms.Controls.Display.ModernStatusBadge();
             this.badgeLinked = new Modern.Lab.WinForms.Controls.Display.ModernStatusBadge();
             this.badgeDone = new Modern.Lab.WinForms.Controls.Display.ModernStatusBadge();
@@ -66,6 +70,7 @@ namespace Modern.Lab.Samples
             this.actionCard = new Modern.Lab.WinForms.Controls.Layout.ModernCardPanel();
             this.btnExport = new Modern.Lab.WinForms.Controls.Input.ModernButton();
             this.btnReceive = new Modern.Lab.WinForms.Controls.Input.ModernButton();
+            this.btnManualReceive = new Modern.Lab.WinForms.Controls.Input.ModernButton();
             this.btnCreate = new Modern.Lab.WinForms.Controls.Input.ModernButton();
             this.busyMain = new Modern.Lab.WinForms.Controls.Display.ModernBusyOverlay();
             this.toastMain = new Modern.Lab.WinForms.Controls.Display.ModernToast();
@@ -102,7 +107,7 @@ namespace Modern.Lab.Samples
             this.lblTitle.Name = "lblTitle";
             this.lblTitle.Size = new System.Drawing.Size(1456, 28);
             this.lblTitle.TabIndex = 0;
-            this.lblTitle.Text = "Pending Requests";
+            this.lblTitle.Text = "Logistics & Request";
             this.lblTitle.TitleBar = true;
             this.lblTitle.Child = null;
             //
@@ -291,9 +296,33 @@ namespace Modern.Lab.Samples
             this.boardCard.Text = "Send / Receive Status";
             this.boardCard.TitleAccent = true;
             //
+            // boardMenu — 현황판 행 우클릭 메뉴 (행 버튼과 동일 판정/처리).
+            //
+            this.boardMenu.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
+            this.miReceive,
+            this.miCreate});
+            this.boardMenu.Name = "boardMenu";
+            this.boardMenu.Size = new System.Drawing.Size(140, 48);
+            this.boardMenu.Opening += new System.ComponentModel.CancelEventHandler(this.OnBoardMenuOpening);
+            //
+            // miReceive
+            //
+            this.miReceive.Name = "miReceive";
+            this.miReceive.Size = new System.Drawing.Size(139, 22);
+            this.miReceive.Text = "Receive";
+            this.miReceive.Click += new System.EventHandler(this.OnMenuReceiveClick);
+            //
+            // miCreate
+            //
+            this.miCreate.Name = "miCreate";
+            this.miCreate.Size = new System.Drawing.Size(139, 22);
+            this.miCreate.Text = "Create";
+            this.miCreate.Click += new System.EventHandler(this.OnMenuCreateClick);
+            //
             // gridBoard
             //
             this.gridBoard.AutoFitColumns = true;
+            this.gridBoard.ContextMenuStrip = this.boardMenu;
             this.gridBoard.Dock = System.Windows.Forms.DockStyle.Fill;
             this.gridBoard.Location = new System.Drawing.Point(8, 40);
             this.gridBoard.Name = "gridBoard";
@@ -394,7 +423,7 @@ namespace Modern.Lab.Samples
             //
             this.kpiStrip.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(255)))), ((int)(((byte)(255)))), ((int)(((byte)(255)))));
             this.kpiStrip.Controls.Add(this.badgeTransit);
-            this.kpiStrip.Controls.Add(this.badgeArrived);
+            this.kpiStrip.Controls.Add(this.badgeReceived);
             this.kpiStrip.Controls.Add(this.badgeNoReq);
             this.kpiStrip.Controls.Add(this.badgeLinked);
             this.kpiStrip.Controls.Add(this.badgeDone);
@@ -418,16 +447,16 @@ namespace Modern.Lab.Samples
             this.badgeTransit.Text = "-";
             this.badgeTransit.Child = null;
             //
-            // badgeArrived
+            // badgeReceived
             //
-            this.badgeArrived.Color = "#DBEAFE";
-            this.badgeArrived.Location = new System.Drawing.Point(120, 16);
-            this.badgeArrived.Name = "badgeArrived";
-            this.badgeArrived.Shape = Modern.Lab.WinForms.Controls.Display.BadgeShape.Rounded;
-            this.badgeArrived.Size = new System.Drawing.Size(100, 24);
-            this.badgeArrived.TabIndex = 1;
-            this.badgeArrived.Text = "-";
-            this.badgeArrived.Child = null;
+            this.badgeReceived.Color = "#DBEAFE";
+            this.badgeReceived.Location = new System.Drawing.Point(120, 16);
+            this.badgeReceived.Name = "badgeReceived";
+            this.badgeReceived.Shape = Modern.Lab.WinForms.Controls.Display.BadgeShape.Rounded;
+            this.badgeReceived.Size = new System.Drawing.Size(100, 24);
+            this.badgeReceived.TabIndex = 1;
+            this.badgeReceived.Text = "-";
+            this.badgeReceived.Child = null;
             //
             // badgeNoReq
             //
@@ -506,11 +535,12 @@ namespace Modern.Lab.Samples
             this.actionCard.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(255)))), ((int)(((byte)(255)))), ((int)(((byte)(255)))));
             this.actionCard.Controls.Add(this.btnExport);
             this.actionCard.Controls.Add(this.btnReceive);
+            this.actionCard.Controls.Add(this.btnManualReceive);
             this.actionCard.Controls.Add(this.btnCreate);
             this.actionCard.Dock = System.Windows.Forms.DockStyle.Right;
-            this.actionCard.Location = new System.Drawing.Point(1216, 0);
+            this.actionCard.Location = new System.Drawing.Point(1090, 0);
             this.actionCard.Name = "actionCard";
-            this.actionCard.Size = new System.Drawing.Size(300, 56);
+            this.actionCard.Size = new System.Drawing.Size(426, 56);
             this.actionCard.TabIndex = 2;
             //
             // btnExport
@@ -524,12 +554,22 @@ namespace Modern.Lab.Samples
             this.btnExport.Click += new System.EventHandler(this.OnExportClick);
             this.btnExport.Child = null;
             //
+            // btnManualReceive
+            //
+            this.btnManualReceive.Location = new System.Drawing.Point(100, 12);
+            this.btnManualReceive.Name = "btnManualReceive";
+            this.btnManualReceive.Size = new System.Drawing.Size(118, 32);
+            this.btnManualReceive.TabIndex = 1;
+            this.btnManualReceive.Text = "Manual Receive";
+            this.btnManualReceive.Click += new System.EventHandler(this.OnManualReceiveClick);
+            this.btnManualReceive.Child = null;
+            //
             // btnReceive
             //
-            this.btnReceive.Location = new System.Drawing.Point(100, 12);
+            this.btnReceive.Location = new System.Drawing.Point(226, 12);
             this.btnReceive.Name = "btnReceive";
             this.btnReceive.Size = new System.Drawing.Size(90, 32);
-            this.btnReceive.TabIndex = 1;
+            this.btnReceive.TabIndex = 2;
             this.btnReceive.Text = "Receive";
             this.btnReceive.Click += new System.EventHandler(this.OnReceiveClick);
             this.btnReceive.Child = null;
@@ -537,10 +577,10 @@ namespace Modern.Lab.Samples
             // btnCreate
             //
             this.btnCreate.Kind = Modern.Lab.Controls.Wpf.Input.ButtonKind.Execute;
-            this.btnCreate.Location = new System.Drawing.Point(198, 12);
+            this.btnCreate.Location = new System.Drawing.Point(324, 12);
             this.btnCreate.Name = "btnCreate";
             this.btnCreate.Size = new System.Drawing.Size(90, 32);
-            this.btnCreate.TabIndex = 2;
+            this.btnCreate.TabIndex = 3;
             this.btnCreate.Text = "Create";
             this.btnCreate.Click += new System.EventHandler(this.OnCreateClick);
             this.btnCreate.Child = null;
@@ -565,7 +605,7 @@ namespace Modern.Lab.Samples
             this.toastMain.Visible = false;
             this.toastMain.Child = null;
             //
-            // PendingRequestForm
+            // LogisticsRequestForm
             //
             this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
@@ -582,10 +622,10 @@ namespace Modern.Lab.Samples
             this.Controls.Add(this.titlePanel);
             this.Font = new System.Drawing.Font("Segoe UI", 9F);
             this.MinimumSize = new System.Drawing.Size(1240, 660);
-            this.Name = "PendingRequestForm";
+            this.Name = "LogisticsRequestForm";
             this.Padding = new System.Windows.Forms.Padding(12);
             this.StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen;
-            this.Text = "Pending Requests";
+            this.Text = "Logistics & Request";
             this.Load += new System.EventHandler(this.OnFormLoad);
             this.titlePanel.ResumeLayout(false);
             this.searchCard.ResumeLayout(false);
@@ -636,7 +676,7 @@ namespace Modern.Lab.Samples
         private System.Windows.Forms.Panel bottomPanel;
         private Modern.Lab.WinForms.Controls.Layout.ModernCardPanel kpiStrip;
         private Modern.Lab.WinForms.Controls.Display.ModernStatusBadge badgeTransit;
-        private Modern.Lab.WinForms.Controls.Display.ModernStatusBadge badgeArrived;
+        private Modern.Lab.WinForms.Controls.Display.ModernStatusBadge badgeReceived;
         private Modern.Lab.WinForms.Controls.Display.ModernStatusBadge badgeNoReq;
         private Modern.Lab.WinForms.Controls.Display.ModernStatusBadge badgeLinked;
         private Modern.Lab.WinForms.Controls.Display.ModernStatusBadge badgeDone;
@@ -647,6 +687,10 @@ namespace Modern.Lab.Samples
         private Modern.Lab.WinForms.Controls.Layout.ModernCardPanel actionCard;
         private Modern.Lab.WinForms.Controls.Input.ModernButton btnExport;
         private Modern.Lab.WinForms.Controls.Input.ModernButton btnReceive;
+        private Modern.Lab.WinForms.Controls.Input.ModernButton btnManualReceive;
+        private System.Windows.Forms.ContextMenuStrip boardMenu;
+        private System.Windows.Forms.ToolStripMenuItem miReceive;
+        private System.Windows.Forms.ToolStripMenuItem miCreate;
         private Modern.Lab.WinForms.Controls.Input.ModernButton btnCreate;
         private Modern.Lab.WinForms.Controls.Display.ModernBusyOverlay busyMain;
         private Modern.Lab.WinForms.Controls.Display.ModernToast toastMain;

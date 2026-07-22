@@ -14,11 +14,17 @@ namespace Modern.Lab.Controls.Wpf.Display
     /// 슬롯 맵 — 캐리어(운반체)의 수납 구조를 실물 단면처럼 그리는 표시/선택
     /// 컨트롤. 구획(SlotMapSection) 단위로 셀 격자를 그린다.
     ///
-    /// 셀 표현 — **자리(번호)는 고정, 유닛(ID)은 움직인다**를 시각으로 나눈다:
-    /// - 단일 수납(슬롯/스텁): 고정 번호 눈금 + 그 옆의 유닛 토큰(ID가 적힌
-    ///   색 바). 빈 자리는 회색 빈 틀만 남는다.
-    /// - 복합 수납(LCC 핑거 A~E): 핑거당 미니 행 — 이름 도트 + 유닛 ID +
-    ///   삽입 위치 틱(Top/Left/Right, 도트 가장자리 액센트 바).
+    /// 셀 표현 — **자리(번호)는 고정, 유닛(ID)은 움직인다**를 시각으로 나눈다.
+    /// 구획의 Kind(SlotMapSectionKind)가 실물 표현을 정한다:
+    /// - WaferEdge: 카세트 단면 — 레일 사이 얇은 웨이퍼 바(채움), 빈 슬롯은
+    ///   레일 홈, 미리보기는 점선 바 (FOUP).
+    /// - PinStub: 핀 스텁 탑 뷰 — 원판 위 사각 칩, 빈 스텁은 핀 자국만 (STUB).
+    /// - LamellaPost: 포스트+라멜라 — 삽입 위치(Top/Left/Right)가 라멜라가
+    ///   붙는 위치 자체로 표현된다 (LCC).
+    /// - Generic(기본): 번호 칩 + 유닛 토큰(단일) / 핑거 도트 미니 행(복합) —
+    ///   기존 화면 호환용.
+    /// 상태(채움/빈/미리보기/선택)는 전부 형태 차(도형 유무·점선·링)로
+    /// 인코딩해 테마와 무관하게 읽힌다.
     ///
     /// 상호작용:
     /// - 채워진 셀 클릭 = 선택 토글 (AllowSelection) — SelectedKeys/
@@ -72,9 +78,16 @@ namespace Modern.Lab.Controls.Wpf.Display
         public event EventHandler<SlotMapCellEventArgs> CellRightClick;
 
         // 셀 시각 요소 묶음 — 선택/미리보기 상태 변경 시 다시 칠할 대상.
+        // Kind(구획의 실물 표현)에 따라 쓰는 필드가 다르다:
+        // - Generic     : Token/LabelChip/LabelText/UnitText (+복합이면 Dot*/MarkerEdges)
+        // - WaferEdge   : LabelText(눈금 번호)/Ring/Bar/UnitText
+        // - PinStub     : Ring(원)/Disc/PinDot/Chip/UnitText(캡션)
+        // - LamellaPost : Token(프레임)/LabelChip/LabelText/Posts/Lamellas/
+        //                 LetterTexts/SubUnitTexts(ID 행, ON 모드)
         private sealed class CellVisual
         {
             internal SlotMapCell Cell;
+            internal SlotMapSectionKind Kind;
             internal Border Outer;
             internal Border Token;
             internal Border LabelChip;
@@ -83,7 +96,24 @@ namespace Modern.Lab.Controls.Wpf.Display
             internal List<Border> DotBorders;
             internal List<TextBlock> DotTexts;
             internal List<TextBlock> SubUnitTexts;
-            internal List<System.Windows.Shapes.Rectangle> MarkerTicks;
+            internal List<Border> MarkerEdges;
+
+            // WaferEdge/PinStub — 선택 링(도형 바깥 액센트 윤곽).
+            internal System.Windows.Shapes.Shape Ring;
+
+            // WaferEdge — 웨이퍼 바(채움/홈/미리보기를 한 도형이 겸한다).
+            internal System.Windows.Shapes.Rectangle Bar;
+
+            // PinStub — 스텁 원판 / 핀 자국 / 칩 / 칩 안 ID 축약 글자.
+            internal System.Windows.Shapes.Ellipse Disc;
+            internal System.Windows.Shapes.Ellipse PinDot;
+            internal System.Windows.Shapes.Rectangle Chip;
+            internal TextBlock ChipText;
+
+            // LamellaPost — 핑거당 포스트/라멜라/눈금 글자.
+            internal List<System.Windows.Shapes.Rectangle> Posts;
+            internal List<System.Windows.Shapes.Rectangle> Lamellas;
+            internal List<TextBlock> LetterTexts;
         }
 
         private SlotMapSection[] sections;
@@ -104,15 +134,10 @@ namespace Modern.Lab.Controls.Wpf.Display
         // 맵과 분리해 기존 SetPreview 호출과 호환하면서 방향을 함께 표시한다.
         private System.Collections.Generic.Dictionary<string, string> previewMarkerMap;
 
-        // 복합 셀(LCC 등)의 하위 유닛 ID 표시 방식 — 켬: 핑거당 미니 행(도트 +
-        // 유닛 ID), 끔: A~E 배지를 크게 한 줄(5개)로만. SubCells가 있는 구획
-        // 헤더의 "Lamella ID" 스위치로 토글한다(단일 셀 FOUP 슬롯/STUB은 무관).
+        // 복합 셀(LCC 등)의 하위 유닛 ID 표시 방식 — 켬: 핑거당 유닛 ID 행,
+        // 끔: 포스트/도트만(ID는 호버 툴팁으로). SubCells가 있는 구획 헤더의
+        // "Lamella ID" 스위치로 토글한다(단일 셀 FOUP 슬롯/STUB은 무관).
         private bool showSubCellUnitIds = true;
-
-        // OFF 모드 하단 상세 그리드 — 맵 클릭과 선택을 동기화한다. 트리 재구성
-        // 때마다 다시 만들어지므로 참조를 갱신한다.
-        private Modern.Lab.Controls.Wpf.Data.ModernDataGridControl detailGrid;
-        private bool syncingGridSelection;
 
         // 드래그 시작 판정 — 마우스 다운 셀과 좌표를 기억해 두고, 이동 거리가
         // 시스템 임계값을 넘으면 드래그로, 그대로 떼면 클릭(선택 토글)으로 본다.
@@ -233,7 +258,6 @@ namespace Modern.Lab.Controls.Wpf.Display
         {
             this.clickKey = key;
             this.RefreshAllVisuals();
-            this.SyncDetailGridSelection(key);
         }
 
         /// <summary>선택을 모두 해제한다.</summary>
@@ -276,7 +300,6 @@ namespace Modern.Lab.Controls.Wpf.Display
             this.sectionVisuals.Clear();
             this.sectionCountTexts.Clear();
             this.pressCandidate = null;
-            this.detailGrid = null;
 
             if (this.sections == null)
             {
@@ -288,188 +311,7 @@ namespace Modern.Lab.Controls.Wpf.Display
                 this.SectionHost.Children.Add(this.BuildSection(this.sections[index]));
             }
 
-            // "Lamella ID" 스위치가 꺼진 상태(배지 한 줄 레이아웃)에서는 맵에
-            // 유닛 ID가 안 보이므로, 하단에 LCC 칩 상세 그리드를 덧붙인다.
-            if (!this.showSubCellUnitIds)
-            {
-                UIElement detail = this.BuildLccDetailGrid();
-
-                if (detail != null)
-                {
-                    this.SectionHost.Children.Add(detail);
-                }
-            }
-
             this.RefreshAllVisuals();
-        }
-
-        // OFF 모드용 하단 상세 그리드 — 채워진 유닛을 표준 모던 그리드
-        // (ModernDataGridControl)로 나열한다. STUB/LCC를 Type로 구분하고,
-        // Type별 순번(Seq)을 매긴다. 채워진 유닛이 없으면 null.
-        private UIElement BuildLccDetailGrid()
-        {
-            System.Data.DataTable table = new System.Data.DataTable();
-            table.Columns.Add("TYPE", typeof(string));
-            table.Columns.Add("SEQ", typeof(int));
-            table.Columns.Add("POS", typeof(string));
-            table.Columns.Add("FINGER", typeof(string));
-            table.Columns.Add("UNIT_ID", typeof(string));
-            table.Columns.Add("INSERT", typeof(string));
-
-            System.Collections.Generic.Dictionary<string, int> seq =
-                    new System.Collections.Generic.Dictionary<string, int>(StringComparer.Ordinal);
-
-            foreach (SlotMapSection section in this.sections)
-            {
-                if (section.Cells == null)
-                {
-                    continue;
-                }
-
-                foreach (SlotMapCell cell in section.Cells)
-                {
-                    string kind = KindOf(cell.Key);
-
-                    if (cell.SubCells == null)
-                    {
-                        if (!string.IsNullOrEmpty(cell.UnitId))
-                        {
-                            table.Rows.Add(kind, NextSeq(seq, kind), cell.Label,
-                                    string.Empty, cell.UnitId, string.Empty);
-                        }
-
-                        continue;
-                    }
-
-                    foreach (SlotMapSubCell sub in cell.SubCells)
-                    {
-                        if (!string.IsNullOrEmpty(sub.UnitId))
-                        {
-                            table.Rows.Add(kind, NextSeq(seq, kind), cell.Label,
-                                    sub.Name, sub.UnitId, sub.Marker ?? string.Empty);
-                        }
-                    }
-                }
-            }
-
-            if (table.Rows.Count == 0)
-            {
-                return null;
-            }
-
-            Modern.Lab.Controls.Wpf.Data.ModernDataGridControl grid =
-                    new Modern.Lab.Controls.Wpf.Data.ModernDataGridControl();
-            grid.AutoGenerateColumns = false;
-            grid.AutoFitColumns = true;
-            grid.ShowStatusBar = false;
-            grid.MaxHeight = 220d;
-            grid.Margin = new Thickness(0d, 6d, 0d, 0d);
-
-            grid.ApplyColumns(new System.Collections.Generic.List<Modern.Lab.Controls.Wpf.Data.ModernDataGridColumn>
-            {
-                new Modern.Lab.Controls.Wpf.Data.ModernDataGridColumn("SEQ", "Seq"),
-                new Modern.Lab.Controls.Wpf.Data.ModernDataGridColumn("TYPE", "Type"),
-                new Modern.Lab.Controls.Wpf.Data.ModernDataGridColumn("POS", "Pos"),
-                new Modern.Lab.Controls.Wpf.Data.ModernDataGridColumn("FINGER", "Finger"),
-                new Modern.Lab.Controls.Wpf.Data.ModernDataGridColumn("UNIT_ID", "Unit ID"),
-                new Modern.Lab.Controls.Wpf.Data.ModernDataGridColumn("INSERT", "Insert")
-            });
-
-            grid.ItemsSource = table.DefaultView;
-            grid.SelectionChanged += this.OnDetailGridSelectionChanged;
-            this.detailGrid = grid;
-            return grid;
-        }
-
-        // 하단 그리드 행 선택 → 맵 셀 클릭으로 알린다(선택 동기화). 화면이
-        // 클릭 셀을 잡아 SetClickKey로 되돌려 주면 그리드 선택도 유지된다.
-        private void OnDetailGridSelectionChanged(object sender, EventArgs e)
-        {
-            if (this.syncingGridSelection || this.detailGrid == null)
-            {
-                return;
-            }
-
-            System.Data.DataRowView row = this.detailGrid.SelectedItem as System.Data.DataRowView;
-
-            if (row == null)
-            {
-                return;
-            }
-
-            string key = (row["TYPE"] ?? string.Empty).ToString()
-                    + "|" + (row["POS"] ?? string.Empty).ToString();
-
-            EventHandler<SlotMapCellEventArgs> handler = this.CellClicked;
-
-            if (handler != null)
-            {
-                handler(this, new SlotMapCellEventArgs(key));
-            }
-        }
-
-        // 클릭 셀 키에 맞춰 하단 그리드 행을 선택한다(맵→그리드 동기화).
-        private void SyncDetailGridSelection(string key)
-        {
-            if (this.detailGrid == null)
-            {
-                return;
-            }
-
-            System.Data.DataView view = this.detailGrid.ItemsSource as System.Data.DataView;
-
-            if (view == null)
-            {
-                return;
-            }
-
-            this.syncingGridSelection = true;
-
-            try
-            {
-                System.Data.DataRowView match = null;
-
-                if (!string.IsNullOrEmpty(key))
-                {
-                    foreach (System.Data.DataRowView candidate in view)
-                    {
-                        string candidateKey = (candidate["TYPE"] ?? string.Empty).ToString()
-                                + "|" + (candidate["POS"] ?? string.Empty).ToString();
-
-                        if (candidateKey == key)
-                        {
-                            match = candidate;
-                            break;
-                        }
-                    }
-                }
-
-                this.detailGrid.SelectedItem = match;
-            }
-            finally
-            {
-                this.syncingGridSelection = false;
-            }
-        }
-
-        // 셀 키("KIND|POS")에서 종류(KIND)를 뽑는다.
-        private static string KindOf(string key)
-        {
-            if (string.IsNullOrEmpty(key))
-            {
-                return string.Empty;
-            }
-
-            int bar = key.IndexOf('|');
-            return bar > 0 ? key.Substring(0, bar) : key;
-        }
-
-        // 종류별 1부터의 순번을 매긴다.
-        private static int NextSeq(System.Collections.Generic.Dictionary<string, int> seq, string kind)
-        {
-            int next = (seq.ContainsKey(kind) ? seq[kind] : 0) + 1;
-            seq[kind] = next;
-            return next;
         }
 
         private UIElement BuildSection(SlotMapSection section)
@@ -531,7 +373,7 @@ namespace Modern.Lab.Controls.Wpf.Display
 
             foreach (SlotMapCell cell in section.Cells)
             {
-                CellVisual visual = this.BuildCell(cell, section.CellFontSize);
+                CellVisual visual = this.BuildCell(cell, section);
                 visuals.Add(visual);
                 grid.Children.Add(visual.Outer);
             }
@@ -577,15 +419,33 @@ namespace Modern.Lab.Controls.Wpf.Display
             this.RebuildVisualTree();
         }
 
-        private CellVisual BuildCell(SlotMapCell cell, double cellFontSize)
+        // 셀 빌더 디스패처 — 구획의 실물 표현(Kind)에 맞는 전용 빌더로 보낸다.
+        // 셀 모양이 표현과 안 맞으면(예: WaferEdge에 복합 셀) 기본 상자 표현으로
+        // 안전하게 내려간다.
+        private CellVisual BuildCell(SlotMapCell cell, SlotMapSection section)
         {
-            CellVisual visual = new CellVisual();
-            visual.Cell = cell;
+            if (section.Kind == SlotMapSectionKind.WaferEdge && cell.SubCells == null)
+            {
+                return this.BuildWaferCell(cell);
+            }
 
-            // 유닛 ID / 번호 칩 글자 크기 — 구획이 지정하면 그 값, 아니면 기본.
-            double unitSize = cellFontSize > 0d ? cellFontSize : 11d;
-            double chipSize = cellFontSize > 0d ? cellFontSize - 1d : 10d;
+            if (section.Kind == SlotMapSectionKind.PinStub && cell.SubCells == null)
+            {
+                return this.BuildStubCell(cell, section.CellFontSize);
+            }
 
+            if (section.Kind == SlotMapSectionKind.LamellaPost && cell.SubCells != null)
+            {
+                return this.BuildLamellaCell(cell, section.CellFontSize);
+            }
+
+            return this.BuildGenericCell(cell, section.CellFontSize);
+        }
+
+        // 공용 바깥 틀 — 마우스(클릭/드래그/우클릭) 히트 테스트의 단위. Tag에
+        // CellVisual을 실어 FindCellVisual이 어느 표현에서든 셀을 찾게 한다.
+        private Border BuildOuter(CellVisual visual)
+        {
             Border outer = new Border();
             outer.Background = Brushes.Transparent;
             outer.CornerRadius = new CornerRadius(6d);
@@ -595,6 +455,337 @@ namespace Modern.Lab.Controls.Wpf.Display
             outer.MouseLeftButtonUp += this.OnCellMouseUp;
             outer.MouseMove += this.OnCellMouseMove;
             visual.Outer = outer;
+            return outer;
+        }
+
+        // ===== WaferEdge — 카세트 단면(웨이퍼 에지 뷰) 셀 =====
+
+        // 한 행 = [슬롯 번호 눈금 | 레일 | 웨이퍼 바 | 레일]. 셀 세로 여백을
+        // 없애 레일 조각이 행마다 이어져 하나의 레일로 보인다. 바 도형 하나가
+        // 채움(아이템색 바 + ID)/빈 홈(가는 줄)/미리보기(점선 바)를 상태에
+        // 따라 겸한다 — 명도 차가 아닌 형태 차라 어느 테마에서든 읽힌다.
+        private CellVisual BuildWaferCell(SlotMapCell cell)
+        {
+            CellVisual visual = new CellVisual();
+            visual.Cell = cell;
+            visual.Kind = SlotMapSectionKind.WaferEdge;
+
+            Border outer = this.BuildOuter(visual);
+            outer.Margin = new Thickness(1d, 0d, 1d, 0d);
+            outer.CornerRadius = new CornerRadius(0d);
+
+            Grid row = new Grid();
+            row.Height = 20d;
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(24d) });
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(7d) });
+            row.ColumnDefinitions.Add(new ColumnDefinition());
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(7d) });
+
+            // 슬롯 번호 눈금 — 자리는 고정이므로 칩 없이 숫자만.
+            TextBlock number = new TextBlock();
+            number.Text = cell.Label;
+            number.FontSize = 9d;
+            number.TextAlignment = TextAlignment.Right;
+            number.VerticalAlignment = VerticalAlignment.Center;
+            number.Margin = new Thickness(0d, 0d, 4d, 0d);
+            row.Children.Add(number);
+            visual.LabelText = number;
+
+            // 좌우 레일 조각 — 행 전체 높이를 채워 위아래 행과 이어진다.
+            Brush railBrush = (Brush)this.FindResource("Brush.Border");
+            System.Windows.Shapes.Rectangle railLeft = BuildRailSegment(railBrush);
+            Grid.SetColumn(railLeft, 1);
+            row.Children.Add(railLeft);
+
+            System.Windows.Shapes.Rectangle railRight = BuildRailSegment(railBrush);
+            Grid.SetColumn(railRight, 3);
+            row.Children.Add(railRight);
+
+            // 바 구역 — 선택 링(바깥) + 웨이퍼 바 + ID 글자.
+            Grid barZone = new Grid();
+            Grid.SetColumn(barZone, 2);
+            row.Children.Add(barZone);
+
+            System.Windows.Shapes.Rectangle ring = new System.Windows.Shapes.Rectangle();
+            ring.RadiusX = 9d;
+            ring.RadiusY = 9d;
+            ring.StrokeThickness = 2d;
+            ring.Margin = new Thickness(1d);
+            ring.IsHitTestVisible = false;
+            ring.Visibility = Visibility.Collapsed;
+            barZone.Children.Add(ring);
+            visual.Ring = ring;
+
+            System.Windows.Shapes.Rectangle bar = new System.Windows.Shapes.Rectangle();
+            bar.RadiusX = 7d;
+            bar.RadiusY = 7d;
+            bar.Height = 14d;
+            bar.Margin = new Thickness(4d, 0d, 4d, 0d);
+            bar.VerticalAlignment = VerticalAlignment.Center;
+            barZone.Children.Add(bar);
+            visual.Bar = bar;
+
+            TextBlock unit = new TextBlock();
+            unit.FontSize = 9.5d;
+            unit.FontWeight = FontWeights.SemiBold;
+            unit.TextTrimming = TextTrimming.CharacterEllipsis;
+            unit.HorizontalAlignment = HorizontalAlignment.Center;
+            unit.VerticalAlignment = VerticalAlignment.Center;
+            unit.IsHitTestVisible = false;
+            barZone.Children.Add(unit);
+            visual.UnitText = unit;
+
+            outer.Child = row;
+            outer.ToolTip = !string.IsNullOrEmpty(cell.ToolTip)
+                    ? cell.ToolTip
+                    : (string.IsNullOrEmpty(cell.UnitId) ? null : (object)cell.UnitId);
+            return visual;
+        }
+
+        // 레일 조각 하나 (5px 폭, 행 높이 전체).
+        private static System.Windows.Shapes.Rectangle BuildRailSegment(Brush fill)
+        {
+            System.Windows.Shapes.Rectangle rail = new System.Windows.Shapes.Rectangle();
+            rail.Width = 5d;
+            rail.Fill = fill;
+            rail.HorizontalAlignment = HorizontalAlignment.Center;
+            rail.IsHitTestVisible = false;
+            return rail;
+        }
+
+        // ===== PinStub — 핀 스텁 탑 뷰 셀 =====
+
+        // 원형 금속 스텁 위에 사각 칩을 올린 모습 — 칩의 유무가 곧 채움/빈
+        // 구분이다(색이 아닌 형태 차). 캡션(번호 · 유닛 ID)은 원판 아래.
+        private CellVisual BuildStubCell(SlotMapCell cell, double cellFontSize)
+        {
+            CellVisual visual = new CellVisual();
+            visual.Cell = cell;
+            visual.Kind = SlotMapSectionKind.PinStub;
+
+            Border outer = this.BuildOuter(visual);
+
+            StackPanel content = new StackPanel();
+            content.Margin = new Thickness(0d, 4d, 0d, 4d);
+            content.HorizontalAlignment = HorizontalAlignment.Center;
+
+            Grid discZone = new Grid();
+            discZone.Width = 62d;
+            discZone.Height = 62d;
+
+            System.Windows.Shapes.Ellipse ring = new System.Windows.Shapes.Ellipse();
+            ring.StrokeThickness = 2d;
+            ring.IsHitTestVisible = false;
+            ring.Visibility = Visibility.Collapsed;
+            discZone.Children.Add(ring);
+            visual.Ring = ring;
+
+            System.Windows.Shapes.Ellipse disc = new System.Windows.Shapes.Ellipse();
+            disc.Width = 54d;
+            disc.Height = 54d;
+            disc.StrokeThickness = 1.5d;
+            discZone.Children.Add(disc);
+            visual.Disc = disc;
+
+            System.Windows.Shapes.Ellipse pin = new System.Windows.Shapes.Ellipse();
+            pin.Width = 5d;
+            pin.Height = 5d;
+            discZone.Children.Add(pin);
+            visual.PinDot = pin;
+
+            System.Windows.Shapes.Rectangle chip = new System.Windows.Shapes.Rectangle();
+            chip.Width = 30d;
+            chip.Height = 22d;
+            chip.RadiusX = 3d;
+            chip.RadiusY = 3d;
+            chip.StrokeThickness = 1.5d;
+            chip.Visibility = Visibility.Collapsed;
+            discZone.Children.Add(chip);
+            visual.Chip = chip;
+
+            // 칩 안 ID 축약 — 유닛 ID의 끝 4자리만 새긴다 (전체 ID는 캡션/툴팁).
+            TextBlock chipText = new TextBlock();
+            chipText.FontSize = 8.5d;
+            chipText.FontWeight = FontWeights.SemiBold;
+            chipText.HorizontalAlignment = HorizontalAlignment.Center;
+            chipText.VerticalAlignment = VerticalAlignment.Center;
+            chipText.IsHitTestVisible = false;
+            discZone.Children.Add(chipText);
+            visual.ChipText = chipText;
+
+            content.Children.Add(discZone);
+
+            TextBlock caption = new TextBlock();
+            caption.FontSize = cellFontSize > 0d ? cellFontSize - 1d : 10d;
+            caption.TextAlignment = TextAlignment.Center;
+            caption.HorizontalAlignment = HorizontalAlignment.Center;
+            caption.Margin = new Thickness(0d, 3d, 0d, 0d);
+            caption.TextTrimming = TextTrimming.CharacterEllipsis;
+            content.Children.Add(caption);
+            visual.UnitText = caption;
+
+            outer.Child = content;
+            outer.ToolTip = !string.IsNullOrEmpty(cell.ToolTip)
+                    ? cell.ToolTip
+                    : (string.IsNullOrEmpty(cell.UnitId) ? null : (object)cell.UnitId);
+            return visual;
+        }
+
+        // ===== LamellaPost — 포스트 + 라멜라 셀 =====
+
+        // 베이스에서 솟은 포스트(핑거)에 라멜라 칩이 붙는다 — 삽입 위치
+        // (Top/Left/Right)가 라멜라가 붙는 **위치 자체**라 테마와 무관하게
+        // 형태로 읽힌다. A~E 눈금은 베이스 아래 고정이라 절대 가려지지 않는다.
+        // "Lamella ID" 스위치가 켜져 있으면 그 아래 핑거당 유닛 ID 행을 붙인다.
+        private CellVisual BuildLamellaCell(SlotMapCell cell, double cellFontSize)
+        {
+            CellVisual visual = new CellVisual();
+            visual.Cell = cell;
+            visual.Kind = SlotMapSectionKind.LamellaPost;
+            visual.Posts = new List<System.Windows.Shapes.Rectangle>();
+            visual.Lamellas = new List<System.Windows.Shapes.Rectangle>();
+            visual.LetterTexts = new List<TextBlock>();
+            visual.SubUnitTexts = new List<TextBlock>();
+
+            double chipSize = cellFontSize > 0d ? cellFontSize - 1d : 10d;
+
+            Border outer = this.BuildOuter(visual);
+
+            Border frame = new Border();
+            frame.CornerRadius = new CornerRadius(4d);
+            frame.BorderThickness = new Thickness(1.5d);
+            frame.Padding = new Thickness(4d, 2d, 4d, 3d);
+            visual.Token = frame;
+
+            StackPanel content = new StackPanel();
+
+            TextBlock label;
+            Border labelChip = this.BuildNumberChip(cell.Label, chipSize, out label);
+            labelChip.HorizontalAlignment = HorizontalAlignment.Left;
+            labelChip.Margin = new Thickness(0d, 0d, 0d, 2d);
+            content.Children.Add(labelChip);
+            visual.LabelChip = labelChip;
+            visual.LabelText = label;
+
+            // 포스트 구역(핑거 수만큼 등분)과 A~E 눈금 행.
+            Grid postZone = new Grid();
+            postZone.Height = 34d;
+
+            Grid letterRow = new Grid();
+            letterRow.Margin = new Thickness(0d, 1d, 0d, 0d);
+
+            for (int index = 0; index < cell.SubCells.Count; index++)
+            {
+                postZone.ColumnDefinitions.Add(new ColumnDefinition());
+                letterRow.ColumnDefinitions.Add(new ColumnDefinition());
+
+                Grid finger = new Grid();
+                finger.Width = 26d;
+                finger.HorizontalAlignment = HorizontalAlignment.Center;
+                Grid.SetColumn(finger, index);
+                postZone.Children.Add(finger);
+
+                System.Windows.Shapes.Rectangle post = new System.Windows.Shapes.Rectangle();
+                post.Width = 5d;
+                post.Height = 20d;
+                post.RadiusX = 1.5d;
+                post.RadiusY = 1.5d;
+                post.HorizontalAlignment = HorizontalAlignment.Center;
+                post.VerticalAlignment = VerticalAlignment.Bottom;
+                finger.Children.Add(post);
+                visual.Posts.Add(post);
+
+                System.Windows.Shapes.Rectangle lamella = new System.Windows.Shapes.Rectangle();
+                lamella.RadiusX = 1.5d;
+                lamella.RadiusY = 1.5d;
+                lamella.StrokeThickness = 1.2d;
+                lamella.HorizontalAlignment = HorizontalAlignment.Center;
+                lamella.VerticalAlignment = VerticalAlignment.Bottom;
+                lamella.Visibility = Visibility.Collapsed;
+                finger.Children.Add(lamella);
+                visual.Lamellas.Add(lamella);
+
+                TextBlock letter = new TextBlock();
+                letter.Text = cell.SubCells[index].Name;
+                letter.FontSize = 9d;
+                letter.TextAlignment = TextAlignment.Center;
+                letter.HorizontalAlignment = HorizontalAlignment.Center;
+                Grid.SetColumn(letter, index);
+                letterRow.Children.Add(letter);
+                visual.LetterTexts.Add(letter);
+            }
+
+            content.Children.Add(postZone);
+
+            // 베이스 바 — 포스트가 서 있는 바닥(반원 링의 단면).
+            System.Windows.Shapes.Rectangle baseBar = new System.Windows.Shapes.Rectangle();
+            baseBar.Height = 4d;
+            baseBar.RadiusX = 2d;
+            baseBar.RadiusY = 2d;
+            baseBar.Margin = new Thickness(2d, 0d, 2d, 0d);
+            baseBar.Fill = (Brush)this.FindResource("Brush.Border");
+            content.Children.Add(baseBar);
+
+            content.Children.Add(letterRow);
+
+            // ON 모드 — 핑거당 유닛 ID 행 ("A · LM-001-03").
+            if (this.showSubCellUnitIds)
+            {
+                foreach (SlotMapSubCell sub in cell.SubCells)
+                {
+                    TextBlock idRow = new TextBlock();
+                    idRow.FontSize = 9d;
+                    idRow.Margin = new Thickness(2d, 1d, 0d, 0d);
+                    idRow.TextTrimming = TextTrimming.CharacterEllipsis;
+                    content.Children.Add(idRow);
+                    visual.SubUnitTexts.Add(idRow);
+                }
+            }
+
+            frame.Child = content;
+            outer.Child = frame;
+            outer.ToolTip = this.BuildSubToolTip(cell);
+            return visual;
+        }
+
+        // 라멜라를 포스트의 삽입 위치에 붙인다 — Top: 포스트 머리 위(가로),
+        // Left/Right: 포스트 윗부분 옆(세로). HorizontalAlignment.Center 기준
+        // 좌우 마진 차로 옆 부착 오프셋을 만든다. 위치가 곧 삽입 방향 표현이다.
+        private static void PlaceLamella(System.Windows.Shapes.Rectangle lamella, string marker)
+        {
+            if (marker == "Left")
+            {
+                lamella.Width = 7d;
+                lamella.Height = 12d;
+                lamella.Margin = new Thickness(0d, 0d, 12d, 8d);
+            }
+            else if (marker == "Right")
+            {
+                lamella.Width = 7d;
+                lamella.Height = 12d;
+                lamella.Margin = new Thickness(12d, 0d, 0d, 8d);
+            }
+            else
+            {
+                // Top(기본) — 포스트 머리 위에 가로로 얹는다.
+                lamella.Width = 14d;
+                lamella.Height = 7d;
+                lamella.Margin = new Thickness(0d, 0d, 0d, 20d);
+            }
+        }
+
+        // ===== Generic — 기본 상자 표현 셀 (Kind 미지정 호환 경로) =====
+
+        private CellVisual BuildGenericCell(SlotMapCell cell, double cellFontSize)
+        {
+            CellVisual visual = new CellVisual();
+            visual.Cell = cell;
+
+            // 유닛 ID / 번호 칩 글자 크기 — 구획이 지정하면 그 값, 아니면 기본.
+            double unitSize = cellFontSize > 0d ? cellFontSize : 11d;
+            double chipSize = cellFontSize > 0d ? cellFontSize - 1d : 10d;
+
+            Border outer = this.BuildOuter(visual);
 
             if (cell.SubCells == null)
             {
@@ -657,7 +848,7 @@ namespace Modern.Lab.Controls.Wpf.Display
             visual.DotBorders = new List<Border>();
             visual.DotTexts = new List<TextBlock>();
             visual.SubUnitTexts = new List<TextBlock>();
-            visual.MarkerTicks = new List<System.Windows.Shapes.Rectangle>();
+            visual.MarkerEdges = new List<Border>();
 
             if (this.showSubCellUnitIds)
             {
@@ -671,9 +862,9 @@ namespace Modern.Lab.Controls.Wpf.Display
 
                     Border dot;
                     TextBlock letter;
-                    System.Windows.Shapes.Rectangle markerTick;
+                    Border markerEdge;
                     Grid dotGrid = this.BuildFingerDotGrid(
-                            sub, 15d, 8d, out dot, out letter, out markerTick);
+                            sub, 15d, 8d, out dot, out letter, out markerEdge);
                     row.Children.Add(dotGrid);
 
                     TextBlock subUnit = new TextBlock();
@@ -688,7 +879,7 @@ namespace Modern.Lab.Controls.Wpf.Display
                     visual.DotBorders.Add(dot);
                     visual.DotTexts.Add(letter);
                     visual.SubUnitTexts.Add(subUnit);
-                    visual.MarkerTicks.Add(markerTick);
+                    visual.MarkerEdges.Add(markerEdge);
                 }
             }
             else
@@ -703,14 +894,14 @@ namespace Modern.Lab.Controls.Wpf.Display
                 {
                     Border dot;
                     TextBlock letter;
-                    System.Windows.Shapes.Rectangle markerTick;
+                    Border markerEdge;
                     Grid dotGrid = this.BuildFingerDotGrid(
-                            sub, 22d, 11d, out dot, out letter, out markerTick);
+                            sub, 22d, 11d, out dot, out letter, out markerEdge);
                     dotGrid.Margin = new Thickness(1d, 0d, 1d, 0d);
                     badges.Children.Add(dotGrid);
                     visual.DotBorders.Add(dot);
                     visual.DotTexts.Add(letter);
-                    visual.MarkerTicks.Add(markerTick);
+                    visual.MarkerEdges.Add(markerEdge);
                     // 이 레이아웃엔 유닛 ID 글씨가 없다(SubUnitTexts 비움).
                 }
 
@@ -723,12 +914,13 @@ namespace Modern.Lab.Controls.Wpf.Display
             return visual;
         }
 
-        // 핑거 도트(이름 글자) + 삽입 위치 틱을 담은 Grid를 만든다 — 미니 행
-        // (작게)과 A~E 배지 한 줄(크게) 두 레이아웃이 크기만 달리해 공유한다.
+        // 핑거 도트(이름 글자) + 삽입 위치 테두리 하이라이트를 담은 Grid를
+        // 만든다 — 미니 행(작게)과 A~E 배지 한 줄(크게) 두 레이아웃이 크기만
+        // 달리해 공유한다.
         private Grid BuildFingerDotGrid(
                 SlotMapSubCell sub, double dotSize, double letterSize,
                 out Border dot, out TextBlock letter,
-                out System.Windows.Shapes.Rectangle markerTick)
+                out Border markerEdge)
         {
             Grid dotGrid = new Grid();
 
@@ -747,34 +939,36 @@ namespace Modern.Lab.Controls.Wpf.Display
             dot.Child = letter;
             dotGrid.Children.Add(dot);
 
-            // 삽입 위치 틱은 빈 핑거의 미리보기에서도 갱신할 수 있게 항상 만든다.
-            markerTick = new System.Windows.Shapes.Rectangle();
-            markerTick.IsHitTestVisible = false;
-            this.ConfigureMarkerTick(markerTick, sub.Marker, false);
-            dotGrid.Children.Add(markerTick);
+            // 삽입 위치는 도트 안이 아니라 **해당 변의 테두리를 액센트로 굵게**
+            // 표시한다 — 내부 공간을 침범하지 않아 이름 글자가 항상 정중앙에
+            // 보인다. 빈 핑거의 미리보기에서도 갱신할 수 있게 항상 만들어 둔다.
+            markerEdge = new Border();
+            markerEdge.Width = dotSize;
+            markerEdge.Height = dotSize;
+            markerEdge.CornerRadius = new CornerRadius(3d);
+            markerEdge.Background = null;
+            markerEdge.VerticalAlignment = VerticalAlignment.Center;
+            markerEdge.IsHitTestVisible = false;
+            this.ConfigureMarkerEdge(markerEdge, sub.Marker, false);
+            dotGrid.Children.Add(markerEdge);
 
             return dotGrid;
         }
 
-        // 핑거 가장자리의 삽입 위치 틱을 배치한다. 실제 수납과 미리보기 모두
-        // 같은 2px 두께를 써 좌·우 맵의 삽입 위치 표현을 일관되게 유지한다.
-        private void ConfigureMarkerTick(
-                System.Windows.Shapes.Rectangle tick, string marker, bool preview)
+        // 삽입 위치(Top/Left/Right)를 도트의 **해당 변 테두리만 액센트로 굵게**
+        // 그려 표시한다 — 도트와 같은 크기/모서리의 투명 Border를 겹치고 그
+        // 변의 두께만 준다. 실제 수납은 진하게, 우측 미리보기는 같은 액센트를
+        // 옅은 투명도로 낮춰(빈 자리 위에서 과하지 않게) 좌·우 맵의 표현을
+        // 일관되게 유지한다.
+        private void ConfigureMarkerEdge(Border edge, string marker, bool preview)
         {
-            tick.Width = double.NaN;
-            tick.Height = double.NaN;
-            tick.Margin = new Thickness(0d);
-            tick.HorizontalAlignment = HorizontalAlignment.Stretch;
-            tick.VerticalAlignment = VerticalAlignment.Stretch;
-            // 실제 수납은 액센트 틱을 진하게 유지하고, 우측 미리보기는 같은
-            // 액센트를 옅은 투명도로 얹어 빈 자리 위에서 과하게 튀지 않게 한다 —
-            // Top/Left/Right 방향은 여전히 읽히되 존재감만 낮춘다.
-            tick.Fill = (Brush)this.FindResource("Brush.Accent");
-            tick.Opacity = preview ? 0.4d : 1d;
-            tick.Visibility = string.IsNullOrEmpty(marker) ? Visibility.Collapsed : Visibility.Visible;
+            edge.BorderBrush = (Brush)this.FindResource("Brush.Accent");
+            edge.Opacity = preview ? 0.45d : 1d;
+            edge.Visibility = string.IsNullOrEmpty(marker) ? Visibility.Collapsed : Visibility.Visible;
 
             if (string.IsNullOrEmpty(marker))
             {
+                edge.BorderThickness = new Thickness(0d);
                 return;
             }
 
@@ -782,21 +976,15 @@ namespace Modern.Lab.Controls.Wpf.Display
 
             if (marker == "Top")
             {
-                tick.Height = thickness;
-                tick.VerticalAlignment = VerticalAlignment.Top;
-                tick.Margin = new Thickness(3d, 1d, 3d, 0d);
+                edge.BorderThickness = new Thickness(0d, thickness, 0d, 0d);
             }
             else if (marker == "Left")
             {
-                tick.Width = thickness;
-                tick.HorizontalAlignment = HorizontalAlignment.Left;
-                tick.Margin = new Thickness(1d, 3d, 0d, 3d);
+                edge.BorderThickness = new Thickness(thickness, 0d, 0d, 0d);
             }
             else
             {
-                tick.Width = thickness;
-                tick.HorizontalAlignment = HorizontalAlignment.Right;
-                tick.Margin = new Thickness(0d, 3d, 1d, 3d);
+                edge.BorderThickness = new Thickness(0d, 0d, thickness, 0d);
             }
         }
 
@@ -1194,21 +1382,320 @@ namespace Modern.Lab.Controls.Wpf.Display
             return fallback;
         }
 
+        // 셀의 강조 상태 3종 — staged(스테이징) / clicked(클릭) / 둘의 결합.
+        private void GetCellState(SlotMapCell cell, out bool staged, out bool clicked, out bool combined)
+        {
+            bool hasKey = !string.IsNullOrEmpty(cell.Key);
+            staged = hasKey && this.selectedKeys.Contains(cell.Key);
+            clicked = hasKey && cell.Filled
+                    && cell.Key == this.clickKey && !string.IsNullOrEmpty(this.clickKey);
+            combined = staged && clicked;
+        }
+
+        // WaferEdge 칠하기 — 채움(아이템색 웨이퍼 바 + ID) / 빈 홈(가는 줄) /
+        // 미리보기(점선 바 + "→ ID"). 선택은 바 바깥 링(스테이징 액센트 /
+        // 클릭 약한 색), 결합은 링 + 글자색. 상태가 전부 형태 차라 테마 무관.
+        private void ApplyWaferVisual(CellVisual visual)
+        {
+            SlotMapCell cell = visual.Cell;
+            bool staged;
+            bool clicked;
+            bool combined;
+            this.GetCellState(cell, out staged, out clicked, out combined);
+
+            bool interactive = (this.AllowSelection || this.EnableDragOut) && cell.Filled
+                    && !string.IsNullOrEmpty(cell.Key);
+            visual.Outer.Cursor = interactive ? Cursors.Hand : null;
+
+            Brush accent = (Brush)this.FindResource("Brush.Accent");
+            Brush clickAccent = (Brush)this.FindResource("Brush.BorderHover");
+            Brush borderBrush = (Brush)this.FindResource("Brush.Border");
+            Brush borderSubtle = (Brush)this.FindResource("Brush.BorderSubtle");
+            Brush info = (Brush)this.FindResource("Brush.InfoBackground");
+            Brush textPrimary = (Brush)this.FindResource("Brush.TextPrimary");
+            Brush textSecondary = (Brush)this.FindResource("Brush.TextSecondary");
+
+            string incoming = this.SingleCellPreview(cell);
+            bool previewed = !string.IsNullOrEmpty(incoming);
+
+            // 슬롯 번호 눈금 — 스테이징/미리보기 자리만 액센트로 도드라진다.
+            visual.LabelText.Foreground = staged || previewed ? accent : textSecondary;
+            visual.LabelText.FontWeight = staged || previewed ? FontWeights.SemiBold : FontWeights.Normal;
+
+            visual.Ring.Visibility = staged || clicked ? Visibility.Visible : Visibility.Collapsed;
+            visual.Ring.Stroke = staged ? accent : clickAccent;
+
+            if (cell.Filled)
+            {
+                Brush custom = ChipColorHelper.TryCreateBrush(cell.Color);
+                visual.Bar.Height = 14d;
+                visual.Bar.Fill = custom != null
+                        ? custom
+                        : (Brush)this.FindResource("Brush.SelectedBackground");
+                visual.Bar.Stroke = borderBrush;
+                visual.Bar.StrokeThickness = 1d;
+                visual.Bar.StrokeDashArray = null;
+                visual.UnitText.Text = cell.UnitId;
+                visual.UnitText.Foreground = combined
+                        ? accent
+                        : this.DeriveTextBrush(cell.Color, textPrimary);
+            }
+            else if (previewed)
+            {
+                visual.Bar.Height = 14d;
+                visual.Bar.Fill = info;
+                visual.Bar.Stroke = accent;
+                visual.Bar.StrokeThickness = 1.5d;
+                visual.Bar.StrokeDashArray = new DoubleCollection(new double[] { 3d, 2d });
+                visual.UnitText.Text = "→ " + incoming;
+                visual.UnitText.Foreground = accent;
+            }
+            else
+            {
+                // 빈 슬롯 — 레일 사이 가는 홈만 남긴다.
+                visual.Bar.Height = 3d;
+                visual.Bar.Fill = borderSubtle;
+                visual.Bar.Stroke = null;
+                visual.Bar.StrokeThickness = 0d;
+                visual.Bar.StrokeDashArray = null;
+                visual.UnitText.Text = string.Empty;
+            }
+        }
+
+        // PinStub 칠하기 — 칩의 유무가 채움/빈 구분이다. 빈 스텁은 핀 자국만
+        // 있는 맨 원판, 미리보기는 점선 칩 + 캡션 "→ ID".
+        private void ApplyStubVisual(CellVisual visual)
+        {
+            SlotMapCell cell = visual.Cell;
+            bool staged;
+            bool clicked;
+            bool combined;
+            this.GetCellState(cell, out staged, out clicked, out combined);
+
+            bool interactive = (this.AllowSelection || this.EnableDragOut) && cell.Filled
+                    && !string.IsNullOrEmpty(cell.Key);
+            visual.Outer.Cursor = interactive ? Cursors.Hand : null;
+
+            Brush accent = (Brush)this.FindResource("Brush.Accent");
+            Brush clickAccent = (Brush)this.FindResource("Brush.BorderHover");
+            Brush borderBrush = (Brush)this.FindResource("Brush.Border");
+            Brush borderSubtle = (Brush)this.FindResource("Brush.BorderSubtle");
+            Brush neutral = (Brush)this.FindResource("Brush.NeutralBackground");
+            Brush info = (Brush)this.FindResource("Brush.InfoBackground");
+            Brush textPrimary = (Brush)this.FindResource("Brush.TextPrimary");
+            Brush textSecondary = (Brush)this.FindResource("Brush.TextSecondary");
+
+            string incoming = this.SingleCellPreview(cell);
+            bool previewed = !string.IsNullOrEmpty(incoming);
+
+            visual.Ring.Visibility = staged || clicked ? Visibility.Visible : Visibility.Collapsed;
+            visual.Ring.Stroke = staged ? accent : clickAccent;
+
+            visual.Disc.Fill = neutral;
+            visual.Disc.Stroke = cell.Filled || previewed ? borderBrush : borderSubtle;
+
+            if (cell.Filled)
+            {
+                Brush custom = ChipColorHelper.TryCreateBrush(cell.Color);
+                visual.PinDot.Visibility = Visibility.Collapsed;
+                visual.Chip.Visibility = Visibility.Visible;
+                visual.Chip.Fill = custom != null
+                        ? custom
+                        : (Brush)this.FindResource("Brush.SelectedBackground");
+                visual.Chip.Stroke = borderBrush;
+                visual.Chip.StrokeDashArray = null;
+                // 칩 안에는 ID 끝 4자리만 — 글자색은 칩 배경(아이템 색)에서
+                // 대비색을 유도한다. 전체 ID는 아래 캡션과 툴팁이 보여 준다.
+                visual.ChipText.Text = TailChars(cell.UnitId, 4);
+                visual.ChipText.Foreground = this.DeriveTextBrush(cell.Color, textPrimary);
+                visual.UnitText.Text = cell.Label + " · " + cell.UnitId;
+                visual.UnitText.Foreground = combined ? accent : textPrimary;
+            }
+            else if (previewed)
+            {
+                visual.PinDot.Visibility = Visibility.Collapsed;
+                visual.Chip.Visibility = Visibility.Visible;
+                visual.Chip.Fill = info;
+                visual.Chip.Stroke = accent;
+                visual.Chip.StrokeDashArray = new DoubleCollection(new double[] { 3d, 2d });
+                // 들어올 칩도 끝 4자리를 새긴다 — 점선 + 액센트 글자라 실수납과 구분된다.
+                visual.ChipText.Text = TailChars(incoming, 4);
+                visual.ChipText.Foreground = accent;
+                visual.UnitText.Text = cell.Label + " · → " + incoming;
+                visual.UnitText.Foreground = accent;
+            }
+            else
+            {
+                visual.Chip.Visibility = Visibility.Collapsed;
+                visual.PinDot.Visibility = Visibility.Visible;
+                visual.PinDot.Fill = borderBrush;
+                visual.ChipText.Text = string.Empty;
+                visual.UnitText.Text = cell.Label;
+                visual.UnitText.Foreground = textSecondary;
+            }
+        }
+
+        // 유닛 ID의 끝 n자리 — 칩 안 축약 표기용 (예: "TH10001.01-C001" → "C001").
+        private static string TailChars(string text, int count)
+        {
+            string trimmed = (text ?? string.Empty).Trim();
+            return trimmed.Length <= count ? trimmed : trimmed.Substring(trimmed.Length - count);
+        }
+
+        // LamellaPost 칠하기 — 핑거마다 채움(아이템색 라멜라가 삽입 위치에
+        // 붙음) / 미리보기(점선 라멜라) / 빈 포스트. 프레임/번호 칩은 Generic
+        // 복합 셀과 같은 규칙을 따라 화면 전체의 강조 문법이 일관된다.
+        private void ApplyLamellaVisual(CellVisual visual)
+        {
+            SlotMapCell cell = visual.Cell;
+            bool staged;
+            bool clicked;
+            bool combined;
+            this.GetCellState(cell, out staged, out clicked, out combined);
+            bool selected = staged || clicked;
+
+            bool interactive = (this.AllowSelection || this.EnableDragOut) && cell.Filled
+                    && !string.IsNullOrEmpty(cell.Key);
+            visual.Outer.Cursor = interactive ? Cursors.Hand : null;
+
+            Brush accent = (Brush)this.FindResource("Brush.Accent");
+            Brush clickAccent = (Brush)this.FindResource("Brush.BorderHover");
+            Brush borderBrush = (Brush)this.FindResource("Brush.Border");
+            Brush borderSubtle = (Brush)this.FindResource("Brush.BorderSubtle");
+            Brush surface = (Brush)this.FindResource("Brush.Surface");
+            Brush info = (Brush)this.FindResource("Brush.InfoBackground");
+            Brush textPrimary = (Brush)this.FindResource("Brush.TextPrimary");
+            Brush textSecondary = (Brush)this.FindResource("Brush.TextSecondary");
+            Brush textDisabled = (Brush)this.FindResource("Brush.DisabledText");
+
+            bool previewed = this.CellHasPreview(cell);
+            Brush emphasis = staged || previewed ? accent : clickAccent;
+
+            visual.Token.Background = previewed ? info : surface;
+            visual.Token.BorderBrush = selected || previewed
+                    ? emphasis
+                    : (cell.Filled ? borderBrush : borderSubtle);
+
+            // 번호 칩 — Generic과 같은 강조 규칙.
+            if (staged || previewed)
+            {
+                visual.LabelChip.Background = accent;
+                visual.LabelText.Foreground = combined
+                        ? (Brush)this.FindResource("Brush.WarningBackground")
+                        : (Brush)this.FindResource("Brush.OnAccent");
+            }
+            else if (clicked)
+            {
+                visual.LabelChip.Background = (Brush)this.FindResource("Brush.SelectedBackground");
+                visual.LabelText.Foreground = (Brush)this.FindResource("Brush.InfoText");
+            }
+            else
+            {
+                visual.LabelChip.Background = (Brush)this.FindResource("Brush.InfoBackground");
+                visual.LabelText.Foreground = (Brush)this.FindResource("Brush.InfoText");
+            }
+
+            for (int index = 0; index < cell.SubCells.Count; index++)
+            {
+                SlotMapSubCell sub = cell.SubCells[index];
+                System.Windows.Shapes.Rectangle post = visual.Posts[index];
+                System.Windows.Shapes.Rectangle lamella = visual.Lamellas[index];
+                TextBlock letter = visual.LetterTexts[index];
+                TextBlock idRow = index < visual.SubUnitTexts.Count
+                        ? visual.SubUnitTexts[index]
+                        : null;
+
+                string subIncoming = null;
+
+                if (string.IsNullOrEmpty(sub.UnitId) && this.previewMap != null)
+                {
+                    this.previewMap.TryGetValue(SubPreviewKey(cell.Key, sub.Name), out subIncoming);
+                }
+
+                if (!string.IsNullOrEmpty(sub.UnitId))
+                {
+                    Brush custom = ChipColorHelper.TryCreateBrush(
+                            string.IsNullOrEmpty(sub.Color) ? cell.Color : sub.Color);
+                    post.Fill = borderBrush;
+                    lamella.Visibility = Visibility.Visible;
+                    PlaceLamella(lamella, (sub.Marker ?? string.Empty).Trim());
+                    lamella.Fill = custom != null
+                            ? custom
+                            : (Brush)this.FindResource("Brush.SelectedBackground");
+                    lamella.Stroke = borderBrush;
+                    lamella.StrokeDashArray = null;
+                    letter.Foreground = textSecondary;
+
+                    if (idRow != null)
+                    {
+                        idRow.Text = sub.Name + " · " + sub.UnitId;
+                        idRow.Foreground = combined ? accent : textPrimary;
+                    }
+                }
+                else if (!string.IsNullOrEmpty(subIncoming))
+                {
+                    post.Fill = borderBrush;
+                    lamella.Visibility = Visibility.Visible;
+                    PlaceLamella(lamella, this.SubPreviewMarker(cell.Key, sub.Name));
+                    lamella.Fill = info;
+                    lamella.Stroke = accent;
+                    lamella.StrokeDashArray = new DoubleCollection(new double[] { 3d, 2d });
+                    letter.Foreground = accent;
+
+                    if (idRow != null)
+                    {
+                        idRow.Text = sub.Name + " · → " + subIncoming;
+                        idRow.Foreground = accent;
+                    }
+                }
+                else
+                {
+                    post.Fill = borderSubtle;
+                    lamella.Visibility = Visibility.Collapsed;
+                    letter.Foreground = textDisabled;
+
+                    if (idRow != null)
+                    {
+                        idRow.Text = string.Empty;
+                    }
+                }
+            }
+        }
+
         private void ApplyCellVisual(CellVisual visual)
         {
+            // 실물 표현 구획은 전용 칠하기로 — Generic만 아래 공통 경로를 탄다.
+            if (visual.Kind == SlotMapSectionKind.WaferEdge)
+            {
+                this.ApplyWaferVisual(visual);
+                return;
+            }
+
+            if (visual.Kind == SlotMapSectionKind.PinStub)
+            {
+                this.ApplyStubVisual(visual);
+                return;
+            }
+
+            if (visual.Kind == SlotMapSectionKind.LamellaPost)
+            {
+                this.ApplyLamellaVisual(visual);
+                return;
+            }
+
             SlotMapCell cell = visual.Cell;
             // 세 종류의 강조가 겹칠 수 있다: staged(스테이징/미리보기 대상,
             // 강한 액센트) · clicked(마우스로 클릭) · 그 둘의 결합(combined).
             // 이제 clicked는 staged 위에도 표시되며(결합), 결합이면 셀 바깥에
             // 별도의 클릭 링을 둘러 "이미 선택된 자리 + 마우스로도 클릭한 자리"를
             // 함께 나타낸다.
-            bool hasKey = !string.IsNullOrEmpty(cell.Key);
-            bool staged = hasKey && this.selectedKeys.Contains(cell.Key);
-            bool clicked = hasKey && cell.Filled
-                    && cell.Key == this.clickKey && !string.IsNullOrEmpty(this.clickKey);
-            bool combined = staged && clicked;
+            bool staged;
+            bool clicked;
+            bool combined;
+            this.GetCellState(cell, out staged, out clicked, out combined);
             bool selected = staged || clicked;
-            bool interactive = (this.AllowSelection || this.EnableDragOut) && cell.Filled && hasKey;
+            bool interactive = (this.AllowSelection || this.EnableDragOut) && cell.Filled
+                    && !string.IsNullOrEmpty(cell.Key);
 
             visual.Outer.Cursor = interactive ? Cursors.Hand : null;
 
@@ -1308,7 +1795,7 @@ namespace Modern.Lab.Controls.Wpf.Display
                 SlotMapSubCell sub = cell.SubCells[index];
                 Border dot = visual.DotBorders[index];
                 TextBlock letter = visual.DotTexts[index];
-                System.Windows.Shapes.Rectangle markerTick = visual.MarkerTicks[index];
+                Border markerEdge = visual.MarkerEdges[index];
                 // 배지(한 줄) 레이아웃엔 유닛 ID 글씨가 없다 — subUnit은 null일 수 있다.
                 TextBlock subUnit = index < visual.SubUnitTexts.Count
                         ? visual.SubUnitTexts[index]
@@ -1330,7 +1817,7 @@ namespace Modern.Lab.Controls.Wpf.Display
                             ? custom
                             : (Brush)this.FindResource("Brush.SelectedBackground");
                     dot.BorderBrush = borderBrush;
-                    this.ConfigureMarkerTick(markerTick, sub.Marker, false);
+                    this.ConfigureMarkerEdge(markerEdge, sub.Marker, false);
                     // 도트 글자는 도트 배경(아이템 색)에서 대비색 유도. 옆의
                     // 유닛 ID 텍스트는 셀 표면(Surface) 위라 기본 텍스트색.
                     letter.Foreground = this.DeriveTextBrush(
@@ -1349,8 +1836,8 @@ namespace Modern.Lab.Controls.Wpf.Display
                     dot.Background = info;
                     dot.BorderBrush = accent;
                     letter.Foreground = accent;
-                    this.ConfigureMarkerTick(
-                            markerTick, this.SubPreviewMarker(cell.Key, sub.Name), true);
+                    this.ConfigureMarkerEdge(
+                            markerEdge, this.SubPreviewMarker(cell.Key, sub.Name), true);
 
                     if (subUnit != null)
                     {
@@ -1363,7 +1850,7 @@ namespace Modern.Lab.Controls.Wpf.Display
                     dot.Background = neutral;
                     dot.BorderBrush = borderSubtle;
                     letter.Foreground = textDisabled;
-                    this.ConfigureMarkerTick(markerTick, string.Empty, false);
+                    this.ConfigureMarkerEdge(markerEdge, string.Empty, false);
 
                     if (subUnit != null)
                     {

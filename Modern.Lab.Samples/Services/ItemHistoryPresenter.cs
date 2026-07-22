@@ -1,5 +1,6 @@
 using System;
 using System.Data;
+using Modern.Lab.Data;
 
 namespace Modern.Lab.Samples.Services
 {
@@ -14,7 +15,7 @@ namespace Modern.Lab.Samples.Services
     /// 색은 하드코딩하지 않고 ModernTheme 팔레트 기준으로 고른다 —
     /// 어두운 테마에서는 같은 의미의 어두운 톤을 쓴다.
     /// </summary>
-    internal static class HistoryTablePresenter
+    internal static class ItemHistoryPresenter
     {
         // Scrap 상태 노드의 트리 텍스트 색 — 어두운 테마에서는 밝은 빨강이어야 보인다.
         private static string ScrapForeColor
@@ -37,7 +38,7 @@ namespace Modern.Lab.Samples.Services
 
             foreach (DataRow row in tree.Rows)
             {
-                if (CellText(row, "STAT_TYP") == "Scrapped")
+                if (TableHelper.CellText(row, "STAT_TYP") == "Scrapped")
                 {
                     row["NODE_COLOR"] = ScrapForeColor;   // 트리 텍스트 빨강
                 }
@@ -137,7 +138,7 @@ namespace Modern.Lab.Samples.Services
             // 최신순 → 시간순으로 뒤집어 왼쪽부터 진행 순서가 되게 한다.
             for (int index = history.Rows.Count - 1; index >= 0; index--)
             {
-                string eventCd = CellText(history.Rows[index], "EVENT_CD");
+                string eventCd = TableHelper.CellText(history.Rows[index], "EVENT_CD");
                 bool isCurrent = index == 0; // 최신 = 현재 단계
                 string state = isCurrent
                     ? (eventCd == "Scrap" ? "Failed" : "Current")
@@ -149,31 +150,12 @@ namespace Modern.Lab.Samples.Services
             return steps;
         }
 
-        /// <summary>
-        /// 서버 응답에 컬럼 자체가 없거나(null 키 생략) DBNull인 경우를 모두
-        /// 빈 문자열로 읽는다 — 화면 표시/판정 공통 헬퍼.
-        /// </summary>
-        internal static string CellText(DataRow row, string columnName)
-        {
-            if (!row.Table.Columns.Contains(columnName))
-            {
-                return string.Empty;
-            }
-
-            object value = row[columnName];
-            return value == DBNull.Value || value == null ? string.Empty : value.ToString();
-        }
-
-        /// <summary>DataRowView 편의 오버로드.</summary>
-        internal static string CellText(DataRowView row, string columnName)
-        {
-            return CellText(row.Row, columnName);
-        }
+        // (CellText 같은 화면 무관 유틸은 Modern.Lab.Data.TableHelper로 승격됐다.)
 
         private static bool TryParseEventTime(DataRow row, out DateTime value)
         {
             value = DateTime.MinValue;
-            string text = CellText(row, "EVENT_TM");
+            string text = TableHelper.CellText(row, "EVENT_TM");
 
             if (text.Length == 0)
             {

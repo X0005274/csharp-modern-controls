@@ -8,6 +8,7 @@ using System.Web.Script.Serialization;
 using System.Windows.Forms;
 using Modern.Lab.Controls.Wpf.Data;
 using Modern.Lab.Controls.Wpf.Display;
+using Modern.Lab.Data;
 using Modern.Lab.Samples.Services;
 using Modern.Lab.WinForms.Controls.Display;
 
@@ -35,7 +36,7 @@ namespace Modern.Lab.Samples
     /// 모든 조회는 async/await(Task.Run) + 버전 가드 패턴이다: await 이후는
     /// UI 스레드로 복귀하므로(WinForms 동기화 컨텍스트) Invoke가 필요 없고,
     /// 빠른 재조회 시 버전 비교로 오래된 응답을 버린다. 파생 컬럼/표시 계산은
-    /// HistoryTablePresenter(순수 DataTable 로직)에 있다.
+    /// ItemHistoryPresenter(순수 DataTable 로직)에 있다.
     /// </summary>
     public partial class ItemHistoryForm : Form
     {
@@ -406,7 +407,7 @@ namespace Modern.Lab.Samples
 
                 // 트리 멤버 컬럼(ITEM_ID 등)은 DataSource 할당 시 트리가 스스로
                 // 보장하고, 상세 카드는 CellText가 누락 컬럼을 빈 값으로 읽는다.
-                HistoryTablePresenter.ApplyScrapColor(tree);
+                ItemHistoryPresenter.ApplyScrapColor(tree);
                 this.treeData = tree;
 
                 this.suppressTreeEvent = true;
@@ -521,7 +522,7 @@ namespace Modern.Lab.Samples
         {
             foreach (DataRow row in tree.Rows)
             {
-                string itemId = HistoryTablePresenter.CellText(row, "ITEM_ID");
+                string itemId = TableHelper.CellText(row, "ITEM_ID");
 
                 if (string.Equals(itemId, keyword, StringComparison.OrdinalIgnoreCase))
                 {
@@ -529,7 +530,7 @@ namespace Modern.Lab.Samples
                 }
             }
 
-            return tree.Rows.Count > 0 ? HistoryTablePresenter.CellText(tree.Rows[0], "ITEM_ID") : null;
+            return tree.Rows.Count > 0 ? TableHelper.CellText(tree.Rows[0], "ITEM_ID") : null;
         }
 
         // ===== 트리 선택 → 상세 + 웨이퍼 목록 + 이력 =====
@@ -557,28 +558,28 @@ namespace Modern.Lab.Samples
             }
 
             this.FillDetail(selected);
-            this.LoadItemDetailsAsync(HistoryTablePresenter.CellText(selected, "ITEM_ID"));
+            this.LoadItemDetailsAsync(TableHelper.CellText(selected, "ITEM_ID"));
         }
 
         private void FillDetail(DataRowView row)
         {
-            string subType = HistoryTablePresenter.CellText(row, "SUB_TYP");
-            string stat = HistoryTablePresenter.CellText(row, "STAT_TYP");
+            string subType = TableHelper.CellText(row, "SUB_TYP");
+            string stat = TableHelper.CellText(row, "STAT_TYP");
 
             // 카드 제목에 선택 Item ID를 표시한다.
-            string itemId = HistoryTablePresenter.CellText(row, "ITEM_ID");
+            string itemId = TableHelper.CellText(row, "ITEM_ID");
             this.detailCard.Text = itemId.Length > 0 ? itemId : "Selection";
 
             // 타입 배지: Sub Type만 표기 (색도 Sub Type 기준).
             this.badgeType.Text = subType.Length > 0 ? subType : "-";
             this.badgeType.Color = typeBadgeColors.ContainsKey(subType) ? typeBadgeColors[subType] : string.Empty;
             this.badgeStat.Text = stat.Length > 0 ? stat : "-";
-            this.badgeStat.Color = HistoryTablePresenter.StatBadgeColor(stat);
+            this.badgeStat.Color = ItemHistoryPresenter.StatBadgeColor(stat);
 
             // 상세 표: (값 라벨 ↔ 컬럼) 매핑을 돌며 채운다 (MES_ITEM_MAS 현재 상태).
             foreach (KeyValuePair<ModernLabel, string> binding in this.detailBindings)
             {
-                binding.Key.Text = HistoryTablePresenter.CellText(row, binding.Value);
+                binding.Key.Text = TableHelper.CellText(row, binding.Value);
             }
         }
 
@@ -608,14 +609,14 @@ namespace Modern.Lab.Samples
                 DataTable units = results[1];
 
                 // ---- 이력 그리드 (ITEM_HIS 전체 컬럼; 누락 컬럼은 그리드가 보장) ----
-                HistoryTablePresenter.AddDurationColumn(history);
+                ItemHistoryPresenter.AddDurationColumn(history);
                 this.gridHistory.DataSource = history;
-                this.gridHistory.StatusText = itemId + HistoryTablePresenter.CycleTimeSuffix(history);
+                this.gridHistory.StatusText = itemId + ItemHistoryPresenter.CycleTimeSuffix(history);
                 this.tabHistory.SetTabTitle(0, "Item History — " + itemId);
 
                 // Item 여정 캐시 갱신 + 이전 Item의 Unit 여정 캐시는 비운다 —
                 // 새 Item의 Unit 여정은 아래 Units 자동 선택이 다시 채운다.
-                this.itemStepTable = HistoryTablePresenter.BuildStepTable(history);
+                this.itemStepTable = ItemHistoryPresenter.BuildStepTable(history);
                 this.itemStepOwner = itemId;
                 this.unitStepTable = null;
                 this.unitStepOwner = null;
@@ -676,7 +677,7 @@ namespace Modern.Lab.Samples
                 return;
             }
 
-            string unitId = HistoryTablePresenter.CellText(row, "UNIT_ID");
+            string unitId = TableHelper.CellText(row, "UNIT_ID");
 
             if (unitId.Length == 0)
             {
@@ -703,13 +704,13 @@ namespace Modern.Lab.Samples
                     return;
                 }
 
-                HistoryTablePresenter.AddDurationColumn(history);
+                ItemHistoryPresenter.AddDurationColumn(history);
                 this.gridUnitHistory.DataSource = history;
-                this.gridUnitHistory.StatusText = unitId + HistoryTablePresenter.CycleTimeSuffix(history);
+                this.gridUnitHistory.StatusText = unitId + ItemHistoryPresenter.CycleTimeSuffix(history);
                 this.tabHistory.SetTabTitle(1, "Unit History — " + unitId);
 
                 // Unit 여정 캐시 갱신 — Unit History 탭이 활성일 때만 표시된다.
-                this.unitStepTable = HistoryTablePresenter.BuildStepTable(history);
+                this.unitStepTable = ItemHistoryPresenter.BuildStepTable(history);
                 this.unitStepOwner = unitId;
                 this.ApplyLifecycleForActiveTab();
             }

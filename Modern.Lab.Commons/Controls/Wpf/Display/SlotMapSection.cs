@@ -9,14 +9,20 @@ namespace Modern.Lab.Controls.Wpf.Display
     /// </summary>
     public class SlotMapSection
     {
-        /// <summary>빈 구획을 만든다 (세로 사다리, 제목 없음).</summary>
+        /// <summary>빈 구획을 만든다 (세로 사다리, 제목 없음, 기본 상자 표현).</summary>
         public SlotMapSection()
         {
             this.Title = string.Empty;
             this.Columns = 1;
             this.CellFontSize = 0d;
+            this.Kind = SlotMapSectionKind.Generic;
             this.Cells = new List<SlotMapCell>();
         }
+
+        /// <summary>실물 표현 종류 — WaferEdge(FOUP 웨이퍼 에지 뷰) /
+        /// PinStub(핀 스텁 탑 뷰) / LamellaPost(포스트+라멜라). 기본
+        /// Generic(상자 표현)은 기존 화면과 호환된다.</summary>
+        public SlotMapSectionKind Kind { get; set; }
 
         /// <summary>구획 제목 (예: "Slots", "STUB", "LCC").</summary>
         public string Title { get; set; }

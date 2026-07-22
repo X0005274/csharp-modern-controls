@@ -2,8 +2,9 @@ namespace Modern.Lab.Controls.Wpf.Display
 {
     /// <summary>
     /// ModernSlotMap 복합 셀의 하위 자리 한 칸 (예: TRAY LCC의 핑거 A~E).
-    /// 점(도트)으로 그려지고, Marker가 있으면 도트 가장자리에 삽입 위치 틱
-    /// (Top/Left/Right)이 표시된다.
+    /// LamellaPost 표현에서는 포스트로 그려지고, Marker(Top/Left/Right)가
+    /// 라멜라 칩이 포스트에 붙는 위치가 된다. Generic 표현에서는 이름
+    /// 도트로 그려진다.
     /// </summary>
     public class SlotMapSubCell
     {
@@ -17,14 +18,15 @@ namespace Modern.Lab.Controls.Wpf.Display
             this.Detail = string.Empty;
         }
 
-        /// <summary>자리 이름 — 도트 안 글자 (예: "A").</summary>
+        /// <summary>자리 이름 — 핑거 눈금 글자 (예: "A").</summary>
         public string Name { get; set; }
 
         /// <summary>수납된 유닛 ID (빈 자리는 빈 문자열).</summary>
         public string UnitId { get; set; }
 
-        /// <summary>삽입 위치 틱 — "Top"/"Left"/"Right" 중 하나 (없으면 빈
-        /// 문자열). 채워진 자리에서만 그려진다.</summary>
+        /// <summary>삽입 위치 — "Top"/"Left"/"Right" 중 하나 (없으면 빈
+        /// 문자열). LamellaPost 표현에서 라멜라가 포스트에 붙는 위치이며,
+        /// 채워진 자리에서만 그려진다.</summary>
         public string Marker { get; set; }
 
         /// <summary>채움 색 재정의 (선택) — 비우면 셀 색(Cell.Color) → 토큰

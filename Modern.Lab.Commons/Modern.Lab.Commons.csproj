@@ -236,6 +236,7 @@
       <DependentUpon>ModernBusyOverlayControl.xaml</DependentUpon>
     </Compile>
     <Compile Include="Controls\Wpf\Display\SlotMapSection.cs" />
+    <Compile Include="Controls\Wpf\Display\SlotMapSectionKind.cs" />
     <Compile Include="Controls\Wpf\Display\SlotMapCell.cs" />
     <Compile Include="Controls\Wpf\Display\SlotMapSubCell.cs" />
     <Compile Include="Controls\Wpf\Display\SlotMapDropEventArgs.cs" />
@@ -258,7 +259,8 @@
     <Compile Include="Controls\Wpf\Input\DigitMaskHelper.cs" />
     <Compile Include="Controls\Wpf\Data\GridButtonClickEventArgs.cs" />
     <Compile Include="Controls\Wpf\Data\GridCaptionCatalog.cs" />
-    <Compile Include="Services\GridCaptionDictionary.cs" />
+    <Compile Include="Captions\GridCaptionDictionary.cs" />
+    <Compile Include="Data\TableHelper.cs" />
     <Compile Include="Controls\Wpf\Data\ModernDataGridColumn.cs" />
     <Compile Include="Controls\Wpf\Data\ModernDataGridControl.xaml.cs">
       <DependentUpon>ModernDataGridControl.xaml</DependentUpon>

@@ -2,6 +2,7 @@ using System;
 using System.Data;
 using System.Windows.Forms;
 using Modern.Lab.Controls.Wpf.Data;
+using Modern.Lab.Data;
 using Modern.Lab.Samples.Services;
 
 namespace Modern.Lab.Samples
@@ -49,7 +50,7 @@ namespace Modern.Lab.Samples
             foreach (DataRow row in this.slots.Rows)
             {
                 row["CAN_JUDGE"] =
-                        PendingTablePresenter.CellText(row, "WF_ID").Trim().Length > 0;
+                        TableHelper.CellText(row, "WF_ID").Trim().Length > 0;
             }
 
             // 여기까지가 "조회 원본" — 이후 콤보 입력만 변경으로 잡혀
@@ -80,12 +81,12 @@ namespace Modern.Lab.Samples
             // 웨이퍼가 있는 슬롯 전부에 판정이 있어야 확정된다.
             foreach (DataRow row in this.slots.Rows)
             {
-                if (PendingTablePresenter.CellText(row, "WF_ID").Trim().Length == 0)
+                if (TableHelper.CellText(row, "WF_ID").Trim().Length == 0)
                 {
                     continue;
                 }
 
-                string judge = PendingTablePresenter.CellText(row, "JUDGE_RSLT").Trim();
+                string judge = TableHelper.CellText(row, "JUDGE_RSLT").Trim();
 
                 if (judge != "SUCC" && judge != "FAIL")
                 {

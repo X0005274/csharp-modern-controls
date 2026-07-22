@@ -58,17 +58,23 @@
     <Compile Include="EmployeeManagementForm.Designer.cs">
       <DependentUpon>EmployeeManagementForm.cs</DependentUpon>
     </Compile>
-    <Compile Include="PendingRequestForm.cs">
+    <Compile Include="LogisticsRequestForm.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="PendingRequestForm.Designer.cs">
-      <DependentUpon>PendingRequestForm.cs</DependentUpon>
+    <Compile Include="LogisticsRequestForm.Designer.cs">
+      <DependentUpon>LogisticsRequestForm.cs</DependentUpon>
     </Compile>
     <Compile Include="ReceiveDialogForm.cs">
       <SubType>Form</SubType>
     </Compile>
     <Compile Include="ReceiveDialogForm.Designer.cs">
       <DependentUpon>ReceiveDialogForm.cs</DependentUpon>
+    </Compile>
+    <Compile Include="ManualReceiveDialogForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="ManualReceiveDialogForm.Designer.cs">
+      <DependentUpon>ManualReceiveDialogForm.cs</DependentUpon>
     </Compile>
     <Compile Include="CreateDialogForm.cs">
       <SubType>Form</SubType>
@@ -112,14 +118,11 @@
     <Compile Include="StepFlowDemoForm.Designer.cs">
       <DependentUpon>StepFlowDemoForm.cs</DependentUpon>
     </Compile>
-    <Compile Include="Services\EquipmentLotApiClient.cs" />
-    <Compile Include="Services\EquipmentTablePresenter.cs" />
-    <Compile Include="Services\CarrierApiClient.cs" />
-    <Compile Include="Services\CarrierTablePresenter.cs" />
-    <Compile Include="Services\HistoryTablePresenter.cs" />
+    <Compile Include="Services\EquipmentLotPresenter.cs" />
+    <Compile Include="Services\CarrierEditPresenter.cs" />
+    <Compile Include="Services\ItemHistoryPresenter.cs" />
     <Compile Include="Services\JsonTableConverter.cs" />
-    <Compile Include="Services\PendingApiClient.cs" />
-    <Compile Include="Services\PendingTablePresenter.cs" />
+    <Compile Include="Services\LogisticsRequestPresenter.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>

@@ -1,6 +1,7 @@
 using System;
 using System.Data;
 using System.Windows.Forms;
+using Modern.Lab.Data;
 using Modern.Lab.Samples.Services;
 
 namespace Modern.Lab.Samples
@@ -18,7 +19,7 @@ namespace Modern.Lab.Samples
     /// </summary>
     public partial class PrepareDialogForm : Form
     {
-        // 부모가 넘긴 포트 상세 (EquipmentTablePresenter.BuildPortRows 결과).
+        // 부모가 넘긴 포트 상세 (EquipmentLotPresenter.BuildPortRows 결과).
         private readonly DataTable ports;
 
         // 부모가 넘긴 빈 캐리어 풀 (CARRIER_ID 컬럼).
@@ -90,16 +91,16 @@ namespace Modern.Lab.Samples
 
             foreach (DataRow row in this.ports.Rows)
             {
-                if (PendingTablePresenter.CellText(row, "PORT_TYPE") != portType
-                        || PendingTablePresenter.CellText(row, "PORT_STAT") != "Empty")
+                if (TableHelper.CellText(row, "PORT_TYPE") != portType
+                        || TableHelper.CellText(row, "PORT_STAT") != "Empty")
                 {
                     continue;
                 }
 
                 options.Rows.Add(
-                        PendingTablePresenter.ParseDays(
-                                PendingTablePresenter.CellText(row, "PORT_IDX")),
-                        "Port " + PendingTablePresenter.CellText(row, "PORT_NO"));
+                        TableHelper.ParseInt(
+                                TableHelper.CellText(row, "PORT_IDX")),
+                        "Port " + TableHelper.CellText(row, "PORT_NO"));
             }
 
             return options;

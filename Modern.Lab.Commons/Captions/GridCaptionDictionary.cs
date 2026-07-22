@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using Modern.Lab.Controls.Wpf.Data;
 
-namespace Modern.Lab.Services
+namespace Modern.Lab.Captions
 {
     /// <summary>
     /// 회사 표준 그리드 컬럼 캡션 용어집 — 필드 이름(DB 컬럼)에서 표준 캡션으로 변환한다.
@@ -42,7 +42,6 @@ namespace Modern.Lab.Services
                 { "SEND_YN", "Sent" },
                 { "SEND_FAC", "Send Fac" },
                 { "SEND_TM", "Sent At" },
-                { "ARRIVE_TM", "Arrived At" },
                 { "RECV_YN", "Received" },
                 { "RECV_TM", "Received At" },
                 { "RECV_DESC", "Receive Note" },

@@ -1,12 +1,13 @@
 using System;
 using System.Data;
 using System.Globalization;
+using Modern.Lab.Data;
 
 namespace Modern.Lab.Samples.Services
 {
     /// <summary>
-    /// Pending Requests 화면의 파생 컬럼·필터·집계 모음 — 화면(폼)과 분리된
-    /// 순수 DataTable 로직이다 (HistoryTablePresenter와 같은 역할 분담).
+    /// Logistics & Request 화면의 파생 컬럼·필터·집계 모음 — 화면(폼)과 분리된
+    /// 순수 DataTable 로직이다 (ItemHistoryPresenter와 같은 역할 분담).
     ///
     /// 데이터 개념 (2026-07-17 FAC_SEND_MAS 기반 재정의):
     /// 인터페이스 흐름은 원래 전부 자동이다 — 발송 통보(FAC_SEND_MAS) → 물류
@@ -16,11 +17,12 @@ namespace Modern.Lab.Samples.Services
     /// 현황을 현업에게 보여주기 위한 것이다.
     ///
     /// 행 상태(STATUS)는 "아직 안 된 첫 단계"로 정한다 — 자동이 어느 조합까지
-    /// 되고 멈췄든 다음에 할 일이 하나로 정해진다:
-    ///   Sent             : 발송 통보(FAC_SEND_MAS)만 있고 도착 전    (액션 없음)
-    ///   Arrived          : 도착했지만 Receive 미처리(RECV_YN='N')    (→ Receive)
-    ///   Request Unlinked : Receive 완료, 의뢰서 미연결(REQ_NO 없음)  (대기 — 경과일 강조)
-    ///   Request Linked   : 의뢰서 연결됨, Create 미처리(PROC_YN='N') (→ Create)
+    /// 되고 멈췄든 다음에 할 일이 하나로 정해진다. 수신이 곧 도착(동시각)이라
+    /// "도착했지만 미수신" 중간 상태는 없다:
+    ///   Sent             : 발송 통보(FAC_SEND_MAS)만 있고 미수신    (→ Receive)
+    ///   Received         : 수신 완료, 의뢰서 미연결, 수신 후 1일 미만 (배치 대기)
+    ///   Request Unlinked : 수신 후 1일이 지나도 의뢰서 미연결      (지연 — 경과일 강조)
+    ///   Request Linked   : 배치가 의뢰서를 연결함, Create 미처리    (→ Create)
     ///   Completed        : Create 처리 완료(PROC_YN='Y')
     ///
     /// 발송 통보 여부(SEND_YN)는 상태와 **직교**한다 — 미확인 물류(SEND_YN='N')도
@@ -33,33 +35,36 @@ namespace Modern.Lab.Samples.Services
     /// 주므로 비운다. 배지색: 0-2일 파랑 · 3-6일 호박 · 7-13일 주황 ·
     /// 14일+ 빨강 틴트. KPI의 Avg/Oldest는 도착 후 미연결 행만 집계한다.
     /// </summary>
-    internal static class PendingTablePresenter
+    internal static class LogisticsRequestPresenter
     {
         // ===== 상태 정의 =====
 
-        /// <summary>상태 인덱스: 발송 통보(FAC_SEND_MAS)만 있고 도착 전(Sent).</summary>
+        /// <summary>상태 인덱스: 발송 통보(FAC_SEND_MAS)만 있고 미수신(Sent) — 수동 Receive 대상.</summary>
         internal const int StatusTransit = 0;
 
-        /// <summary>상태 인덱스: 도착했지만 Receive 미처리 — 수동 Receive 대상.</summary>
-        internal const int StatusArrived = 1;
+        /// <summary>상태 인덱스: 수신 완료, 의뢰서 미연결, 수신 후 1일 미만 — 배치 대기.</summary>
+        internal const int StatusReceived = 1;
 
-        /// <summary>상태 인덱스: Receive 완료, 의뢰서 미연결 — 경과일 강조 대상.</summary>
+        /// <summary>상태 인덱스: 수신 후 1일이 지나도 의뢰서 미연결 — 지연·경과일 강조 대상.</summary>
         internal const int StatusNoRequest = 2;
 
-        /// <summary>상태 인덱스: 의뢰서 연결됨, Create 미처리 — 수동 Create 대상.</summary>
+        /// <summary>상태 인덱스: 배치가 의뢰서를 연결함, Create 미처리 — 수동 Create 대상.</summary>
         internal const int StatusLinked = 3;
 
         /// <summary>상태 인덱스: Create 처리 완료.</summary>
         internal const int StatusCompleted = 4;
 
+        /// <summary>수신 후 의뢰서 미연결이 이 일수 이상이면 Request Unlinked(지연)로 본다.</summary>
+        private const int unlinkedAfterDays = 1;
+
         /// <summary>상태 표시명 — 필터 콤보 값·STATUS 컬럼 값·KPI 집계가 같은 문자열을 쓴다.</summary>
         internal static readonly string[] StatusNames =
         {
-            "Sent", "Arrived", "Request Unlinked", "Request Linked", "Completed"
+            "Sent", "Received", "Request Unlinked", "Request Linked", "Completed"
         };
 
         // 상태 배지 배경색 (StatusNames와 같은 순서) —
-        // 회색(운송 중)·파랑(도착)·호박(의뢰 대기)·남색 틴트(연결)·초록(완료).
+        // 회색(미수신)·파랑(수신)·호박(연결 지연)·남색 틴트(연결)·초록(완료).
         private static readonly string[] statusColors =
         {
             "#E5E7EB", "#DBEAFE", "#FEF3C7", "#E0E7FF", "#DCFCE7"
@@ -74,7 +79,7 @@ namespace Modern.Lab.Samples.Services
         private const string sendUnmatchedColor = "#FEE2E2";
 
         /// <summary>집계 결과 — 폼은 이 값을 KPI 배지에 그대로 표기만 한다.</summary>
-        internal sealed class PendingSummary
+        internal sealed class LogisticsSummary
         {
             /// <summary>상태별 건수 — StatusNames와 같은 순서.</summary>
             internal readonly int[] StatusCounts = new int[5];
@@ -82,7 +87,7 @@ namespace Modern.Lab.Samples.Services
             /// <summary>발송 통보 없이 도착한 미확인 물류 건수(SEND_YN='N').</summary>
             internal int UnmatchedCount;
 
-            /// <summary>도착 &amp; 의뢰서 미연결 건수(Arrived + Unlinked) — 경과 통계의 대상.</summary>
+            /// <summary>수신 완료 &amp; 의뢰서 미연결(Received) 건수 — 경과 통계의 대상.</summary>
             internal int NoLinkCount;
 
             /// <summary>미연결 건 경과일 평균 (NoLinkCount가 0이면 0).</summary>
@@ -106,6 +111,10 @@ namespace Modern.Lab.Samples.Services
             {
                 return;
             }
+
+            // 회사 DB가 일시를 "2026-07-12 18:15:38.0"처럼 소수점 초를 붙여
+            // 내려도 화면엔 초까지만 통일해 보이도록 시각 컬럼을 정규화한다.
+            NormalizeTimeColumns(board, "SEND_TM", "RECV_TM", "PROC_TM");
 
             EnsureColumn(board, "STATUS", typeof(string));
             EnsureColumn(board, "STATUS_COLOR", typeof(string));
@@ -133,24 +142,32 @@ namespace Modern.Lab.Samples.Services
         /// </summary>
         internal static void ApplyStatus(DataRow row)
         {
-            bool arrived = CellText(row, "ARRIVE_TM").Trim().Length > 0;
-            bool received = CellText(row, "RECV_YN").Trim() == "Y";
-            bool linked = CellText(row, "REQ_NO").Trim().Length > 0;
-            bool created = CellText(row, "PROC_YN").Trim() == "Y";
+            // 수신이 곧 도착(동시각) — RECV_TM/RECV_YN이 있으면 이미 수신된
+            // 것이므로 Receive 대상이 아니다. 수신 후에는 배치가 의뢰서를
+            // 연결(REQ_NO)하고, 연결되면 Create 대상이 된다.
+            bool received = TableHelper.CellText(row, "RECV_YN").Trim() == "Y"
+                    || TableHelper.CellText(row, "RECV_TM").Trim().Length > 0;
+            bool linked = TableHelper.CellText(row, "REQ_NO").Trim().Length > 0;
+            bool created = TableHelper.CellText(row, "PROC_YN").Trim() == "Y";
+
+            // 발송 통보 여부 — 'Y'가 아니면 미확인('N')으로 정규화한다
+            // (회사 조인 쿼리에서 FAC_SEND_MAS 쪽이 NULL인 행 포함).
+            bool notified = TableHelper.CellText(row, "SEND_YN").Trim() == "Y";
+            row["SEND_YN"] = notified ? "Y" : "N";
+            row["SEND_COLOR"] = notified ? sendNotifiedColor : sendUnmatchedColor;
 
             int status;
 
-            if (!arrived)
+            if (!received)
             {
                 status = StatusTransit;
             }
-            else if (!received)
-            {
-                status = StatusArrived;
-            }
             else if (!linked)
             {
-                status = StatusNoRequest;
+                // 수신 후 1일 미만은 배치 대기(Received), 1일이 지나면
+                // 연결 지연(Request Unlinked)으로 승격해 강조한다.
+                int waitedDays = ElapsedDays(TableHelper.CellText(row, "RECV_TM").Trim());
+                status = waitedDays >= unlinkedAfterDays ? StatusNoRequest : StatusReceived;
             }
             else if (!created)
             {
@@ -163,27 +180,24 @@ namespace Modern.Lab.Samples.Services
 
             row["STATUS"] = StatusNames[status];
             row["STATUS_COLOR"] = statusColors[status];
-            row["RECV_CAN"] = status == StatusArrived;
+            // Receive는 발송 통보가 있는(SEND_YN='Y') 미수신 건만 — 수신
+            // 일시(RECV_TM)가 이미 있으면 활성화되지 않는다. 통보 없는
+            // 아이템은 Manual Receive(전용 다이얼로그)로 처리한다.
+            row["RECV_CAN"] = !received && notified;
             row["CRT_CAN"] = status == StatusLinked;
 
-            // 발송 통보 여부 — 'Y'가 아니면 미확인('N')으로 정규화한다
-            // (회사 조인 쿼리에서 FAC_SEND_MAS 쪽이 NULL인 행 포함).
-            bool notified = CellText(row, "SEND_YN").Trim() == "Y";
-            row["SEND_YN"] = notified ? "Y" : "N";
-            row["SEND_COLOR"] = notified ? sendNotifiedColor : sendUnmatchedColor;
-
-            // 경과일: 도착 전(운송 중)은 발송 통보 시각 기준 — 운송 지연을
-            // 그대로 보여준다. 도착 후에는 "의뢰서 미연결" 행만 — Receive
-            // 여부와 무관하게 도착시각 기준으로 방치 기간을 보여준다.
+            // 경과일: 미수신(운송/수신 대기)은 발송 통보 시각 기준 — 지연을
+            // 그대로 보여준다. 수신 후에는 "의뢰서 미연결" 행만 수신 시각
+            // (RECV_TM) 기준으로 배치 대기 기간을 보여준다.
             string agingBasis = string.Empty;
 
-            if (!arrived)
+            if (!received)
             {
-                agingBasis = CellText(row, "SEND_TM").Trim();
+                agingBasis = TableHelper.CellText(row, "SEND_TM").Trim();
             }
             else if (!linked)
             {
-                agingBasis = CellText(row, "ARRIVE_TM").Trim();
+                agingBasis = TableHelper.CellText(row, "RECV_TM").Trim();
             }
 
             if (agingBasis.Length > 0)
@@ -197,18 +211,6 @@ namespace Modern.Lab.Samples.Services
                 row["ELAPSED_DAYS"] = DBNull.Value;
                 row["DAYS_COLOR"] = string.Empty;
             }
-        }
-
-        /// <summary>bool 파생 컬럼(RECV_CAN/CRT_CAN/CHK)을 관용적으로 읽는다.</summary>
-        internal static bool FlagSet(DataRow row, string columnName)
-        {
-            if (!row.Table.Columns.Contains(columnName))
-            {
-                return false;
-            }
-
-            object value = row[columnName];
-            return value is bool && (bool)value;
         }
 
         // ===== 필터 + 집계 =====
@@ -230,12 +232,12 @@ namespace Modern.Lab.Samples.Services
 
             foreach (DataRow row in board.Rows)
             {
-                if (statusFilter.Length > 0 && CellText(row, "STATUS") != statusFilter)
+                if (statusFilter.Length > 0 && TableHelper.CellText(row, "STATUS") != statusFilter)
                 {
                     continue;
                 }
 
-                if (sendFilter.Length > 0 && CellText(row, "SEND_YN") != sendFilter)
+                if (sendFilter.Length > 0 && TableHelper.CellText(row, "SEND_YN") != sendFilter)
                 {
                     continue;
                 }
@@ -243,7 +245,7 @@ namespace Modern.Lab.Samples.Services
                 if (minDays > 0)
                 {
                     if (row.IsNull("ELAPSED_DAYS")
-                            || ParseDays(CellText(row, "ELAPSED_DAYS")) < minDays)
+                            || TableHelper.ParseInt(TableHelper.CellText(row, "ELAPSED_DAYS")) < minDays)
                     {
                         continue;
                     }
@@ -259,9 +261,9 @@ namespace Modern.Lab.Samples.Services
         /// KPI를 집계한다 — 상태별 건수(전체 현황), 미확인 물류 건수(SEND_YN='N'),
         /// 미연결 건의 경과 통계(Avg/Oldest).
         /// </summary>
-        internal static PendingSummary Aggregate(DataTable result)
+        internal static LogisticsSummary Aggregate(DataTable result)
         {
-            PendingSummary summary = new PendingSummary();
+            LogisticsSummary summary = new LogisticsSummary();
 
             if (result == null)
             {
@@ -272,14 +274,14 @@ namespace Modern.Lab.Samples.Services
 
             foreach (DataRow row in result.Rows)
             {
-                int status = Array.IndexOf(StatusNames, CellText(row, "STATUS"));
+                int status = Array.IndexOf(StatusNames, TableHelper.CellText(row, "STATUS"));
 
                 if (status >= 0)
                 {
                     summary.StatusCounts[status] += 1;
                 }
 
-                if (CellText(row, "SEND_YN") == "N")
+                if (TableHelper.CellText(row, "SEND_YN") == "N")
                 {
                     summary.UnmatchedCount += 1;
                 }
@@ -291,7 +293,7 @@ namespace Modern.Lab.Samples.Services
                 {
                     summary.NoLinkCount += 1;
 
-                    int days = ParseDays(CellText(row, "ELAPSED_DAYS"));
+                    int days = TableHelper.ParseInt(TableHelper.CellText(row, "ELAPSED_DAYS"));
                     daysSum += days;
 
                     if (days > summary.DaysMax)
@@ -309,31 +311,33 @@ namespace Modern.Lab.Samples.Services
             return summary;
         }
 
-        // ===== 공용 헬퍼 =====
+        // ===== 내부 헬퍼 =====
+        // (CellText/ParseInt/FlagSet 같은 화면 무관 유틸은 Modern.Lab.Data.TableHelper로 승격됐다.)
 
-        /// <summary>서버 숫자 컬럼(JSON number)을 관용적으로 파싱한다 — 빈 값/소수 표기 모두 허용.</summary>
-        internal static int ParseDays(string text)
+        // 시각 컬럼 표기 정규화 — 회사 DB(Oracle TIMESTAMP)가 "2026-07-12
+        // 18:15:38.0"처럼 소수점 초를 붙여 내려도 초까지만("yyyy-MM-dd
+        // HH:mm:ss") 통일한다. 해석 불가 문자열은 손대지 않고 그대로 둔다.
+        private static void NormalizeTimeColumns(DataTable board, params string[] columnNames)
         {
-            double value;
-
-            if (double.TryParse(text, NumberStyles.Any, CultureInfo.InvariantCulture, out value))
+            foreach (string columnName in columnNames)
             {
-                return (int)value;
+                if (!board.Columns.Contains(columnName))
+                {
+                    continue;
+                }
+
+                foreach (DataRow row in board.Rows)
+                {
+                    string text = TableHelper.CellText(row, columnName).Trim();
+                    DateTime parsed;
+
+                    if (text.Length > 0 && DateTime.TryParse(
+                            text, CultureInfo.InvariantCulture, DateTimeStyles.None, out parsed))
+                    {
+                        row[columnName] = parsed.ToString("yyyy-MM-dd HH:mm:ss");
+                    }
+                }
             }
-
-            return 0;
-        }
-
-        /// <summary>컬럼이 없거나(null 키 생략) DBNull인 경우를 빈 문자열로 읽는다.</summary>
-        internal static string CellText(DataRow row, string columnName)
-        {
-            if (!row.Table.Columns.Contains(columnName))
-            {
-                return string.Empty;
-            }
-
-            object value = row[columnName];
-            return value == DBNull.Value || value == null ? string.Empty : value.ToString();
         }
 
         // 파생 컬럼이 없으면 만든다 — 서버가 이미 내려준 컬럼은 그대로 둔다.

@@ -116,7 +116,7 @@ namespace Modern.Lab.Samples
         {
             // 각 샘플 화면을 여기서 AddSample 호출 하나로 등록한다.
             this.AddSample("Item History", () => new ItemHistoryForm());
-            this.AddSample("Pending Requests", () => new PendingRequestForm());
+            this.AddSample("Logistics & Request", () => new LogisticsRequestForm());
             this.AddSample("Equipment / Lots", () => new EquipmentLotForm());
             this.AddSample("Carrier Editor", () => new CarrierEditForm());
             this.AddSample("직원관리", () => new EmployeeManagementForm());

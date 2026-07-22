@@ -1,7 +1,12 @@
 using System;
+using System.Collections.Generic;
 using System.Data;
+using System.Net;
+using System.Text;
+using System.Web.Script.Serialization;
 using System.Windows.Forms;
 using Modern.Lab.Controls.Wpf.Display;
+using Modern.Lab.Data;
 using Modern.Lab.Samples.Services;
 
 namespace Modern.Lab.Samples
@@ -34,20 +39,26 @@ namespace Modern.Lab.Samples
     ///   액션**이다 — 대상이 비어 있으면 Split, 차 있으면 Merge가 표준 동선.
     ///   Scrap은 선택 유닛 폐기.
     ///
-    /// 이동/검증 규칙(서버) — 같은 종류 자리로만(웨이퍼→슬롯, STUB 칩→STUB,
-    /// LCC 칩→LCC 핑거), LCC 칩은 삽입 위치가 함께 따라간다. FOUP은 랏 하나로
-    /// 표시되며, 옮겨온 웨이퍼는 대상 FOUP의 랏이 되므로 랏이 달라도 공간만
-    /// 있으면 이동한다. 빈 자리가 부족하면 전부-아니면-전무로 거부된다. 처리
-    /// 흐름은 다른 화면과 동일: 서버 처리 → 성공 시 **재조회** → 토스트.
+    /// 이동/검증 규칙 — 같은 종류 자리로만(웨이퍼→슬롯, STUB 칩→STUB, LCC 칩→
+    /// LCC 핑거), LCC 칩은 원본 LCC 자리의 핑거 묶음이 **통째로 빈 LCC 자리**
+    /// 하나로 가고 삽입 위치가 함께 따라간다. FOUP은 랏 하나로 표시되며,
+    /// 옮겨온 웨이퍼는 대상 FOUP의 랏이 되므로 랏이 달라도 공간만 있으면
+    /// 이동한다. 빈 자리가 부족하면 커밋 때 전부-아니면-전무로 거부된다(서버 검증).
     ///
-    /// ★ 회사 환경 교체 지점 — 서버 호출은 전부 CarrierApiClient에 모여 있다.
-    ///   그 클래스의 조회 2개(GetCarriers/GetCarrierUnits)와 처리
-    ///   (PlanPreview/MoveUnits/ScrapUnits) 본문을 회사 인터페이스로 바꾼다.
-    ///   특히 **Split/Merge 핸들러(OnSplitClick/OnMergeClick)가 회사 비즈
-    ///   전문 호출 지점**이고, 재배치용 이동(MoveBetween)/폐기(ScrapUnits)도
-    ///   각 회사 인터페이스로 교체한다. 슬롯 맵 구성(BuildSections)은 조회
-    ///   결과 컬럼 계약(KIND/POS/FINGER/INS_POS/UNIT_ID/ITEM_ID) 그대로라
-    ///   손대지 않는다.
+    /// **미리보기는 순수 화면 계산**이다 — 스테이징(→/⇒) 중에는 서버 호출도
+    /// 저장도 없다. 위 배치 규칙을 로컬로 계산해(BuildLocalPreview) 대상 맵에
+    /// "→ ID"로 보여 줄 뿐이고, **저장은 Split/Merge/Scrap에서만** 일어난다 —
+    /// 서버 응답이 돌아오면 재조회로 확정 상태를 반영한다(다른 화면과 동일).
+    ///
+    /// ★ 회사 환경 교체 지점 — 서버 호출은 전부 이 폼 하단 "서버 호출" 구획에
+    ///   모여 있다. 조회 2개(GetCarriers/GetCarrierUnits)와 처리 2개(MoveUnits/
+    ///   ScrapUnits)의 본문만 회사 인터페이스로 바꾸면 나머지 폼 코드는 그대로
+    ///   둔다. 특히 **Split/Merge 핸들러(OnSplitClick/OnMergeClick)가 회사 비즈
+    ///   전문(캐리어 분할/병합) 호출 지점**이다. 수납 현황 조회는 **채워진 자리
+    ///   행만** 내려와도 된다 — 폼이 풀 맵(FOUP 슬롯 25 / STUB 6 / LCC 25×핑거
+    ///   A~E)으로 정규화한다(NormalizeUnits). 슬롯 맵 구성(BuildSections)은
+    ///   컬럼 계약(KIND/POS/FINGER/INS_POS/UNIT_ID/ITEM_ID) 그대로라 손대지
+    ///   않는다.
     /// </summary>
     public partial class CarrierEditForm : Form
     {
@@ -189,15 +200,15 @@ namespace Modern.Lab.Samples
             }
 
             // ★ 회사 환경 교체 지점 — 캐리어 목록 조회를 회사 인터페이스로.
-            DataTable carriers = CarrierApiClient.GetCarriers(type);
+            DataTable carriers = GetCarriers(type);
             carriers.Columns.Add("LABEL", typeof(string));
             carriers.Columns.Add("STAT_COLOR", typeof(string));
 
             foreach (DataRow row in carriers.Rows)
             {
-                string carrId = PendingTablePresenter.CellText(row, "CARR_ID");
-                int fillCnt = ToCount(PendingTablePresenter.CellText(row, "FILL_CNT"));
-                int capacity = ToCount(PendingTablePresenter.CellText(row, "CAPACITY"));
+                string carrId = TableHelper.CellText(row, "CARR_ID");
+                int fillCnt = TableHelper.ParseInt(TableHelper.CellText(row, "FILL_CNT"));
+                int capacity = TableHelper.ParseInt(TableHelper.CellText(row, "CAPACITY"));
 
                 // FOUP은 슬롯 합계, TRAY는 STUB/LCC를 나눠 표기한다 (수납 구조가 다름).
                 if (type == "FOUP")
@@ -206,8 +217,8 @@ namespace Modern.Lab.Samples
                 }
                 else
                 {
-                    int stub = ToCount(PendingTablePresenter.CellText(row, "STUB_CNT"));
-                    int lcc = ToCount(PendingTablePresenter.CellText(row, "LCC_CNT"));
+                    int stub = TableHelper.ParseInt(TableHelper.CellText(row, "STUB_CNT"));
+                    int lcc = TableHelper.ParseInt(TableHelper.CellText(row, "LCC_CNT"));
                     row["LABEL"] = carrId + " · STUB " + stub + "/6 · LCC " + lcc + "/125";
                 }
 
@@ -288,7 +299,9 @@ namespace Modern.Lab.Samples
             string carrierId = this.cboSource.SelectedValue as string ?? string.Empty;
 
             // ★ 회사 환경 교체 지점 — 수납 현황 조회를 회사 인터페이스로.
-            this.sourceData = CarrierApiClient.GetCarrierUnits(this.GetSelectedType(), carrierId);
+            // 채워진 자리 행만 와도 NormalizeUnits가 풀 맵으로 정규화한다.
+            this.sourceData = NormalizeUnits(
+                    GetCarrierUnits(this.GetSelectedType(), carrierId), this.GetSelectedType());
             this.mapSource.SetSections(BuildSections(this.sourceData, this.GetSelectedType()));
 
             // 제목 = "Source — 캐리어", 채움 집계는 우측 회색 서브타이틀,
@@ -304,7 +317,8 @@ namespace Modern.Lab.Samples
         {
             string carrierId = this.cboTarget.SelectedValue as string ?? string.Empty;
 
-            this.targetData = CarrierApiClient.GetCarrierUnits(this.GetSelectedType(), carrierId);
+            this.targetData = NormalizeUnits(
+                    GetCarrierUnits(this.GetSelectedType(), carrierId), this.GetSelectedType());
             this.mapTarget.SetSections(BuildSections(this.targetData, this.GetSelectedType()));
 
             this.targetCard.Text = BuildCardTitle("Target", carrierId);
@@ -324,10 +338,10 @@ namespace Modern.Lab.Samples
         //  · Scrap       : 스테이징(선택)된 원본 유닛이 있을 때
         private void UpdateActionStates()
         {
-            int targetFilled = CarrierTablePresenter.CountFilled(this.targetData);
+            int targetFilled = CarrierEditPresenter.CountFilled(this.targetData);
             int targetCap = this.targetData != null ? this.targetData.Rows.Count : 0;
             bool hasTarget = this.TargetId().Length > 0 && targetCap > 0;
-            bool sourceHasUnits = CarrierTablePresenter.CountFilled(this.sourceData) > 0;
+            bool sourceHasUnits = CarrierEditPresenter.CountFilled(this.sourceData) > 0;
             bool hasUnstagedSourceUnits = this.HasUnstagedSourceUnits();
             bool clickedSource = !string.IsNullOrEmpty(this.clickSourceKey);
             bool clickedStaged = clickedSource && this.stagedKeys.Contains(this.clickSourceKey);
@@ -395,15 +409,15 @@ namespace Modern.Lab.Samples
 
             foreach (DataRow row in this.sourceData.Rows)
             {
-                string unitId = PendingTablePresenter.CellText(row, "UNIT_ID");
+                string unitId = TableHelper.CellText(row, "UNIT_ID");
 
                 if (unitId.Length == 0)
                 {
                     continue;
                 }
 
-                string key = PendingTablePresenter.CellText(row, "KIND")
-                        + "|" + PendingTablePresenter.CellText(row, "POS");
+                string key = TableHelper.CellText(row, "KIND")
+                        + "|" + TableHelper.CellText(row, "POS");
 
                 if (!this.stagedKeys.Contains(key))
                 {
@@ -435,7 +449,7 @@ namespace Modern.Lab.Samples
             {
                 foreach (DataRow row in this.stagedUnits.Rows)
                 {
-                    string kind = PendingTablePresenter.CellText(row, "KIND");
+                    string kind = TableHelper.CellText(row, "KIND");
 
                     if (kind == "STUB")
                     {
@@ -483,8 +497,8 @@ namespace Modern.Lab.Samples
 
             foreach (DataRow row in units.Rows)
             {
-                string kind = PendingTablePresenter.CellText(row, "KIND");
-                bool filled = PendingTablePresenter.CellText(row, "UNIT_ID").Length > 0;
+                string kind = TableHelper.CellText(row, "KIND");
+                bool filled = TableHelper.CellText(row, "UNIT_ID").Length > 0;
 
                 if (kind == "STUB")
                 {
@@ -510,13 +524,6 @@ namespace Modern.Lab.Samples
             }
 
             return slotFill.ToString("N0") + " / " + slotTotal.ToString("N0");
-        }
-
-        // 콤보 라벨용 수치 파싱 (조회 결과의 문자열 컬럼값).
-        private static int ToCount(string value)
-        {
-            int parsed;
-            return int.TryParse((value ?? string.Empty).Trim(), out parsed) ? parsed : 0;
         }
 
         // 랏(아이템) 배지를 카드 제목(캐리어 이름) 바로 오른쪽에 놓는다 — 제목
@@ -553,7 +560,7 @@ namespace Modern.Lab.Samples
             {
                 foreach (DataRow row in units.Rows)
                 {
-                    string itemId = PendingTablePresenter.CellText(row, "ITEM_ID").Trim();
+                    string itemId = TableHelper.CellText(row, "ITEM_ID").Trim();
 
                     if (itemId.Length > 0 && !items.Contains(itemId))
                     {
@@ -574,9 +581,16 @@ namespace Modern.Lab.Samples
             }
             else
             {
+                // 여러 종이면 대표 아이템 + 나머지 종 수("+n")로 접는다.
                 badge.Text = items[0] + " +" + (items.Count - 1);
                 badge.Color = this.GetItemColor(items[0]);
             }
+
+            // 접힌 "+n"만으로는 나머지가 뭔지 알 수 없으므로, 호버 툴팁에
+            // 전체 아이템 목록을 그대로 보여 준다 (2종 이상일 때만).
+            this.tipItems.SetToolTip(
+                    badge,
+                    items.Count > 1 ? string.Join(", ", items.ToArray()) : null);
         }
 
         // 수납 현황(자리당 한 행)을 슬롯 맵 구획으로 변환한다 — FOUP은 슬롯
@@ -588,18 +602,20 @@ namespace Modern.Lab.Samples
         {
             if (type == "FOUP")
             {
+                // 웨이퍼 에지 뷰 — 카세트 단면(레일 + 웨이퍼 바 25단)으로 그린다.
                 SlotMapSection slots = new SlotMapSection();
                 slots.Title = "Slots";
                 slots.Columns = 1;
+                slots.Kind = SlotMapSectionKind.WaferEdge;
 
                 foreach (DataRow row in units.Rows)
                 {
                     SlotMapCell cell = new SlotMapCell();
-                    cell.Key = "SLOT|" + PendingTablePresenter.CellText(row, "POS");
-                    cell.Label = PendingTablePresenter.CellText(row, "POS");
-                    cell.UnitId = PendingTablePresenter.CellText(row, "UNIT_ID");
+                    cell.Key = "SLOT|" + TableHelper.CellText(row, "POS");
+                    cell.Label = TableHelper.CellText(row, "POS");
+                    cell.UnitId = TableHelper.CellText(row, "UNIT_ID");
 
-                    string itemId = PendingTablePresenter.CellText(row, "ITEM_ID");
+                    string itemId = TableHelper.CellText(row, "ITEM_ID");
 
                     if (itemId.Length > 0)
                     {
@@ -613,31 +629,33 @@ namespace Modern.Lab.Samples
                 return new SlotMapSection[] { slots };
             }
 
-            // STUB 6자리 — 3열 2행으로 배치하고 셀을 크게 (넓은 셀에 맞춰
-            // 유닛 ID/번호 칩 글자를 키운다).
+            // STUB 6자리 — 3열 2행, 핀 스텁 탑 뷰(원판 위 칩)로 그린다.
             SlotMapSection stubs = new SlotMapSection();
             stubs.Title = "STUB";
             stubs.Columns = 3;
             stubs.CellFontSize = 12d;
+            stubs.Kind = SlotMapSectionKind.PinStub;
 
+            // LCC 25자리 — 포스트+라멜라(삽입 위치가 붙는 자리 그 자체)로 그린다.
             SlotMapSection lccs = new SlotMapSection();
             lccs.Title = "LCC";
             lccs.Columns = 5;
+            lccs.Kind = SlotMapSectionKind.LamellaPost;
 
             SlotMapCell current = null;
 
             foreach (DataRow row in units.Rows)
             {
-                string kind = PendingTablePresenter.CellText(row, "KIND");
-                string pos = PendingTablePresenter.CellText(row, "POS");
-                string itemId = PendingTablePresenter.CellText(row, "ITEM_ID");
+                string kind = TableHelper.CellText(row, "KIND");
+                string pos = TableHelper.CellText(row, "POS");
+                string itemId = TableHelper.CellText(row, "ITEM_ID");
 
                 if (kind == "STUB")
                 {
                     SlotMapCell stub = new SlotMapCell();
                     stub.Key = "STUB|" + pos;
                     stub.Label = pos;
-                    stub.UnitId = PendingTablePresenter.CellText(row, "UNIT_ID");
+                    stub.UnitId = TableHelper.CellText(row, "UNIT_ID");
 
                     if (itemId.Length > 0)
                     {
@@ -661,9 +679,9 @@ namespace Modern.Lab.Samples
                 }
 
                 SlotMapSubCell finger = new SlotMapSubCell();
-                finger.Name = PendingTablePresenter.CellText(row, "FINGER");
-                finger.UnitId = PendingTablePresenter.CellText(row, "UNIT_ID");
-                finger.Marker = PendingTablePresenter.CellText(row, "INS_POS");
+                finger.Name = TableHelper.CellText(row, "FINGER");
+                finger.UnitId = TableHelper.CellText(row, "UNIT_ID");
+                finger.Marker = TableHelper.CellText(row, "INS_POS");
 
                 // 핑거마다 소속 아이템이 다를 수 있어 색/부가정보를 따로 준다.
                 if (itemId.Length > 0)
@@ -676,6 +694,105 @@ namespace Modern.Lab.Samples
             }
 
             return new SlotMapSection[] { stubs, lccs };
+        }
+
+        // ===== 풀 맵 정규화 =====
+
+        // 고정 수납 구조 — 풀 맵 스켈레톤의 원천 (FOUP 슬롯 25 / TRAY STUB 6 +
+        // LCC 25자리 × 핑거 A~E).
+        private const int foupSlotCount = 25;
+        private const int trayStubCount = 6;
+        private const int trayLccCount = 25;
+        private static readonly string[] lccFingerNames =
+                new string[] { "A", "B", "C", "D", "E" };
+
+        // 수납 현황 조회 결과를 풀 맵(자리당 1행, 빈 자리 포함)으로 정규화한다.
+        // 회사 데이터는 **채워진 자리 행만** 있으므로, 고정 수납 구조 스켈레톤을
+        // 먼저 만들고 조회 행을 자리(KIND+POS+FINGER)로 얹는다 — 빈 자리까지
+        // 포함한 풀 응답이 와도 같은 결과가 나온다(중복 무해). 이후 로직(맵
+        // 구성/채움 집계/용량 판정/미리보기)은 전부 풀 맵을 전제한다.
+        private static DataTable NormalizeUnits(DataTable raw, string type)
+        {
+            Dictionary<string, DataRow> occupied =
+                    new Dictionary<string, DataRow>(StringComparer.Ordinal);
+
+            if (raw != null)
+            {
+                foreach (DataRow row in raw.Rows)
+                {
+                    // 유닛이 있는 행만 얹는다 — 빈 자리 행은 스켈레톤이 대신한다.
+                    if (TableHelper.CellText(row, "UNIT_ID").Trim().Length == 0)
+                    {
+                        continue;
+                    }
+
+                    occupied[PositionKey(
+                            TableHelper.CellText(row, "KIND"),
+                            TableHelper.CellText(row, "POS"),
+                            TableHelper.CellText(row, "FINGER"))] = row;
+                }
+            }
+
+            DataTable full = EmptyUnits();
+
+            if (type == "FOUP")
+            {
+                for (int pos = 1; pos <= foupSlotCount; pos++)
+                {
+                    AddSkeletonRow(full, occupied, "SLOT", pos, string.Empty);
+                }
+
+                return full;
+            }
+
+            for (int pos = 1; pos <= trayStubCount; pos++)
+            {
+                AddSkeletonRow(full, occupied, "STUB", pos, string.Empty);
+            }
+
+            for (int pos = 1; pos <= trayLccCount; pos++)
+            {
+                foreach (string finger in lccFingerNames)
+                {
+                    AddSkeletonRow(full, occupied, "LCC", pos, finger);
+                }
+            }
+
+            return full;
+        }
+
+        // 자리 식별 키 — POS는 숫자로 정규화해 "1"/"01" 표기 차이를 흡수하고,
+        // KIND/FINGER는 대문자로 맞춘다.
+        private static string PositionKey(string kind, string pos, string finger)
+        {
+            return (kind ?? string.Empty).Trim().ToUpperInvariant()
+                    + "|" + TableHelper.ParseInt(pos)
+                    + "|" + (finger ?? string.Empty).Trim().ToUpperInvariant();
+        }
+
+        // 스켈레톤 자리 한 행을 추가하고, 조회에 그 자리의 유닛이 있으면 얹는다.
+        private static void AddSkeletonRow(
+                DataTable full, Dictionary<string, DataRow> occupied,
+                string kind, int pos, string finger)
+        {
+            DataRow row = full.NewRow();
+            row["KIND"] = kind;
+            row["POS"] = pos.ToString();
+            row["FINGER"] = finger;
+            row["INS_POS"] = string.Empty;
+            row["UNIT_ID"] = string.Empty;
+            row["ITEM_ID"] = string.Empty;
+
+            DataRow source;
+
+            if (occupied.TryGetValue(kind + "|" + pos + "|" + finger, out source))
+            {
+                row["INS_POS"] = TableHelper.CellText(source, "INS_POS").Trim();
+                row["UNIT_ID"] = TableHelper.CellText(source, "UNIT_ID").Trim();
+                row["ITEM_ID"] = TableHelper.CellText(source, "ITEM_ID").Trim();
+            }
+
+            full.Rows.Add(row);
         }
 
         // ===== 클릭 / 미리보기 / 선택 표시 =====
@@ -748,16 +865,141 @@ namespace Modern.Lab.Samples
                 return;
             }
 
-            string[] keys = new string[this.stagedKeys.Count];
-            this.stagedKeys.CopyTo(keys);
-            this.stagedUnits = this.CollectUnitsByKeys(this.sourceData, keys);
+            // 원본 행 순서(자리 오름차순)로 수집해 배치가 결정적이 되게 한다.
+            this.stagedUnits = this.CollectStagedUnits();
 
-            // ★ 서버 배치 계획을 그대로 미리보기에 쓴다 — 실제 이동과 일치.
-            System.Collections.Generic.Dictionary<string, string> preview =
-                    CarrierApiClient.PlanPreview(
-                            this.GetSelectedType(), this.SourceId(), this.TargetId(), this.stagedUnits);
+            // 미리보기는 순수 화면 계산 — 서버 호출/저장 없이 커밋과 같은 배치
+            // 규칙을 로컬로 계산해 보여만 준다. 저장은 Split/Merge가 한다.
+            Dictionary<string, string> preview = this.BuildLocalPreview(this.stagedUnits);
             this.mapTarget.SetPreview(preview);
             this.mapTarget.SetPreviewMarkers(this.BuildPreviewMarkers(this.stagedUnits, preview));
+        }
+
+        // 스테이징 유닛의 대상 배치 {대상자리키 → UNIT_ID}를 로컬로 계산한다.
+        // 규칙은 커밋(서버 이동)과 동일 — 같은 종류 자리로만, 빈 자리 앞에서부터
+        // (front-first), LCC는 원본 자리의 핑거 묶음이 **통째로 빈 LCC 자리**
+        // 하나로 가며 핑거 글자(A~E)를 유지한다. 대상 자리가 모자라면 들어갈 수
+        // 있는 만큼만 미리보기되고, 실제 커밋은 서버가 전부-아니면-전무로
+        // 거부한다. 키 형식은 슬롯 맵 계약: SLOT|N / STUB|N / LCC|N|핑거.
+        private Dictionary<string, string> BuildLocalPreview(DataTable staged)
+        {
+            Dictionary<string, string> preview =
+                    new Dictionary<string, string>(StringComparer.Ordinal);
+
+            if (staged == null || staged.Rows.Count == 0
+                    || this.targetData == null || this.TargetId().Length == 0)
+            {
+                return preview;
+            }
+
+            // 대상의 빈 자리 목록 — SLOT/STUB는 빈 자리 POS 순서대로, LCC는
+            // 핑거 5개가 모두 빈 자리(통째 빈 LCC)만 후보다. targetData는
+            // NormalizeUnits가 만든 풀 맵이라 자리 오름차순이 보장된다.
+            List<string> emptySlots = new List<string>();
+            List<string> emptyStubs = new List<string>();
+            List<string> lccOrder = new List<string>();
+            Dictionary<string, bool> lccEmpty =
+                    new Dictionary<string, bool>(StringComparer.Ordinal);
+
+            foreach (DataRow row in this.targetData.Rows)
+            {
+                string kind = TableHelper.CellText(row, "KIND");
+                string pos = TableHelper.CellText(row, "POS");
+                bool filled = TableHelper.CellText(row, "UNIT_ID").Trim().Length > 0;
+
+                if (kind == "LCC")
+                {
+                    if (!lccEmpty.ContainsKey(pos))
+                    {
+                        lccEmpty[pos] = true;
+                        lccOrder.Add(pos);
+                    }
+
+                    if (filled)
+                    {
+                        lccEmpty[pos] = false;
+                    }
+                }
+                else if (!filled)
+                {
+                    if (kind == "STUB")
+                    {
+                        emptyStubs.Add(pos);
+                    }
+                    else
+                    {
+                        emptySlots.Add(pos);
+                    }
+                }
+            }
+
+            List<string> emptyLccs = new List<string>();
+
+            foreach (string pos in lccOrder)
+            {
+                if (lccEmpty[pos])
+                {
+                    emptyLccs.Add(pos);
+                }
+            }
+
+            // 스테이징 유닛 배치 — SLOT/STUB는 순서대로 다음 빈 자리에,
+            // LCC는 원본 자리(POS)별로 묶어 통째 빈 자리 하나씩 배정한다.
+            int slotNext = 0;
+            int stubNext = 0;
+            int lccNext = 0;
+            Dictionary<string, string> lccAssigned =
+                    new Dictionary<string, string>(StringComparer.Ordinal);
+
+            foreach (DataRow row in staged.Rows)
+            {
+                string kind = TableHelper.CellText(row, "KIND");
+                string unitId = TableHelper.CellText(row, "UNIT_ID").Trim();
+
+                if (unitId.Length == 0)
+                {
+                    continue;
+                }
+
+                if (kind == "STUB")
+                {
+                    if (stubNext < emptyStubs.Count)
+                    {
+                        preview["STUB|" + emptyStubs[stubNext]] = unitId;
+                        stubNext = stubNext + 1;
+                    }
+                }
+                else if (kind == "LCC")
+                {
+                    string srcPos = TableHelper.CellText(row, "POS");
+                    string tgtPos;
+
+                    if (!lccAssigned.TryGetValue(srcPos, out tgtPos))
+                    {
+                        if (lccNext >= emptyLccs.Count)
+                        {
+                            continue;
+                        }
+
+                        tgtPos = emptyLccs[lccNext];
+                        lccNext = lccNext + 1;
+                        lccAssigned[srcPos] = tgtPos;
+                    }
+
+                    preview["LCC|" + tgtPos + "|"
+                            + TableHelper.CellText(row, "FINGER")] = unitId;
+                }
+                else
+                {
+                    if (slotNext < emptySlots.Count)
+                    {
+                        preview["SLOT|" + emptySlots[slotNext]] = unitId;
+                        slotNext = slotNext + 1;
+                    }
+                }
+            }
+
+            return preview;
         }
 
         // 대상 미리보기 키는 서버 배치 계획의 대상 자리이고, INS_POS는 원본 유닛의
@@ -778,8 +1020,8 @@ namespace Modern.Lab.Samples
 
             foreach (DataRow row in units.Rows)
             {
-                string unitId = PendingTablePresenter.CellText(row, "UNIT_ID");
-                string marker = PendingTablePresenter.CellText(row, "INS_POS");
+                string unitId = TableHelper.CellText(row, "UNIT_ID");
+                string marker = TableHelper.CellText(row, "INS_POS");
 
                 if (unitId.Length > 0 && marker.Length > 0)
                 {
@@ -845,12 +1087,12 @@ namespace Modern.Lab.Samples
 
             foreach (DataRow row in destData.Rows)
             {
-                string id = PendingTablePresenter.CellText(row, "UNIT_ID").Trim();
+                string id = TableHelper.CellText(row, "UNIT_ID").Trim();
 
                 if (id.Length > 0 && movedIds.Contains(id))
                 {
-                    keys.Add(PendingTablePresenter.CellText(row, "KIND")
-                            + "|" + PendingTablePresenter.CellText(row, "POS"));
+                    keys.Add(TableHelper.CellText(row, "KIND")
+                            + "|" + TableHelper.CellText(row, "POS"));
                 }
             }
 
@@ -879,12 +1121,38 @@ namespace Modern.Lab.Samples
 
                 foreach (DataRow row in data.Rows)
                 {
-                    if (PendingTablePresenter.CellText(row, "KIND") == parts[0]
-                            && PendingTablePresenter.CellText(row, "POS") == parts[1]
-                            && PendingTablePresenter.CellText(row, "UNIT_ID").Trim().Length > 0)
+                    if (TableHelper.CellText(row, "KIND") == parts[0]
+                            && TableHelper.CellText(row, "POS") == parts[1]
+                            && TableHelper.CellText(row, "UNIT_ID").Trim().Length > 0)
                     {
                         selected.ImportRow(row);
                     }
+                }
+            }
+
+            return selected;
+        }
+
+        // 스테이징된 원본 셀들의 유닛 행을 **원본 행 순서**(자리 오름차순)로
+        // 수집한다 — 키 집합(HashSet) 순회 순서에 좌우되지 않아 미리보기
+        // 배치가 결정적이다. LCC 셀 키 하나는 채워진 핑거 행 전부로 펼쳐진다.
+        private DataTable CollectStagedUnits()
+        {
+            DataTable selected = this.sourceData.Clone();
+
+            foreach (DataRow row in this.sourceData.Rows)
+            {
+                if (TableHelper.CellText(row, "UNIT_ID").Trim().Length == 0)
+                {
+                    continue;
+                }
+
+                string key = TableHelper.CellText(row, "KIND")
+                        + "|" + TableHelper.CellText(row, "POS");
+
+                if (this.stagedKeys.Contains(key))
+                {
+                    selected.ImportRow(row);
                 }
             }
 
@@ -898,7 +1166,7 @@ namespace Modern.Lab.Samples
 
             foreach (DataRow row in data.Rows)
             {
-                if (PendingTablePresenter.CellText(row, "UNIT_ID").Trim().Length > 0)
+                if (TableHelper.CellText(row, "UNIT_ID").Trim().Length > 0)
                 {
                     selected.ImportRow(row);
                 }
@@ -926,10 +1194,10 @@ namespace Modern.Lab.Samples
 
             foreach (DataRow row in this.sourceData.Rows)
             {
-                if (PendingTablePresenter.CellText(row, "UNIT_ID").Trim().Length > 0)
+                if (TableHelper.CellText(row, "UNIT_ID").Trim().Length > 0)
                 {
-                    this.stagedKeys.Add(PendingTablePresenter.CellText(row, "KIND")
-                            + "|" + PendingTablePresenter.CellText(row, "POS"));
+                    this.stagedKeys.Add(TableHelper.CellText(row, "KIND")
+                            + "|" + TableHelper.CellText(row, "POS"));
                 }
             }
 
@@ -1056,8 +1324,7 @@ namespace Modern.Lab.Samples
 
             string sourceId = this.SourceId();
 
-            CarrierApiClient.ActionResult result = CarrierApiClient.ScrapUnits(
-                    this.GetSelectedType(), sourceId, units);
+            ActionResult result = ScrapUnits(this.GetSelectedType(), sourceId, units);
 
             if (!result.Success)
             {
@@ -1114,7 +1381,7 @@ namespace Modern.Lab.Samples
 
             foreach (DataRow row in units.Rows)
             {
-                string id = PendingTablePresenter.CellText(row, "UNIT_ID").Trim();
+                string id = TableHelper.CellText(row, "UNIT_ID").Trim();
 
                 if (id.Length > 0)
                 {
@@ -1122,8 +1389,7 @@ namespace Modern.Lab.Samples
                 }
             }
 
-            CarrierApiClient.ActionResult result = CarrierApiClient.MoveUnits(
-                    this.GetSelectedType(), fromId, toId, units);
+            ActionResult result = MoveUnits(this.GetSelectedType(), fromId, toId, units);
 
             if (!result.Success)
             {
@@ -1146,6 +1412,181 @@ namespace Modern.Lab.Samples
                     toTarget ? this.mapTarget : this.mapSource,
                     toTarget ? this.targetData : this.sourceData,
                     movedIds);
+        }
+
+        // ===== 서버 호출 (★ 회사 환경 교체 지점) =====
+        // 이 구획이 이 화면의 서버 호출 전부다 — 조회 2개(GetCarriers/
+        // GetCarrierUnits)와 처리 2개(MoveUnits/ScrapUnits)의 본문만 회사
+        // 캐리어 인터페이스(전문/DB) 호출로 바꾸면 나머지 폼 코드는 그대로
+        // 둔다. 홈 데모 환경은 modernlab-api(REST)를 호출하고 서버가
+        // CARR_MAS/CARR_UNIT(Oracle)에 반영한다.
+        //
+        // 호출은 UI 스레드에서 동기로 일어나므로, 서버 오류 시 폼이 죽지
+        // 않도록 예외를 삼켜 조회는 빈 결과로, 처리는 실패 응답으로 저하시킨다.
+
+        private const string apiBaseUrl = "http://localhost:8080";
+        private const int apiTimeoutMs = 5000;
+
+        /// <summary>처리 전문의 응답 — 성공 여부/사유/처리 수.</summary>
+        private sealed class ActionResult
+        {
+            internal bool Success;
+            internal string Message;
+            internal int Count;
+        }
+
+        /// <summary>요청 타임아웃을 지정하는 WebClient.</summary>
+        private sealed class TimedWebClient : WebClient
+        {
+            protected override WebRequest GetWebRequest(Uri address)
+            {
+                WebRequest request = base.GetWebRequest(address);
+                request.Timeout = apiTimeoutMs;
+                return request;
+            }
+        }
+
+        /// <summary>타입별 캐리어 목록 (CARR_ID/FILL_CNT/CAPACITY…). ★ 회사 조회로 교체.</summary>
+        private static DataTable GetCarriers(string type)
+        {
+            try
+            {
+                return Download("/api/carrier/carriers?type="
+                        + Uri.EscapeDataString(type ?? string.Empty));
+            }
+            catch (Exception)
+            {
+                return EmptyCarriers();
+            }
+        }
+
+        /// <summary>캐리어 수납 현황 — **채워진 자리 행만** 와도 된다
+        /// (NormalizeUnits가 풀 맵으로 정규화). ★ 회사 조회로 교체.</summary>
+        private static DataTable GetCarrierUnits(string type, string carrierId)
+        {
+            try
+            {
+                return Download("/api/carrier/units?type="
+                        + Uri.EscapeDataString(type ?? string.Empty)
+                        + "&carrierId=" + Uri.EscapeDataString(carrierId ?? string.Empty));
+            }
+            catch (Exception)
+            {
+                return EmptyUnits();
+            }
+        }
+
+        /// <summary>이동 저장(Split/Merge 공용) — 서버가 전부-아니면-전무로
+        /// 검증/반영한다. ★ 회사 비즈 전문(분할/병합)으로 교체.</summary>
+        private static ActionResult MoveUnits(string type, string fromId, string toId, DataTable units)
+        {
+            Dictionary<string, object> body = new Dictionary<string, object>();
+            body["type"] = type ?? string.Empty;
+            body["fromId"] = fromId ?? string.Empty;
+            body["toId"] = toId ?? string.Empty;
+            body["units"] = UnitList(units);
+            return PostAction("/api/carrier/move", body);
+        }
+
+        /// <summary>폐기 저장 — 지정 유닛을 캐리어에서 제거. ★ 회사 인터페이스로 교체.</summary>
+        private static ActionResult ScrapUnits(string type, string carrierId, DataTable units)
+        {
+            Dictionary<string, object> body = new Dictionary<string, object>();
+            body["type"] = type ?? string.Empty;
+            body["carrierId"] = carrierId ?? string.Empty;
+            body["units"] = UnitList(units);
+            return PostAction("/api/carrier/scrap", body);
+        }
+
+        // DataTable 행들을 서버가 유닛을 식별할 최소 키(KIND/POS/FINGER)로 직렬화한다.
+        private static List<Dictionary<string, object>> UnitList(DataTable units)
+        {
+            List<Dictionary<string, object>> list = new List<Dictionary<string, object>>();
+
+            if (units != null)
+            {
+                foreach (DataRow row in units.Rows)
+                {
+                    Dictionary<string, object> unit = new Dictionary<string, object>();
+                    unit["KIND"] = TableHelper.CellText(row, "KIND");
+                    unit["POS"] = TableHelper.CellText(row, "POS");
+                    unit["FINGER"] = TableHelper.CellText(row, "FINGER");
+                    list.Add(unit);
+                }
+            }
+
+            return list;
+        }
+
+        private static ActionResult PostAction(string path, Dictionary<string, object> body)
+        {
+            JavaScriptSerializer serializer = new JavaScriptSerializer();
+
+            try
+            {
+                using (WebClient client = new TimedWebClient())
+                {
+                    client.Encoding = Encoding.UTF8;
+                    client.Headers[HttpRequestHeader.ContentType] = "application/json";
+                    string response = client.UploadString(
+                            apiBaseUrl + path, "POST", serializer.Serialize(body));
+
+                    Dictionary<string, object> map =
+                            serializer.Deserialize<Dictionary<string, object>>(response);
+
+                    ActionResult result = new ActionResult();
+                    result.Success = map != null && map.ContainsKey("success")
+                            && Convert.ToBoolean(map["success"]);
+                    result.Message = map != null && map.ContainsKey("message") && map["message"] != null
+                            ? map["message"].ToString()
+                            : string.Empty;
+                    result.Count = map != null && map.ContainsKey("count") && map["count"] != null
+                            ? Convert.ToInt32(map["count"])
+                            : 0;
+                    return result;
+                }
+            }
+            catch (Exception ex)
+            {
+                ActionResult result = new ActionResult();
+                result.Success = false;
+                result.Message = "Server call failed: " + ex.Message;
+                result.Count = 0;
+                return result;
+            }
+        }
+
+        private static DataTable Download(string pathAndQuery)
+        {
+            using (WebClient client = new TimedWebClient())
+            {
+                client.Encoding = Encoding.UTF8;
+                string json = client.DownloadString(apiBaseUrl + pathAndQuery);
+                return JsonTableConverter.ToDataTable(json);
+            }
+        }
+
+        // 조회 실패 시의 빈 캐리어 목록 (컬럼 계약 유지).
+        private static DataTable EmptyCarriers()
+        {
+            DataTable table = new DataTable();
+            table.Columns.Add("CARR_ID", typeof(string));
+            table.Columns.Add("FILL_CNT", typeof(string));
+            table.Columns.Add("CAPACITY", typeof(string));
+            return table;
+        }
+
+        // 빈 수납 현황 테이블 — 조회 실패 폴백이자 풀 맵 스켈레톤의 스키마.
+        private static DataTable EmptyUnits()
+        {
+            DataTable table = new DataTable();
+            table.Columns.Add("KIND", typeof(string));
+            table.Columns.Add("POS", typeof(string));
+            table.Columns.Add("FINGER", typeof(string));
+            table.Columns.Add("INS_POS", typeof(string));
+            table.Columns.Add("UNIT_ID", typeof(string));
+            table.Columns.Add("ITEM_ID", typeof(string));
+            return table;
         }
     }
 }

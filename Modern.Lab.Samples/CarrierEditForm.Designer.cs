@@ -67,6 +67,7 @@ namespace Modern.Lab.Samples
             this.btnMerge = new Modern.Lab.WinForms.Controls.Input.ModernButton();
             this.btnScrap = new Modern.Lab.WinForms.Controls.Input.ModernButton();
             this.toastMain = new Modern.Lab.WinForms.Controls.Display.ModernToast();
+            this.tipItems = new System.Windows.Forms.ToolTip(this.components);
             this.titlePanel.SuspendLayout();
             this.searchCard.SuspendLayout();
             this.midPanel.SuspendLayout();
@@ -624,6 +625,7 @@ namespace Modern.Lab.Samples
         private Modern.Lab.WinForms.Controls.Display.ModernLabel lblTarget;
         private Modern.Lab.WinForms.Controls.Selection.ModernComboBox cboTarget;
         private Modern.Lab.WinForms.Controls.Display.ModernToast toastMain;
+        private System.Windows.Forms.ToolTip tipItems;
         private System.Windows.Forms.ContextMenuStrip moveMenu;
         private System.Windows.Forms.ToolStripMenuItem miMoveSelRight;
         private System.Windows.Forms.ToolStripMenuItem miMoveAllRight;
